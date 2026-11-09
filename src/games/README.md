@@ -142,7 +142,7 @@ The share image and screenshots are never drawn by hand. To make them for a new 
 ## A new disk, step by step
 
 1. File the Linear issue and branch from it (see `AGENTS.md`).
-2. Make `src/games/<folder>/` with `disk.ts`, `game.ts`, `strings.ts` and `art.ts`. Pick a unique `id`, `slug` and `loadSecs`, and give it the next `order` after the existing disks (6 today). `make.cjs`, `tests/flow.cjs` and `tests/pages.cjs` load some disks by menu position (`loadGame(1)` is Dino Run), so a disk slotted in between moves them; if you must, update those indices in the same pull request.
+2. Make `src/games/<folder>/` with `disk.ts`, `game.ts`, `strings.ts` and `art.ts`. Pick a unique `id`, `slug` and `loadSecs`, and give it the next `order` after the existing disks (7 today). `make.cjs`, `tests/flow.cjs` and `tests/pages.cjs` load some disks by menu position (`loadGame(1)` is Dino Run), so a disk slotted in between moves them; if you must, update those indices in the same pull request.
 3. Write the instructions in all three languages.
 4. Draw the loading screen and check it on all four phosphors and every layout (desk, console, phone and tablet, portrait and landscape).
 5. Split testable rules into their own modules and test them.
@@ -161,7 +161,7 @@ import type { ConsoleAPI, GameDisk } from '../types';
 import { strings } from './strings';
 
 export const disk: GameDisk = {
-  id: 'pong', order: 6, slug: 'paddle-ball', genre: 'BAT+BALL', players: 2,   // the launcher's details line
+  id: 'pong', order: 7, slug: 'paddle-ball', genre: 'BAT+BALL', players: 2,   // the launcher's details line
   page: { title: 'Paddle Ball', description: 'Bat the blip past the other paddle.' },
   title: 'PADDLE BALL', nameKey: 'pbName', file: 'PADDLE.COM', size: 6144, loadSecs: 1.2,
   steps: [[0, 0], [0.3, 0.4], [0.5, 0.45], [1, 1]],

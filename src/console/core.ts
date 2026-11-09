@@ -274,10 +274,11 @@ export const press = d => { if (!held.includes(d)) held.push(d); };
 export const release = d => { const i = held.indexOf(d); if (i >= 0) held.splice(i, 1); };
 export const wantDir = () => stickDir ? DIRS[stickDir] : held.length ? DIRS[held[held.length - 1]] : null;
 
-/** Bricks labels FIRE `serve`. Enter queues that button only then, so other disks keep their own keys. */
+/** Enter fires only where a leaflet promises it: Bricks (FIRE reads SERVE) and Martian Storm. */
 function serveKey() {
   const fire = Btn.button('fire');
-  return fire.enabled && fire.label === 'serve';
+  if (!fire.enabled) return false;
+  return fire.label === 'serve' || game?.id === 'martian-storm';
 }
 addEventListener('keydown', e => {
   if ((e.target as Element)?.closest?.('.manual')) return;   // keys pressed on the leaflet's own buttons (Settings) are theirs, not the game's
@@ -297,8 +298,8 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyC') { setMode(MODE_ORDER[(MODE_ORDER.indexOf(modeKey) + 1) % MODE_ORDER.length]); track('theme', { theme: modeKey, via: 'key' }); return; }
   if (e.code === 'Enter' && !tvOn) { ensureAudio(); powerOn(); e.preventDefault(); return; }
   if (e.code === 'Enter' && (S.mode === 'title' || S.mode === 'over')) { startGame(); e.preventDefault(); return; }
-  // Bricks' leaflet says Enter serves. Only while that disk's FIRE is labelled serve, and only in
-  // ready or play: the two branches above keep Enter for power-on and for restarting a finished game.
+  // Bricks' leaflet says Enter serves, and Martian Storm's says Enter shoots. Only in ready or play:
+  // the two branches above keep Enter for power-on and for restarting a finished game.
   if ((e.code === 'Enter' || e.code === 'NumpadEnter') && (S.mode === 'ready' || S.mode === 'play') && serveKey()) { Btn.press('fire'); e.preventDefault(); }
 });
 addEventListener('keyup', e => {

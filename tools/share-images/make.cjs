@@ -46,6 +46,9 @@ const IMAGES = [
   { out: 'og-bricks.png', tv: 'play-bricks.png', h1: 'Bricks', sub: '<small>on the Game Guy 3000 Deluxe</small>',
     tag: 'Serve an ember, bounce it off one bat, and clear the wall.',
     disks: disk('c2', 'Bricks', 'BRICKS.EXE · 18K', 40, -4, 2) + disk('c4', 'Dino Run', 'DINORUN.COM', 190, 7, 1) },
+  { out: 'og-martian-storm.png', tv: 'play-storm.png', h1: 'Martian Storm', sub: '<small>on the Game Guy 3000 Deluxe</small>',
+    tag: 'Fly a skiff through a Martian dust storm, tuck past the shots and land each leg.',
+    disks: disk('c3', 'Martian Storm', 'STORM.EXE · 30K', 40, -4, 2) + disk('c4', 'Bricks', 'BRICKS.EXE', 190, 7, 1) },
 ];
 
 (async () => {
@@ -154,6 +157,15 @@ const IMAGES = [
   }, 30); });
   await until(() => { const B = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && B.served && B.by < __gg.LH * 0.55; }, 8000).catch(() => {});
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await play('play-bricks.png', 'bricks');
+  // Martian Storm: its loading screen, then a skiff with a shot on the way up
+  await p.keyboard.press('KeyG'); await until(() => __gg.S.mode === 'menu');
+  await p.evaluate(() => { __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'martian-storm')); __gg.S.loadLen = 4.2; });
+  await until(() => __gg.S.loadT > 1.6); await shot('load-storm.png');
+  await until(() => __gg.S.mode === 'play');
+  await p.keyboard.down('Space');
+  await p.waitForTimeout(400);
+  await p.keyboard.up('Space');
+  await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await play('play-storm.png', 'martian-storm');
   if (!SHARE) { await b.close(); return; }
   /* ---- 2. lay out and render the share images ---- */
   const r = await (await b.newContext({ viewport: { width: 1200, height: 630 } })).newPage();
@@ -167,7 +179,7 @@ const IMAGES = [
   /* ---- 3. README screenshots, 720 px wide ---- */
   fs.mkdirSync(SCREENS, { recursive: true });
   const s = await (await b.newContext({ viewport: { width: 1280, height: 860 } })).newPage();
-  for (const n of ['menu', 'load-tunnel', 'play-tunnel', 'load-dino', 'play-dino', 'load-invader', 'play-invader', 'load-iinvade', 'play-iinvade', 'load-bricks', 'play-bricks']) {
+  for (const n of ['menu', 'load-tunnel', 'play-tunnel', 'load-dino', 'play-dino', 'load-invader', 'play-invader', 'load-iinvade', 'play-iinvade', 'load-bricks', 'play-bricks', 'load-storm', 'play-storm']) {
     const html = path.join(TMP, n + '.html');
     fs.writeFileSync(html, `<body style="margin:0;background:transparent"><img src="${n}.png" style="width:720px;display:block"></body>`);
     await s.goto('file://' + html); await s.waitForTimeout(150);

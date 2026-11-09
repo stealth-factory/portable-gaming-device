@@ -18,6 +18,13 @@ describe('disk menu rows', () => {
     expect(frame.top).toBeGreaterThanOrEqual(4);
   });
 
+  it('fits six disks on the shortest landscape tube', () => {
+    const frame = footer(6, 188);
+    expect(frame.bottom).toBeLessThanOrEqual(187);
+    expect(frame.rowH).toBeGreaterThanOrEqual(12);
+    expect(frame.top).toBeGreaterThanOrEqual(4);
+  });
+
   it('still gives a tall tube its second line', () => {
     expect(menuRows(5, 356).rowH).toBeGreaterThanOrEqual(30);
   });

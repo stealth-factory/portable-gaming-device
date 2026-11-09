@@ -1,4 +1,4 @@
-/* Row sizes for the disk menu. A short tube (five disks on a phone held sideways) drops the
+/* Row sizes for the disk menu. A short tube (six disks on a phone held sideways) drops the
    second line and then the row height until the footer still sits on the glass.
    tests/flow.cjs repeats this in `diskRow`: keep the two copies in step. */
 

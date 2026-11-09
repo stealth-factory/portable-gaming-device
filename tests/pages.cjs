@@ -32,6 +32,14 @@ console.log('/bricks after boot:', await bricks.evaluate(() => [__gg.S.mode, __g
 await bricks.waitForFunction(() => __gg.S.mode === 'ready' || __gg.S.mode === 'play', null, { timeout: 30000 });
 await bricks.keyboard.press('KeyG'); await bricks.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 30000 });
 console.log('/bricks after G:', await bricks.evaluate(() => __gg.S.mode));
+// 2c. /martian-storm boots straight into Martian Storm
+const storm = await page('/martian-storm?test');
+console.log('/martian-storm title:', await storm.title());
+await storm.click('#powerBtn'); await storm.waitForFunction(() => __gg.S.mode === 'load', null, { timeout: 30000 });
+console.log('/martian-storm after boot:', await storm.evaluate(() => [__gg.S.mode, __gg.game.id]));
+await storm.waitForFunction(() => __gg.S.mode === 'ready' || __gg.S.mode === 'play', null, { timeout: 30000 });
+await storm.keyboard.press('KeyG'); await storm.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 30000 });
+console.log('/martian-storm after G:', await storm.evaluate(() => __gg.S.mode));
 // 3. offline: once the service worker has cached everything, game pages still open
 const w = await page('/');
 await w.evaluate(() => navigator.serviceWorker.ready); await w.waitForTimeout(2500);
