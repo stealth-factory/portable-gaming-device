@@ -1,0 +1,111 @@
+# Releases once the release pull request is merged.
+#
+# release-pr.yml prepares; this fires when that preparation lands on main.
+# It tags the commit, publishes a GitHub Release with the changelog entry,
+# and fast-forwards the `production` branch to it. Vercel's production
+# branch is `production`, so that push is the production deploy. Every
+# other push to main is a preview.
+#
+# It fires on any push to main and does nothing unless the version in
+# package.json has no tag yet, so re-running it is harmless.
+name: tag-release
+
+on:
+  push:
+    branches: [main]
+  # To finish a release whose run failed part-way.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tag-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Only main is ever released, including from a manual run.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Tag it, if this version has not been tagged
+        id: tag
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          if ! printf '%s\n' "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "package.json version '${version}' is not X.Y.Z" >&2; exit 1
+          fi
+          tag="v${version}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "${tag} exists; nothing to tag"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Annotated, so the tag carries who made it and when.
+          git tag -a "$tag" -m "$tag"
+          git push origin "$tag"
+          echo "pushed ${tag}"
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "${TAG} already has a release"
+            exit 0
+          fi
+          # This version's section of the changelog, without its heading.
+          awk -v h="## [${VERSION}]" \
+            'index($0, h) == 1 {on=1; next} /^## \[/ {on=0} on' \
+            CHANGELOG.md > /tmp/notes.md
+          [ -s /tmp/notes.md ] || echo "See CHANGELOG.md." > /tmp/notes.md
+          gh release create "$TAG" --verify-tag --title "$TAG" \
+            --notes-file /tmp/notes.md
+
+      - name: Promote production to the tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          sha=$(git rev-list -n 1 "$TAG")
+          # The tag must be on main: nothing reaches production that main
+          # has not had.
+          git merge-base --is-ancestor "$sha" origin/main || {
+            echo "${TAG} (${sha}) is not on main; refusing to promote" >&2
+            exit 1; }
+          if git rev-parse -q --verify refs/remotes/origin/production >/dev/null; then
+            current=$(git rev-parse origin/production)
+            if [ "$current" = "$sha" ]; then
+              echo "production is already at ${TAG}"
+              exit 0
+            fi
+            # Fast-forward only. If production holds a commit main does not,
+            # that is a divergence for a person to look at, not something to
+            # force past.
+            git merge-base --is-ancestor "$current" "$sha" || {
+              echo "production (${current}) is not an ancestor of ${TAG}" >&2
+              echo "refusing to force it; see docs/releasing.md" >&2
+              exit 1; }
+            if ! git merge-base --is-ancestor "$current" "$(git rev-parse origin/main)"; then
+              echo "production is not on main" >&2; exit 1
+            fi
+            # An older tag re-run must not roll production backwards.
+            if git merge-base --is-ancestor "$sha" "$current"; then
+              echo "production is already past ${TAG}"
+              exit 0
+            fi
+          fi
+          git push origin "${sha}:refs/heads/production"
+          echo "production -> ${TAG} (${sha}); Vercel deploys it"

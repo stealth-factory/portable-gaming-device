@@ -1,0 +1,74 @@
+# How the changelog is built, and what decides the version.
+#
+# git-cliff reads the conventional commits since the last tag. Squash merge
+# means the PR title is the commit subject, so these rules are really rules
+# about PR titles. `.github/workflows/pr-title.yml` enforces them.
+#
+# See docs/releasing.md for the whole release flow.
+
+[changelog]
+header = """
+# Changelog
+
+Every release of Game Guy, and what changed in it. Generated from the commit
+subjects, which is why they are worth writing carefully.
+"""
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## Unreleased
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }}\
+{% if commit.breaking %} — **breaking**{% endif %}
+{%- endfor %}
+{% endfor %}
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+# A commit that is not conventional still appears, under "Other", rather than
+# vanishing. The v0.1.0 baseline tag keeps the history from before this
+# pipeline out of any changelog, but a stray prose commit after it should be
+# visible: a changelog that quietly omits a change is worse than an untidy one.
+filter_unconventional = false
+split_commits = false
+protect_breaking_commits = true
+
+commit_parsers = [
+  # GitHub's own merge commits, should one slip through with merge commits
+  # switched on again. The squashed PR is what the changelog wants.
+  { message = "^Merge (pull request|branch)", skip = true },
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactor" },
+  { message = "^doc", group = "Documentation" },
+  { message = "^test", group = "Tests" },
+  { message = "^build", group = "Build" },
+  { message = "^ci", group = "CI" },
+  # The release machinery's own commits. Keeping them would open every
+  # changelog with a note that the last changelog was written.
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^release:", skip = true },
+  { message = "^chore\\(deps\\)", group = "Dependencies" },
+  { message = "^chore", group = "Miscellaneous" },
+  { message = "^style", group = "Miscellaneous" },
+  { message = "^revert", group = "Reverted" },
+  { body = ".*security", group = "Security" },
+]
+
+filter_commits = false
+topo_order = false
+sort_commits = "oldest"
+
+[bump]
+# feat -> minor, fix -> patch. Below 1.0.0 a breaking change moves the minor
+# rather than the major, which is semver's own rule for 0.x.
+features_always_bump_minor = true
+breaking_always_bump_major = false

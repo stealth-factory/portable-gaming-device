@@ -91,6 +91,7 @@ Requirements 1 to 10 below are built: the console boots into a disk menu with fo
 - **Analytics:** `@vercel/analytics` (`inject()` in `main.ts`, `track()` through the console's helper).
 - **Tests:** Vitest (`tests/unit`: disk rules and the plug-in rule) and Playwright scripts (`tests/flow.cjs`, `tests/pages.cjs`) against `npm run preview`.
 - **Deploy:** Vercel's Astro preset, `npm run build` → `dist`.
+- **Releases (decided):** pooled release with production gated by a Promotion Branch. Production branch `production`, platform Vercel. Merges to `main` deploy previews and update one standing `release: vX.Y.Z` PR; merging that PR tags the version and fast-forwards `production`, which Vercel ships. See [docs/releasing.md](docs/releasing.md).
 - **Types:** TypeScript is loose for now (`strict: false`) because the ported console code is untyped. New code should be typed; tighten module by module.
 
 ## Where things are now
@@ -142,6 +143,7 @@ Useful places:
 
 - **Spelling:** Australian / British English in copy, docs and commit messages.
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:` …), committed to `main` and pushed straight away, unless the owner asks to preview first. When he does, show the change and wait for approval before pushing.
+- **PR titles decide releases.** PRs squash-merge with the title as the commit subject, and `git-cliff` reads those subjects for the version and changelog: `feat:` is a minor release, `fix:`/`perf:` a patch, `docs:`/`chore:`/`ci:` start no release. Subjects start lowercase with no full stop (`pr-title.yml` checks). A push to `main` no longer reaches the live site by itself; production moves only when the release PR is merged.
 - **Test before pushing:** `npm run build` and `npm test`, then `tests/flow.cjs` and `tests/pages.cjs` against `npm run preview`, checking for errors and looking at screenshots of anything visual.
 - **Keep the README current** with controls, games and the analytics event list.
 

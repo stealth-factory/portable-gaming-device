@@ -206,6 +206,8 @@ It switches the set on, captures the menu, each game's loading screen and some p
 
 Vercel detects Astro: build command `npm run build`, output directory `dist`. `vercel.json` turns on clean URLs, so `/dino-run` serves `dino-run.html`. Any static host works if it does the same. Turn on Web Analytics in the project for the events above.
 
+**Releases are pooled.** Vercel's production branch is `production`, so merges to `main` only make preview deployments. Each merge updates one standing `release: vX.Y.Z` pull request with the next version and changelog; merging it tags the release and moves `production`, which ships the live site. PR titles are Conventional Commits and decide the version. The whole flow is in [docs/releasing.md](docs/releasing.md), and every release is in [CHANGELOG.md](CHANGELOG.md).
+
 Once the console has its own address:
 - **Share tags:** make `og:image` and `twitter:image` absolute in `src/layouts/ConsoleLayout.astro`.
 - **Canonical link:** add a canonical link, and set `site` in `astro.config.mjs`.

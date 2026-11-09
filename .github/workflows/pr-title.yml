@@ -1,0 +1,51 @@
+# The pull request title has to be a conventional commit.
+#
+# Squash merge means the title becomes the commit subject on main, and the
+# version and the changelog are both computed from those subjects. A
+# badly-titled PR is not untidy, it is a change the next release will not
+# mention and may not count towards the version.
+#
+# This relies on the repository setting "Default to PR title for squash
+# merge commits" (squash_merge_commit_title = PR_TITLE).
+name: pr-title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          # The types cliff.toml knows about. feat and fix move the version;
+          # the rest appear in the changelog without starting a release.
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            build
+            ci
+            chore
+            style
+            revert
+            release
+          # A scope is welcome (usually the game or `console`) but not
+          # required.
+          requireScope: false
+          # The subject is a sentence: it starts lowercase and does not end
+          # in a full stop. git-cliff capitalises it in the changelog.
+          subjectPattern: ^(?![A-Z])(?!.*\.$).+$
+          subjectPatternError: |
+            The subject "{subject}" in "{title}" should start with a
+            lowercase letter and not end with a full stop. It becomes a
+            changelog line, where it is capitalised for you.
