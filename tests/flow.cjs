@@ -306,7 +306,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   console.log(tag, { invader: { basic: basic.shots, caught: caught.weapon, twin: twin.shots, spread: spread.shots, pierce: pierce.beam, speed: pierce.speed, alive: [pierce.alive, blasts.alive, nuked.alive], label: [label, label2], end: await mode(p) } });
   // I Invade has no stick: while it plays, a button pad takes the stick's place (and FIRE's row steps aside). The pad's
   // top row and ← ↑ → (Z X C) bomb from the left, middle and right bays, Space from the middle, one bomb in the air
-  // per bay; A drops a cluster bomb once it's armed, S the meteor swarm once charged. The stick is back on the menu.
+  // per bay; A starts the cluster sweep once it's armed, S the meteor swarm once charged. The stick is back on the menu.
   await backToMenu(p);
   const padView = () => p.evaluate(() => ({
     pad: document.documentElement.hasAttribute('data-pad'),
@@ -319,6 +319,16 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 12000 });
   const gamePad = await padView();
   await p.screenshot({ path: `${out}/${tag}-iinvade-pad.png` });
+  const geom = await p.evaluate(() => {
+    const box = id => { const r = document.getElementById(id).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, on: r.width > 0 && r.height > 0 }; };
+    return { layout: document.documentElement.getAttribute('data-layout'), b1: box('pad1Btn'), b2: box('pad2Btn'), b3: box('pad3Btn'), cl: box('pad4Btn'), me: box('pad5Btn'), ufo: box('boostBtn'), mid: innerWidth / 2 };
+  });
+  const row = (a, b) => Math.abs(a.y - b.y) < 16, under = (a, b) => a.y > b.y + 16;
+  const shown = [geom.b1, geom.b2, geom.b3, geom.cl, geom.me, geom.ufo].every(b => b.on);
+  const baysInARow = geom.b1.x < geom.b2.x && geom.b2.x < geom.b3.x && row(geom.b1, geom.b2) && row(geom.b2, geom.b3);
+  const consolePad = geom.layout === 'console' && shown && baysInARow && under(geom.cl, geom.b2) && geom.b1.x > geom.mid && geom.cl.x > geom.b1.x - 12 && geom.cl.x < geom.b3.x + 12 && geom.ufo.x < geom.mid && geom.me.x < geom.mid && under(geom.me, geom.ufo) && Math.abs(geom.ufo.x - geom.me.x) < 36;
+  const otherPad = geom.layout !== 'console' && shown && baysInARow && geom.b1.y < geom.cl.y - 12 && Math.abs(geom.cl.y - geom.me.y) < 18 && !(geom.ufo.y + 16 < geom.me.y && geom.ufo.x < geom.mid && geom.b1.x > geom.mid);
+  const geomOk = tag === 'land' ? consolePad : otherPad;
   const ii = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); return { bombs: F.bombs.map(b => ({ k: b.k, bay: b.bay, x: Math.round(b.x), y: b.y })), meteors: F.meteors.length, bays: F.bays, clusterCD: F.clusterCD }; });
   const holdFire = () => p.evaluate(() => __gg.runtime.debug.holdFire());   // tank shells would knock bombs out mid-check
   const clearSky = () => p.waitForFunction(() => __gg.S.mode === 'play' && !__gg.runtime.debug.state().bombs.length, null, { timeout: 8000 });
@@ -342,10 +352,13 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.dispatchEvent('#pad1Btn', 'click', { detail: 1 }); await p.waitForTimeout(50);
   const tapPad = (await ii()).bombs.some(b => b.bay === 'L');
   const focus = await p.evaluate(() => document.activeElement?.id || '');
-  // the cluster bomb arms a moment into the wave; the meteor swarm once charged: 18 rocks
+  // the cluster sweep arms a moment into the wave: shots leave several columns, not one bomb from the middle
   await p.waitForFunction(() => __gg.runtime.debug.state().clusterCD <= 0, null, { timeout: 8000 });
-  await clearSky(); await holdFire(); await p.keyboard.press('a'); await p.waitForTimeout(80);
-  const cluster = (await ii()).bombs.some(b => b.k === 'cluster');
+  await clearSky(); await holdFire(); await p.keyboard.press('a'); await p.waitForTimeout(650);
+  const volley = (await ii()).bombs.filter(b => b.k === 'cluster').map(b => b.x);
+  const xs = [...new Set(volley)].sort((a, b) => a - b);
+  const cluster = xs.length >= 3 && xs[xs.length - 1] - xs[0] >= 16;
+  await p.evaluate(() => __gg.runtime.debug.stopCluster());
   const meteorsDark = await p.evaluate(() => document.getElementById('pad5Btn').getAttribute('aria-disabled'));
   await p.evaluate(() => __gg.runtime.debug.charge()); await p.waitForTimeout(80);
   const meteorsLit = await p.evaluate(() => document.getElementById('pad5Btn').getAttribute('aria-disabled'));
@@ -366,9 +379,9 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const backPad = await padView();
   const want = { menu: { pad: false, keys: '- - - - - -', stick: true, fire: true }, game: { pad: true, keys: '◀ ▲ ▶ CLUSTER METEORS -', stick: false, fire: false } };
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const iiOk = same(menuPad, want.menu) && same(gamePad, want.game) && same(backPad, want.menu) && !overPad.pad && overPad.stick && Object.values(bays).every(Boolean) && one && up && tapPad && !/^pad/.test(focus) && cluster && meteorsDark === 'true' && meteorsLit === 'false' && meteors === 18 && landed && phosC;
-  if (!iiOk) errs.push(tag + ' i invade pad: ' + JSON.stringify({ menuPad, gamePad, overPad, backPad, bays, one, up, tapPad, focus, cluster, meteorsDark, meteorsLit, meteors, landed, phosC }));
-  console.log(tag, JSON.stringify({ iinvade: { gamePad, bays, one, up, tapPad, cluster, meteors, landed, phosC, overPad: overPad.pad } }));
+  const iiOk = same(menuPad, want.menu) && same(gamePad, want.game) && same(backPad, want.menu) && !overPad.pad && overPad.stick && Object.values(bays).every(Boolean) && one && up && tapPad && !/^pad/.test(focus) && cluster && geomOk && meteorsDark === 'true' && meteorsLit === 'false' && meteors === 18 && landed && phosC;
+  if (!iiOk) errs.push(tag + ' i invade pad: ' + JSON.stringify({ menuPad, gamePad, overPad, backPad, bays, one, up, tapPad, focus, cluster, volley, geom, meteorsDark, meteorsLit, meteors, landed, phosC }));
+  console.log(tag, JSON.stringify({ iinvade: { gamePad, bays, one, up, tapPad, cluster, volley, layout: geom.layout, meteors, landed, phosC, overPad: overPad.pad } }));
   await playEveryDisk(p, tag);
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();

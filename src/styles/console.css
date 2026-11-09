@@ -532,21 +532,32 @@ h1 .h-dx{color:#cfc3a3}
 [data-layout="phone-portrait"] .nameplate{bottom:21px}
 @media (max-width:399px){[data-layout="phone-portrait"] .nameplate b .np-rest{display:none}}
 /* the button pad: stands in for the stick while a game with no stick plays (`controls: 'pad'`, set as data-pad on <html>).
-   It fills the stick's zone in every layout: the bomb keys (red, like FIRE) along the top, the specials (amber, like
-   BOOST) underneath; with the sixth slot unused the bottom two share the row. The FIRE row beside it steps aside. */
+   It fills the stick's zone on desk and portrait: the bomb keys (red, like FIRE) along the top, the specials (amber, like
+   BOOST) underneath; with the sixth slot unused the bottom two share the row. The FIRE row beside it steps aside.
+   `.bayrow` is only a box on the sideways console, where the bays move to the right. */
 .btnpad{display:none}
+.bayrow{display:contents}
 [data-pad] .stickbase,[data-pad] .stickzone .hint,[data-pad] .firerow{display:none}
 [data-pad] .btnpad{position:absolute;inset:9px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:10px}
 .padkey{grid-column:span 2;min-width:0;min-height:0;padding:0 2px;border-radius:9px;cursor:pointer;touch-action:none;font-family:var(--display);font-size:12px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;color:#fff1e6;text-shadow:0 1px 0 rgba(0,0,0,.45);border:2px solid #3a0d08;
   background:linear-gradient(180deg,#ff7a62 0,#e2382b 22%,#c0251a 70%,#8a140b);
   box-shadow:inset 0 2px 0 rgba(255,255,255,.28),0 0 0 3px #191815,0 4px 0 3px #0d0c0a;transition:transform .06s,box-shadow .06s,filter .3s}
 .padkey.on{transform:translateY(3px);box-shadow:inset 0 2px 4px rgba(0,0,0,.35),0 0 0 3px #191815,0 1px 0 3px #0d0c0a}
-.padkey:nth-child(n+4){color:#2b1a00;text-shadow:none;border-color:#4a3300;background:linear-gradient(180deg,#ffe39a 0,#f0b23c 26%,#d18f16 72%,#9a6408)}
-.btnpad:has(#pad6Btn[hidden]) .padkey:nth-child(n+4){grid-column:span 3}
+#pad4Btn,#pad5Btn,#pad6Btn{color:#2b1a00;text-shadow:none;border-color:#4a3300;background:linear-gradient(180deg,#ffe39a 0,#f0b23c 26%,#d18f16 72%,#9a6408)}
+.btnpad:has(#pad6Btn[hidden]) #pad4Btn,.btnpad:has(#pad6Btn[hidden]) #pad5Btn{grid-column:span 3}
 .padkey.idle{filter:saturate(.2) brightness(.45);cursor:default}
 .padkey:focus-visible{outline:2px solid var(--phos);outline-offset:4px}
 [data-off] .padkey{filter:saturate(.25) brightness(.5)}
-/* held sideways the stick's zone is tall and narrow: the bays across the top, then CLUSTER and METEORS a row each,
-   the whole pad kept to a thumb's reach in the middle of the zone */
-[data-pad][data-layout="console"] .btnpad{inset:auto 9px;top:50%;transform:translateY(-50%);height:min(calc(100% - 18px),252px);grid-template-rows:repeat(3,minmax(0,1fr))}
-[data-layout="console"] .btnpad .padkey:nth-child(n+4),[data-layout="console"] .btnpad:has(#pad6Btn[hidden]) .padkey:nth-child(n+4){grid-column:1 / -1;font-size:11px}
+/* sideways console only: three red bays on the right with CLUSTER under them, UFO above METEORS on the left.
+   Desk and portrait keep the two-row pad inside the stick. The buttons leave their boxes and join the face grid. */
+[data-pad][data-layout="console"] .stickzone,[data-pad][data-layout="console"] #btnpad,[data-pad][data-layout="console"] .keyrow{display:contents}
+[data-pad][data-layout="console"] .tv-face{grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-areas:"rock screen dial" "pwr screen dial" ". screen plate" "ufo screen bays" "met screen clus"}
+[data-pad][data-layout="console"] #btnpad .bayrow{display:grid;grid-area:bays;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;height:52px;min-width:0;margin-inline:4px;align-self:end}
+[data-pad][data-layout="console"] #btnpad .bayrow .padkey{grid-column:auto;height:100%;font-size:14px}
+[data-pad][data-layout="console"] #btnpad #pad4Btn{grid-area:clus;height:52px;margin-inline:4px;font-size:11px;align-self:end}
+[data-pad][data-layout="console"] #btnpad #pad5Btn{grid-area:met;height:52px;margin-inline:4px;font-size:11px;align-self:end}
+[data-pad][data-layout="console"] #boostBtn{grid-area:ufo;height:52px;width:auto;margin-inline:4px;align-self:end}
+@media (min-height:560px){
+  [data-pad][data-layout="console"] .tv-face{grid-template-rows:auto minmax(0,1fr) auto auto minmax(0,1fr) auto auto;grid-template-areas:"pwr screen plate" ". screen ." ". screen dial" ". screen rock" ". screen ." "ufo screen bays" "met screen clus"}
+}
+[data-pad][data-full][data-layout="console"] .tv-face{grid-template-rows:minmax(0,1fr) auto auto;grid-template-areas:". screen ." "ufo screen bays" "met screen clus"}

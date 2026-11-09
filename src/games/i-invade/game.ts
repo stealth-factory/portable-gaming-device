@@ -1,12 +1,14 @@
 /* I Invade: the fixed-screen alien shooter turned round. You are the fleet, at the bottom of the screen; the
    earthlings' tanks hold the top. The fleet marches on its own, side to side and a row closer at each edge, faster
    as it thins: you only choose which of its three bomb bays fires, and when. Everything you throw goes up: bombs,
-   cluster bombs, the UFO's carpet and the meteor swarm. One fleet a game; every tank has three lives, and the
+   the cluster sweep, the UFO's carpet and the meteor swarm. One fleet a game; every tank has three lives, and the
    teams grow. The fleet, tanks, art, sound and code here are original. Everything is in low-res screen pixels. */
 import type { ConsoleAPI, CreateGame } from '../types';
 import { makeFx, makeWalls, makeScore, makeRound, drawHud, drawSprite, play, rnd } from '../../kit/play';
 import type { Fx, Walls, Score, Round, Jingle, Role, Sprite } from '../../kit/play';
 import { CROWN, PUFFER, POD, TANK, UFO, BLAST, PILLBOX, MINI } from './art';
+import { advanceSweep, earthFacing } from './cluster';
+import type { SweepDir } from './cluster';
 
 let api: ConsoleAPI, fx: Fx, walls: Walls, score: Score, round: Round;
 const sprite = (s: Sprite, x: number, y: number, role: Role) => drawSprite(api, s, x, y, role);
@@ -17,7 +19,7 @@ const SX = 16, SY = 12, AW = 11, AH = 8, ROWS = 5;     // formation spacing; ali
 const TW = 13, TH = 7, TANK_LIVES = 3, TANK_GAP = 16;  // tank size, lives, and how far apart a team keeps
 /* speeds are for a 152 px climb (the desk tube); kH() scales them so every layout plays at the same tempo */
 const BOMB_SPEED = 170, BOMB_CD = 0.3;
-const CLUSTER_SPEED = 100, BOMBLET_SPEED = 175, CLUSTER_CD = 7, CLUSTER_ARM = 2.5, CLUSTER_SPREAD = 9;
+const CLUSTER_SPEED = 145, CLUSTER_CD = 7, CLUSTER_ARM = 2.5, CLUSTER_ATTACK = 3.2, CLUSTER_STEP = 0.2;
 const UFO_SPEED = 64, UFO_RECHARGE = 12, UFO_DROP = 0.3;
 const METEORS = 18, STORM_PER_HIT = 0.3, STORM_TRICKLE = 1 / 80;
 const DROPS_TO_LAND = 22;                               // rows the fleet advances to touch down, whatever the tube's height
@@ -26,13 +28,13 @@ const ROLES = ['grub', 'grub', 'borer', 'borer', 'rockjaw'];
 /** tanks per wave: one, then a team of three, then six */
 const TEAM = [1, 1, 2, 3, 3, 4, 5, 6];
 const teamSize = (w: number) => TEAM[Math.min(TEAM.length - 1, w - 1)];
-/** the pad: three bomb bays along the top, the cluster bomb and the meteor swarm underneath (BOOST is the UFO) */
+/** the pad: three bomb bays along the top, cluster and the meteor swarm underneath (BOOST is the UFO) */
 const PAD = ['pad1', 'pad2', 'pad3', 'pad4', 'pad5'];
 type Bay = 'L' | 'M' | 'R';
 const BAYS: Bay[] = ['L', 'M', 'R'];
-/** what's flying: a bomb from a bay, the UFO's carpet, a cluster bomb, and its bomblets */
-type Kind = 'bomb' | 'ufo' | 'cluster' | 'bomblet';
-const HOW: Record<Kind, string> = { bomb: 'bomb', ufo: 'ufo', cluster: 'cluster', bomblet: 'cluster' };
+/** what's flying: a bomb from a bay, the UFO's carpet, and a shot from the cluster sweep */
+type Kind = 'bomb' | 'ufo' | 'cluster';
+const HOW: Record<Kind, string> = { bomb: 'bomb', ufo: 'ufo', cluster: 'cluster' };
 /* tunes */
 const LANDED: Jingle = { notes: [262, 330, 392, 523, 392, 523, 659], dur: 0.12, vol: 0.045, gap: 0.1 };
 const LOST: Jingle = { notes: [440, 392, 330, 262, 196], dur: 0.16, vol: 0.045, gap: 0.15, slide: -20 };
@@ -52,6 +54,7 @@ type Shell = { x: number; y: number; v: number; tank: Tank };
 const F = {
   aliens: [] as Alien[], cols: 9, total: 0, ox: 0, oy: 0, dir: 1, step: 6, frame: 0, note: 0, marchT: 0,
   bayCD: { L: 0, M: 0, R: 0 } as Record<Bay, number>, clusterCD: 0, lastBay: -1,
+  attack: 0, sweepI: 0, sweepDir: 1 as SweepDir, stepT: 0, sweepC: -1,
   bombs: [] as Bomb[], meteors: [] as Meteor[], shells: [] as Shell[],
   tanks: [] as Tank[],
   ufo: null as null | { x: number; dir: number; dropT: number; humT: number },
@@ -112,6 +115,7 @@ function newWave(){
   F.oy = homeOy() - Math.min(3, S.level - 1) * F.step;   // later waves start a little closer
   F.dir = Math.random() < 0.5 ? 1 : -1; F.marchT = 0.5; F.frame = 0;
   F.bayCD = { L: 0, M: 0, R: 0 }; F.clusterCD = CLUSTER_ARM; F.lastBay = -1;
+  F.attack = 0; F.sweepI = 0; F.sweepDir = 1; F.stepT = 0; F.sweepC = -1;
   F.bombs = []; F.meteors = []; F.shells = []; F.ufo = null; F.end = ''; F.landed = false; F.stormMsgT = 0;
   fx.clear();
   // the team: spread along the top, never parked over a bay
@@ -289,6 +293,36 @@ function fireBay(bay: Bay, sp: NonNullable<ReturnType<typeof span>>){
   tone(bay === 'L' ? 360 : bay === 'R' ? 280 : 320, 0.08, 0.035, -160); api.buzz('fire');
 }
 
+/* CLUSTER (A): every column's earth-facing alien fires in turn, left to right then right to left, for a few seconds */
+function tickCluster(dt: number, k: number){
+  if (F.clusterCD > 0) F.clusterCD -= dt;
+  if (F.attack > 0) F.attack = Math.max(0, F.attack - dt);
+  if (api.button('pad4').queued && F.clusterCD <= 0 && F.attack <= 0) {
+    F.attack = CLUSTER_ATTACK;
+    F.clusterCD = CLUSTER_ATTACK + CLUSTER_CD;
+    F.sweepI = 0; F.sweepDir = 1; F.stepT = 0; F.sweepC = -1;
+    api.buzz('fire');
+  }
+  api.clearButton('pad4');
+  if (F.attack <= 0) return;
+  F.stepT -= dt;
+  for (let n = 0; F.stepT <= 0 && n < 3; n++) {
+    const fronts = earthFacing(F.aliens);
+    if (!fronts.length) { F.attack = 0; return; }
+    const count = fronts.length;
+    if (F.sweepI > count - 1) F.sweepI = count - 1;
+    if (F.sweepI < 0) F.sweepI = 0;
+    const a = fronts[F.sweepI];
+    const at = bayAt(a.c);
+    F.bombs.push({ x: at.x, y: at.y, v: CLUSTER_SPEED * k, k: 'cluster' });
+    F.sweepC = a.c;
+    const step = advanceSweep(F.sweepI, F.sweepDir, count);
+    F.sweepI = step.i; F.sweepDir = step.dir;
+    F.stepT += CLUSTER_STEP;
+    tone(200 + a.c * 28, 0.045, 0.025, -50);
+  }
+}
+
 function update(dt: number){
   const S = api.S, LW = api.LW, k = kH();
   fx.update(dt);
@@ -328,14 +362,7 @@ function update(dt: number){
   for (const id of ['pad1', 'pad2', 'pad3', 'fire']) api.clearButton(id);
   api.clearTap();
 
-  /* CLUSTER (A): a slow bomb from the middle bay that bursts into three short of the walls */
-  if (F.clusterCD > 0) F.clusterCD -= dt;
-  if (api.button('pad4').queued && F.clusterCD <= 0) {
-    const at = bayAt(sp.col.M);
-    F.bombs.push({ x: at.x, y: at.y, v: CLUSTER_SPEED * k, k: 'cluster' });
-    F.clusterCD = CLUSTER_CD; api.buzz('fire'); tone(220, 0.18, 0.045, -120); tone(110, 0.3, 0.03, -40, 0.05);
-  }
-  api.clearButton('pad4');
+  tickCluster(dt, k);
 
   /* BOOST (Shift): the UFO crosses under the fleet, sending a bomb up every 0.3 s along its way */
   if (api.boostQueued && S.boost >= 1 && !F.ufo) {
@@ -384,22 +411,15 @@ function update(dt: number){
   if (F.tanks.every(t => t.out)) return waveWon('fallen', 20 * left.length);
 }
 function flight(dt: number){
-  const S = api.S, LW = api.LW;
+  const LW = api.LW;
   /* bombs and meteors rise to the earthlings */
-  const k = kH(), burstY = bunkerY() + PH + 5, spawn: Bomb[] = [];
   for (const b of F.bombs) {
     b.y -= b.v * dt;
-    if (b.k === 'cluster' && b.y <= burstY) {   // bursts into three bomblets short of the walls
-      for (const dx of [-CLUSTER_SPREAD, 0, CLUSTER_SPREAD]) spawn.push({ x: b.x + dx, y: b.y, v: BOMBLET_SPEED * k, k: 'bomblet' });
-      fx.burst(b.x - 6, b.y - 3, 0.15, BLAST); tone(520, 0.08, 0.04, -300);
-      b.y = -99; continue;
-    }
     if (walls.bite(b.x, b.y, 2)) { b.y = -99; continue; }
     const t = tankAt(b.x, b.y);
     if (t) { b.y = -99; hitTank(t, HOW[b.k]); continue; }
     if (b.y <= groundY()) { fx.burst(b.x - 6, groundY(), 0.2, BLAST); tone(90, 0.08, 0.03); b.y = -99; }
   }
-  F.bombs.push(...spawn);
   for (const m of F.meteors) {
     m.x += m.vx * dt; m.y -= m.vy * dt;
     if (m.y > api.LH) continue;
@@ -415,10 +435,9 @@ function flight(dt: number){
   for (const s of F.shells) {
     s.y += s.v * dt;
     let hit = false;
-    for (const b of F.bombs) if (Math.abs(b.x - s.x) <= (b.k === 'cluster' ? 2 : 1) && Math.abs(b.y - s.y) < 4) {
-      // a shell knocks a bomb out and carries on (a line of bombs is no shield); a cluster bomb stops it
-      if (b.k === 'cluster') { fx.burst(b.x - 6, b.y - 3, 0.2, BLAST); tone(700, 0.1, 0.035, -400); hit = true; }
-      else tone(1200, 0.04, 0.02);
+    for (const b of F.bombs) if (Math.abs(b.x - s.x) <= 1 && Math.abs(b.y - s.y) < 4) {
+      // a shell knocks one shot out and carries on: a line of them is no shield
+      tone(1200, 0.04, 0.02);
       b.y = -99; break;
     }
     if (!hit && walls.bite(s.x, s.y + 2, 1)) hit = true;
@@ -478,7 +497,7 @@ function hud(){
 function draw(){
   const { g, LW, S } = api;
   walls.draw('gem');
-  // your fleet, with each bay lit along its front while it can fire, and the cluster's ready marks either side of the middle
+  // your fleet, with each bay lit along its front while it can fire, and the cluster's earth-facing line marked when it is ready
   const al = alive();
   for (const a of al) sprite(SPRITES[a.r][F.frame], F.ox + a.c * SX, F.oy + a.r * SY, ROLES[a.r]);
   const sp = span(al);
@@ -488,16 +507,25 @@ function draw(){
       const at = bayAt(sp.col[b], al);
       g.fillStyle = api.col('spark'); g.fillRect(Math.round(at.x) - 1, at.y, 3, 1); g.fillRect(Math.round(at.x), at.y - 1, 1, 1);
     }
-    if (F.clusterCD <= 0) { const at = bayAt(sp.col.M, al); g.fillStyle = api.col('gold'); g.fillRect(at.x - 3, at.y - 1, 1, 2); g.fillRect(at.x + 3, at.y - 1, 1, 2); }
+    if (F.attack > 0 && F.sweepC >= 0 && al.some(a => a.c === F.sweepC)) {
+      const at = bayAt(F.sweepC, al);
+      g.fillStyle = api.col('spark'); g.fillRect(at.x - 1, at.y - 1, 3, 2);
+    } else if (F.clusterCD <= 0) {
+      g.fillStyle = api.col('gold');
+      for (const a of earthFacing(al)) { const at = bayAt(a.c, al); g.fillRect(at.x, at.y - 1, 1, 2); }
+    }
   }
   if (F.ufo) sprite(UFO, Math.round(F.ufo.x), ufoY(), 'sun');
   // everything going up
   for (const b of F.bombs) {
     const y = Math.round(b.y), x = Math.round(b.x), w = Math.floor(S.time * 12 + b.x) % 2;
-    if (b.k === 'cluster') { g.fillStyle = api.col('gold'); g.fillRect(x - 1, y, 3, 4); g.fillStyle = api.col(w ? 'spark' : 'sun'); g.fillRect(x, y + 1, 1, 2); continue; }
+    if (b.k === 'cluster') {
+      g.fillStyle = api.col('gold'); g.fillRect(x, y, 1, 4);
+      g.fillStyle = api.col(w ? 'spark' : 'sun'); g.fillRect(x - 1, y + 2, 1, 1); g.fillRect(x + 1, y + 2, 1, 1);
+      continue;
+    }
     g.fillStyle = api.col(b.k === 'ufo' ? 'sun' : 'gold');
-    if (b.k === 'bomblet') g.fillRect(x, y, 1, 3);
-    else if (b.k === 'ufo') { g.fillRect(x, y, 1, 2); g.fillRect(x - 1, y + 2, 2, 2); }
+    if (b.k === 'ufo') { g.fillRect(x, y, 1, 2); g.fillRect(x - 1, y + 2, 2, 2); }
     else { g.fillRect(x, y, 1, 1); g.fillRect(x - 1, y + 1, 3, 3); }
   }
   for (const m of F.meteors) {
@@ -538,6 +566,8 @@ const create: CreateGame = a => {
     climb: (dy: number) => { F.oy += dy; },
     /** Charge the meteor swarm (tests). */
     charge: () => { F.storm = 1; },
+    /** End the cluster sweep and drop its shots (tests). */
+    stopCluster: () => { F.attack = 0; F.bombs = F.bombs.filter(b => b.k !== 'cluster'); },
   } };
 };
 export default create;

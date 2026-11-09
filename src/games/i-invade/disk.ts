@@ -47,12 +47,13 @@ const MANUAL: GameDisk['manual'] = [
 
 export const disk: GameDisk = {
   id: 'iinvade', order: 4, slug: 'i-invade',
-  page: { title: 'I Invade', description: 'Be the invaders for once: time your bomb bays as the alien fleet marches up from below, rain cluster bombs, UFOs and meteors on the tanks above, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.' },
+  page: { title: 'I Invade', description: 'Be the invaders for once: time your bomb bays as the alien fleet marches up from below, call a cluster sweep, a UFO and meteors on the tanks above, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.' },
   title: 'I INVADE', nameKey: 'iiName', file: 'IINVADE.EXE', size: 24576, loadSecs: 2.6,
   steps: [[0, 0], [0.1, 0.1], [0.18, 0.12], [0.34, 0.4], [0.46, 0.42], [0.6, 0.66], [0.7, 0.7], [0.86, 0.94], [1, 1]],
   blurb: 'MARCH · BOMB · LAND', verb: 'INVADE', tap: true, controls: 'pad',
-  /* no stick: the pad's top row is the three bomb bays, the bottom row the cluster bomb and the meteor swarm; FIRE
-     (Space) is the middle bay too, and BOOST calls the UFO */
+  /* no stick: the pad's top row is the three bomb bays, the bottom row the cluster sweep and the meteor swarm; FIRE
+     (Space) is the middle bay too, and BOOST calls the UFO. On the sideways console the bays and CLUSTER sit on the
+     right and UFO sits above METEORS on the left (console.css). */
   buttons: {
     pad1: { label: 'bayL' }, pad2: { label: 'bayM' }, pad3: { label: 'bayR' },
     pad4: { label: 'cluster' }, pad5: { label: 'meteors', enabled: false },

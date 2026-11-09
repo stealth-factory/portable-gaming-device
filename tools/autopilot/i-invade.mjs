@@ -1,7 +1,7 @@
 // I Invade's autopilots: play the game headless against a stand-in console and print how far each bot gets.
 //   node tools/autopilot/i-invade.mjs [runs=8] [bots=idle,spam,timing] [layouts=desk,phone,land]
 // idle never presses anything; spam presses every bay every frame; timing fires a bay when its bomb would meet a tank
-// (from the tank's speed now) and uses the cluster bomb, UFO and meteors as soon as they're ready.
+// (from the tank's speed now) and starts the cluster sweep, UFO and meteors as soon as they're ready.
 // Targets (GAM-24): idle is repelled in about 90 s and never lands; spam clears the early waves, then thins out;
 // timing clears wave 1 in about 20 to 40 s and is repelled around wave 5 to 8.
 import { rolldown } from 'rolldown';
