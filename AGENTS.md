@@ -2,6 +2,17 @@
 
 Notes for anyone (human or agent) working in this repo. Read this before changing anything.
 
+Linear team: <https://linear.app/stealth-company/team/WII/overview>
+Linear project: <https://linear.app/stealth-company/project/game-guy-c4e01570fc18/overview>
+
+**Everything is tracked there:** planned features, bugs, specs and the decisions waiting on the owner. Before starting anything, look for the issue; before proposing something, check it is not already filed, and not already decided against. How work moves between Linear and GitHub is under [Linear and pull requests](#linear-and-pull-requests).
+
+**Never push to `main`.** Every change goes through a pull request, unless the owner explicitly says to push that specific change to `main`; permission for one change is not permission for the next. The owner's account can bypass branch protection, so a push to `main` *succeeds*: a `Changes must be made through a pull request` line from GitHub is a bypass warning, not a rejection. To stay off it:
+
+- create branches with `--no-track` (`git switch --no-track -c <branch> origin/main`, or `git worktree add --no-track -b <branch> <path> origin/main`), or point the upstream at the branch itself;
+- push only with an explicit refspec: `git push -u origin HEAD:refs/heads/<branch>`. Never `git push origin main`, never a bare `git push` from a branch tracking `main`, never `--force` to `main`;
+- after every push, run `git ls-remote origin refs/heads/main` and check `main` did not move. If it did, stop and tell the owner. Do not "fix" it with another push to `main`; revert through a pull request.
+
 ## What this is
 
 **Game Guy 3000 Deluxe** (Game Guy for short) is a browser game console: one old CRT monitor that boots, shows a game loader, and runs several games. It starts as a copy of [Tunnel Raider](https://github.com/wiiiimm/tunnel-raider), which is still its own repo and site (`tunnel-raider.wiiiimm.codes`); changes made here do not flow back to it.
@@ -144,11 +155,45 @@ Useful places:
 ## Working conventions
 
 - **Spelling:** Australian / British English in copy, docs and commit messages.
-- **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:` …), committed to `main` and pushed straight away, unless the owner asks to preview first. When he does, show the change and wait for approval before pushing.
+- **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:` …) on a branch, never on `main` (see the top of this file). Each commit body ends with `Refs WII-<n>` for the issue it works on.
 - **PR titles decide releases.** PRs squash-merge with the title as the commit subject, and `git-cliff` reads those subjects for the version and changelog: `feat:` is a minor release, `fix:`/`perf:` a patch, `docs:`/`chore:`/`ci:` start no release. Subjects start lowercase with no full stop (`pr-title.yml` checks). A push to `main` no longer reaches the live site by itself; production moves only when the release PR is merged.
 - **Test before pushing:** `npm run build` and `npm test`, then `tests/flow.cjs` and `tests/pages.cjs` against `npm run preview`, checking for errors and looking at screenshots of anything visual.
 - **Keep the README current** with controls, games and the analytics event list.
 - **Licensing:** code is `AGPL-3.0-only`, images in `public/` and `docs/screens/` are CC BY-NC-SA 4.0, and the owner grants commercial licences separately (`LICENSING.md`). Third-party files (new agent skills, fonts or anything copied in) keep their own licence: add them to `THIRD_PARTY_NOTICES.md`. Never add code or assets whose licence would stop the owner offering a commercial licence (for example GPL or AGPL code by someone else).
+
+## Linear and pull requests
+
+Every pull request belongs to a Linear issue in the Game Guy project, and the issue says where the work stands.
+
+1. **Find or file the issue first.** Search the project; if nothing covers the work, file one (team `WII`, project Game Guy) before opening the pull request. Small fixes too: an issue is how the next person finds out it was done and why. Plans and specs go in the issue or a Linear project document, not in the repo.
+2. **Branch from the issue.** Use the branch name Linear gives the issue (`feature/wii-41-add-a-browser-check-that-plays-every-disk`; `fix/wii-<n>-…` for a bug), so the integration links the branch, commits and PR to it. Branches with no issue (`release`, bots) are the only exceptions.
+3. **Name the issue everywhere.**
+   - PR title: a Conventional Commit subject with the issue at the end, `feat(invader-force): weapon capsules (WII-41)`. The ID survives the squash merge into the commit subject on `main`.
+   - Commit bodies: `Refs WII-<n>` (several are fine: `Refs WII-40, WII-44`).
+   - PR body: `Fixes WII-<n>` when merging it finishes the issue, `Refs WII-<n>` when it is one step of it. Use `Fixes` only in the PR body, never in a commit message: a commit that reaches `main` some other way would close the issue with nobody having reviewed it.
+4. **Move the status with the pull request.**
+
+   | When | Linear status |
+   | --- | --- |
+   | Work starts (branch made) | In Progress |
+   | PR marked ready for review | In Review |
+   | CI green and review comments dealt with | Ready to Merge |
+   | PR merged into `main` | Released |
+   | Not doing it, or the PR is closed unmerged | Canceled (say why in a comment) |
+   | Waiting on a decision or another issue | Paused |
+
+   The GitHub integration moves some of these on its own; check the issue after each step and set it by hand when it didn't.
+5. **Pull requests open as drafts.** Mark one ready for review when it is ready for the automated reviewers (CodeRabbit, Codex, the Vercel preview), then see it through: fix CI, answer or fix every review comment, until it is good to merge. Merging is the owner's call.
+
+Release PRs (`release: vX.Y.Z`) and bot PRs (ImgBot) need no issue; the release PR lists the issues it ships through their PR titles.
+
+## Gotchas paid for already
+
+- **A push GitHub warns about is a push that landed.** See *Never push to `main`* at the top: `--no-track`, an explicit `HEAD:refs/heads/<branch>` refspec and an `ls-remote` of `main` after the push each stop an accidental push to `main`; use all three.
+- **`gh pr view <branch>` finds the most recently *merged* PR when no open one exists.** Ask `gh pr list --state open --head <branch>` and act on the number (`--jq '.[0].number // empty'`, or jq prints `null`).
+- **Under squash merge a branch is permanently ahead of `main`.** Comparing commits can never tell you a branch merged; ask the pull request.
+- **A secret scan of the diff cannot see commit messages.** This repo is public. Scan `git log origin/main..HEAD` as well as the diff before pushing, and describe a removed secret by its shape, never its value.
+- **`$( )` strips every trailing newline.** When building a PR body in a shell, join the pieces explicitly: `printf '%s\n\n%s\n' "$a" "$b"`.
 
 ## Open questions
 
