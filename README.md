@@ -133,10 +133,11 @@ Make a folder in `src/games/` with a `disk.ts` (the label, loading screen and in
 The share images (`public/og-image.png`, plus `public/og-<slug>.png` for each game's page) and the screenshots above (`docs/screens/`) are made from the real console by one script:
 
 ```sh
-npm run build
-npm run preview &   # serves http://localhost:4173
-until curl -sf http://localhost:4173 >/dev/null; do sleep 1; done   # wait for it to listen
-NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
+# each step runs only if the one before it worked, so a failed build never captures a stale dist/
+npm run build &&
+  { npm run preview & } &&   # serves http://localhost:4173
+  until curl -sf http://localhost:4173 >/dev/null; do sleep 1; done &&   # wait for it to listen
+  NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
 ```
 
 It switches the set on, captures the menu, each game's loading screen and some play (Dino Run on autopilot, caught mid-jump). It then lays each capture out beside the name and a fan of floppy disks (`tools/share-images/share.css`) at 1200 × 630.

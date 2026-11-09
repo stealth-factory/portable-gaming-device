@@ -107,10 +107,11 @@ The share image and screenshots are never drawn by hand. To make them for a new 
 3. Run it against a preview build:
 
    ```sh
-   npm run build
-   npm run preview &   # serves http://localhost:4173
-   until curl -sf http://localhost:4173 >/dev/null; do sleep 1; done   # wait for it to listen
-   NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
+   # each step runs only if the one before it worked, so a failed build never captures a stale dist/
+   npm run build &&
+     { npm run preview & } &&   # serves http://localhost:4173
+     until curl -sf http://localhost:4173 >/dev/null; do sleep 1; done &&   # wait for it to listen
+     NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
    ```
 
 Share images stay out of the offline precache; players never download them.
@@ -138,7 +139,7 @@ Share images stay out of the offline precache; players never download them.
 ## A new disk, step by step
 
 1. File the Linear issue and branch from it (see `AGENTS.md`).
-2. Make `src/games/<folder>/` with `disk.ts`, `game.ts`, `strings.ts` and `art.ts`. Pick a unique `id`, `slug`, `order` and `loadSecs`.
+2. Make `src/games/<folder>/` with `disk.ts`, `game.ts`, `strings.ts` and `art.ts`. Pick a unique `id`, `slug` and `loadSecs`, and give it the next `order` after the existing disks (6 today). `make.cjs`, `tests/flow.cjs` and `tests/pages.cjs` load some disks by menu position (`loadGame(1)` is Dino Run), so a disk slotted in between moves them; if you must, update those indices in the same pull request.
 3. Write the instructions in all three languages.
 4. Draw the loading screen and check it on all four phosphors and every layout (desk, console, phone and tablet, portrait and landscape).
 5. Split testable rules into their own modules and test them.
