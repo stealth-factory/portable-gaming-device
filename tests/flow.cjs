@@ -164,7 +164,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.evaluate(() => __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'iinvade')));
   await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 12000 });
   const gameBays = await bayVis();
-  const holdFire = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); F.shots = []; F.tanks.forEach(t => { t.cool = 99; }); });   // tank shots would knock bombs out mid-check
+  const holdFire = () => p.evaluate(() => __gg.runtime.debug.holdFire());   // tank shots would knock bombs out mid-check
   const iiBomb = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); return F.bomb && { col: Math.round((F.bomb.x - Math.round(F.ox) - 5) / 16), y: F.bomb.y }; });
   const iiFired = () => p.waitForFunction(() => !!__gg.runtime.debug.state().bomb, null, { timeout: 1000 }).catch(() => {});
   const iiReady = () => p.waitForFunction(() => __gg.S.mode === 'play' && !__gg.runtime.debug.state().bomb, null, { timeout: 8000 });
@@ -183,11 +183,15 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
     await iiReady(); await holdFire(); await p.dispatchEvent('#fireLBtn', 'pointerdown', { pointerId: 7 }); await iiFired();
     tapL = (await iiBomb())?.col; await p.dispatchEvent('#fireLBtn', 'pointerup', { pointerId: 7 });
   }
+  // a fleet that climbs to the tanks' row touches down and wins the wave
+  await iiReady(); await holdFire();
+  await p.evaluate(() => __gg.runtime.debug.climb(-400));
+  const landed = await p.waitForFunction(() => __gg.S.mode === 'clear' && __gg.runtime.debug.state().landed, null, { timeout: 4000 }).then(() => true, () => false);
   await backToMenu(p);
   const backBays = await bayVis();
-  const iiOk = menuBays === 'false,true,false' && gameBays === 'true,true,true' && backBays === menuBays && bays.L === want.L && bays.M === want.M && bays.R === want.R && one && up && (tapL === 'hidden' || tapL === want.L);
-  if (!iiOk) errs.push(tag + ' i invade bays: ' + JSON.stringify({ menuBays, gameBays, backBays, bays, want, one, up, tapL }));
-  console.log(tag, JSON.stringify({ iinvade: { bays, want, one, up, tapL } }));
+  const iiOk = menuBays === 'false,true,false' && gameBays === 'true,true,true' && backBays === menuBays && bays.L === want.L && bays.M === want.M && bays.R === want.R && one && up && landed && (tapL === 'hidden' || tapL === want.L);
+  if (!iiOk) errs.push(tag + ' i invade bays: ' + JSON.stringify({ menuBays, gameBays, backBays, bays, want, one, up, landed, tapL }));
+  console.log(tag, JSON.stringify({ iinvade: { bays, want, one, up, landed, tapL } }));
   await playEveryDisk(p, tag);
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();

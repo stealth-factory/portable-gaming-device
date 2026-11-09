@@ -282,6 +282,12 @@ const create: CreateGame = a => {
   fx = makeFx(a); walls = makeWalls(a);
   score = makeScore(a, { extraEvery: EXTRA_EVERY, fx, onExtra: () => play(a, EXTRA) });
   round = makeRound(a, { respawn: newFleet, nextLevel: newWave, times: { ready: 1.2, respawn: 0.9, dying: 1.6, clear: 1.8 }, clearOnReady: [...BAY_SLOTS, 'boost'] });
-  return { start, update, draw, debug: { state: () => ({ ...F, walls: walls.list, fx: fx.count, nextLife: score.nextLife }) } };
+  return { start, update, draw, debug: {
+    state: () => ({ ...F, walls: walls.list, fx: fx.count, nextLife: score.nextLife }),
+    /** Stop the tanks shooting for a while and clear their shots (tests). */
+    holdFire: () => { F.shots = []; for (const t of F.tanks) t.cool = 99; },
+    /** Move the fleet up (negative) or down by dy pixels (tests). */
+    climb: (dy: number) => { F.oy += dy; },
+  } };
 };
 export default create;
