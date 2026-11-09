@@ -48,12 +48,29 @@ jobs:
             echo "${tag} exists; nothing to tag"
             exit 0
           fi
+          # Tag the commit that brought this version to main (the merged
+          # release PR), not whatever is at HEAD. Runs share one concurrency
+          # group, and GitHub replaces a pending run with a newer one, so
+          # this run may be for a later push whose changes were never in
+          # the release PR. The very first tag has no release PR behind it:
+          # it is the baseline, and goes on HEAD.
+          if git tag -l 'v[0-9]*' | grep -q .; then
+            sha=$(git log -n 1 --first-parent --format=%H \
+              -S"\"version\": \"${version}\"" HEAD -- package.json)
+            if [ -z "$sha" ]; then
+              echo "no commit on main introduced version ${version}" >&2
+              exit 1
+            fi
+          else
+            sha=$(git rev-parse HEAD)
+            echo "no tags yet: ${tag} is the baseline"
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Annotated, so the tag carries who made it and when.
-          git tag -a "$tag" -m "$tag"
+          git tag -a "$tag" -m "$tag" "$sha"
           git push origin "$tag"
-          echo "pushed ${tag}"
+          echo "pushed ${tag} at ${sha}"
 
       - name: Publish the GitHub Release
         env:
