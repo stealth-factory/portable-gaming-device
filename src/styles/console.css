@@ -174,7 +174,7 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 .powerrock i{position:absolute;z-index:1;top:3px;left:3px;width:40px;height:26px;border-radius:5px;
   background:repeating-linear-gradient(90deg,rgba(0,0,0,.28) 0 2px,rgba(255,255,255,.07) 2px 4px) center/22px 14px no-repeat,linear-gradient(180deg,#615c52,#3c3831 55%,#2a2722);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 2px 3px rgba(0,0,0,.6);transition:left .2s cubic-bezier(.3,1.5,.5,1)}
-.powerrock[aria-checked="true"] i{left:41px}
+.powerrock[aria-checked="true"] i{left:calc(100% - 43px)}  /* from the right end, so a narrower switch (sideways phones) keeps the knob in its slot */
 .powerrock i::after{content:"";position:absolute;inset:auto 6px 3px;height:2px;border-radius:1px;background:#2b2924;transition:background .3s,box-shadow .3s}
 .powerrock[aria-checked="true"] i::after{background:var(--phos);box-shadow:0 0 6px var(--phos)}
 .powerrock:focus-visible{outline:2px solid var(--phos);outline-offset:3px}
