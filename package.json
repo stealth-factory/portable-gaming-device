@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "tsc --noEmit && astro build",
+    "build": "npm run typecheck && astro build",
     "preview": "astro preview --port 4173",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.kit.json",
     "test": "vitest run"
   },
   "devDependencies": {
