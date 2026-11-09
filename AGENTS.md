@@ -144,6 +144,7 @@ Useful places:
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:` …), committed to `main` and pushed straight away, unless the owner asks to preview first. When he does, show the change and wait for approval before pushing.
 - **Test before pushing:** `npm run build` and `npm test`, then `tests/flow.cjs` and `tests/pages.cjs` against `npm run preview`, checking for errors and looking at screenshots of anything visual.
 - **Keep the README current** with controls, games and the analytics event list.
+- **Licensing:** code is `AGPL-3.0-only`, images in `public/` and `docs/screens/` are CC BY-NC-SA 4.0, and the owner grants commercial licences separately (`LICENSING.md`). Third-party files (new agent skills, fonts or anything copied in) keep their own licence: add them to `THIRD_PARTY_NOTICES.md`. Never add code or assets whose licence would stop the owner offering a commercial licence (for example GPL or AGPL code by someone else).
 
 ## Open questions
 
