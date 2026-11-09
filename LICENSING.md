@@ -12,7 +12,8 @@ Game Guy 3000 Deluxe is free to play, study, change and share, but not to take p
 
 You may run, copy, change and share the code, including on your own website. In return:
 
-- **Same licence.** Anything you build from it must be released under the AGPL-3.0 as well.
+- **Private changes are fine.** You can change it and run it yourself without publishing anything.
+- **Same licence when you share.** If you share a version (changed or not), it must be under the AGPL-3.0 too.
 - **Publish your source.** If you share a changed version, or let people play it over a network (for example on a website), you must offer them the complete source code of your version under the AGPL.
 - **Keep the notices.** Keep the copyright and licence notices, and say what you changed.
 
