@@ -92,11 +92,15 @@ export function tickWeapon(w: Weapon, t: number, dt: number): { w: Weapon; t: nu
 export const inBeam = (beamX: number, x: number, w: number) => beamX >= x - 1 && beamX < x + w + 1;
 
 /** An alien bomb that hits a falling capsule sets it off: a blast this wide (radius, px) that bites
-    walls, kills aliens and takes your cannon unless the shield is up. Your own shots pass through. */
+    walls, kills aliens and takes your cannon unless the shield is up. Your own shot (or the laser) sets
+    one off too, in the same wide blast, but that one spares your cannon. */
 export const BLAST_R = 16;
 /** Does an alien bomb (x, y, 4 tall) hit a capsule? */
 export const bombHitsCapsule = (bx: number, by: number, c: Capsule) =>
   bx >= c.x && bx < c.x + CAPSULE_W && by + 4 >= c.y && by < c.y + CAPSULE_H;
+/** Does your shot (x, y, 3 tall) hit a capsule? */
+export const shotHitsCapsule = (sx: number, sy: number, c: Capsule) =>
+  sx >= c.x && sx < c.x + CAPSULE_W && sy + 3 >= c.y && sy < c.y + CAPSULE_H;
 /** Is a box (x, y, w, h) inside a blast centred at (cx, cy)? */
 export function inBlast(cx: number, cy: number, x: number, y: number, w: number, h: number, r = BLAST_R){
   const nx = Math.max(x, Math.min(cx, x + w)), ny = Math.max(y, Math.min(cy, y + h));
