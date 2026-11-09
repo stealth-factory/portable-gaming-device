@@ -133,7 +133,9 @@ Make a folder in `src/games/` with a `disk.ts` (the label, loading screen and in
 The share images (`public/og-image.png`, plus `public/og-<slug>.png` for each game's page) and the screenshots above (`docs/screens/`) are made from the real console by one script:
 
 ```sh
-npm run build && npm run preview &
+npm run build
+npm run preview &   # serves http://localhost:4173
+until curl -sf http://localhost:4173 >/dev/null; do sleep 1; done   # wait for it to listen
 NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
 ```
 

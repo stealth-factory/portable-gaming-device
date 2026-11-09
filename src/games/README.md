@@ -107,7 +107,9 @@ The share image and screenshots are never drawn by hand. To make them for a new 
 3. Run it against a preview build:
 
    ```sh
-   npm run build && npm run preview &
+   npm run build
+   npm run preview &   # serves http://localhost:4173
+   until curl -sf http://localhost:4173 >/dev/null; do sleep 1; done   # wait for it to listen
    NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
    ```
 
