@@ -53,7 +53,7 @@ function newWave(){
   F.total = F.aliens.length;
   F.ox = Math.round((LW - (F.cols - 1) * SX - AW) / 2);
   F.dir = 1; F.stepT = 0.6; F.frame = 0;
-  F.shots = []; F.beam = null; F.missile = null; F.capsules = []; F.blasts = []; F.fireCd = 0; F.bombs = []; F.ufo = null; F.ufoT = rnd(16, 24); F.bursts = []; F.invaded = false;
+  F.shots = []; F.beam = null; F.missile = null; F.capsules = []; F.blasts = []; F.flash = 0; F.fireCd = 0; F.bombs = []; F.ufo = null; F.ufoT = rnd(16, 24); F.bursts = []; F.invaded = false;
   // bunkers: castle walls with a gate, rebuilt every wave
   const n = LW >= 300 ? 4 : 3, gap = (LW - n * BW) / (n + 1);
   F.bunkers = [];
@@ -248,7 +248,12 @@ function blast(cx: number, cy: number, r: number, hurtsYou: boolean){
 
 function update(dt: number){
   const S = api.S, LW = api.LW;
+  // visual effects run down in every mode, so a flash or blast never sticks over the clear and ready screens
   for (const b of F.bursts) b.t -= dt;
+  for (const b of F.blasts) b.t -= dt;
+  F.blasts = F.blasts.filter(b => b.t > 0);
+  if (F.beam && (F.beam.t -= dt) <= 0) F.beam = null;
+  if (F.flash > 0) F.flash -= dt;
   F.bursts = F.bursts.filter(b => b.t > 0);
   if (S.mode === 'ready') { if ((S.modeT -= dt) <= 0) S.mode = 'play'; api.clearFire(); api.clearTap(); return; }
   if (S.mode === 'clear') { if ((S.modeT -= dt) <= 0) { S.level++; newWave(); S.mode = 'ready'; S.modeT = 1.2; } return; }
@@ -276,8 +281,6 @@ function update(dt: number){
   const had = F.weapon;
   ({ w: F.weapon, t: F.weaponT } = tickWeapon(F.weapon, F.weaponT, dt));
   if (had !== F.weapon) [660, 440].forEach((f, i) => tone(f, 0.08, 0.035, 0, i * 0.08));   // the weapon ran out
-  if (F.beam && (F.beam.t -= dt) <= 0) F.beam = null;
-  if (F.flash > 0) F.flash -= dt;
   if (F.missile) flyMissile(dt);
   const fast = F.speed;
   ({ level: F.speed, t: F.speedT } = tickSpeed(F.speed, F.speedT, dt));
@@ -300,8 +303,6 @@ function update(dt: number){
     if (catches(c, F.px, cannonY())) { arm(c.w); c.y = 9999; }
   }
   F.capsules = F.capsules.filter(c => c.y < api.LH - 6);
-  for (const b of F.blasts) b.t -= dt;
-  F.blasts = F.blasts.filter(b => b.t > 0);
 
   /* the formation marches; at an edge it drops a row and turns */
   const alive = F.aliens.filter(a => a.alive);

@@ -65,9 +65,13 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.waitForFunction(() => !__gg.runtime.debug.state().missile, null, { timeout: 4000 }); await p.waitForTimeout(80);
   const nuked = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-nuke.png` });
   const label2 = await p.evaluate(() => document.querySelector('#boostBtn span').textContent);
-  await p.evaluate(() => { if (__gg.S.mode === 'play') { __gg.S.score = 0; __gg.finishGame(); } }); await p.waitForTimeout(300);
-  const ok = basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
-  if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked }));
+  // a nuke that clears the wave must not leave its white flash over the next wave
+  await p.evaluate(() => { const F = __gg.runtime.debug.state(); F.aliens.forEach(a => { a.alive = a.r === 0 && a.c === 0; }); F.missile = { x: F.ox + 5, y: F.oy + 9 }; });   // a missile about to hit the last alien
+  await p.waitForFunction(() => __gg.S.mode === 'ready' && __gg.S.level === 2, null, { timeout: 8000 });
+  const flashLeft = await p.evaluate(() => __gg.runtime.debug.state().flash);
+  await p.evaluate(() => { if (__gg.S.mode === 'play' || __gg.S.mode === 'ready') { __gg.S.score = 0; __gg.finishGame(); } }); await p.waitForTimeout(300);
+  const ok = flashLeft <= 0 && basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
+  if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked, flashLeft }));
   console.log(tag, { invader: { basic: basic.shots, caught: caught.weapon, twin: twin.shots, spread: spread.shots, pierce: pierce.beam, speed: pierce.speed, alive: [pierce.alive, blasts.alive, nuked.alive], label: [label, label2], end: await mode(p) } });
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();
