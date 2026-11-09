@@ -37,6 +37,6 @@ export const disk: GameDisk = {
   page: { title: 'Dino Run', description: 'Jump the cacti, duck the pterosaurs and run as far as you can across the desert, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.' },
   title: 'DINO RUN', nameKey: 'dName', file: 'DINORUN.COM', size: 9216, loadSecs: 1.8,
   steps: [[0, 0], [0.12, 0.18], [0.22, 0.2], [0.42, 0.52], [0.55, 0.56], [0.78, 0.9], [0.88, 0.92], [1, 1]],
-  blurb: 'JUMP · DUCK · RUN', verb: 'RUN', tap: true, fireKey: 'jump', boostKey: 'duck', overKey: 'dOver', againKey: 'dAgain',
+  blurb: 'JUMP · DUCK · RUN', verb: 'RUN', tap: true, buttons: { fire: { label: 'jump' }, boost: { label: 'duck' } }, overKey: 'dOver', againKey: 'dAgain',
   manual: MANUAL, strings, drawLoad,
 };

@@ -1,12 +1,13 @@
 /* The console's own screens: cold and warm boot, the disk menu, and loading a game off the floppy.
    Every load plays the drive (motor, recalibrate, head steps, park) for exactly as long as it takes. */
 import {
-  S, g, col, txt, LW, LH, HUD, ac, muted, tone, noise, headClick, ensureAudio, stickDir, held, fireHeld,
+  S, g, col, txt, LW, LH, HUD, ac, muted, tone, noise, headClick, ensureAudio, stickDir, held,
   overlay, $, tvOn, age, setAccReset, track, layoutName, startGame, setGame, game, readBest, setManual,
   clearInput, ordinal, api, fetchRuntime, runtimeReady,
 } from './core';
 import { DISKS as GAMES } from '../games/registry';
-import type { GameDisk } from '../games/types';
+import type { ButtonMap, GameDisk } from '../games/types';
+import { useButtons } from './buttons';
 
 export const BOOT_LEN = 4.0, WARM_LEN = 2.3, MAX_LOAD = 5;
 
@@ -76,6 +77,12 @@ export function diskInfo(y: number, p: number, t: number, d: GameDisk){
   return sectorBar(Math.max(10, Math.round(LW / 2 - w / 2)), y, p, t, d.file, d.size);
 }
 
+/* ---------- the console's own buttons: the boot and the disk menu are apps like any game ---------- */
+// booting: nothing to press yet
+export const BOOT_BUTTONS: ButtonMap = { fire: { label: 'spark', enabled: false }, boost: { label: 'boost', enabled: false } };
+// the disk menu: FIRE loads the highlighted disk; BOOST has no job here, so it stays dark
+export const MENU_BUTTONS: ButtonMap = { fire: { label: 'menuSel' }, boost: { label: 'boost', enabled: false } };
+
 /* ---------- boot ---------- */
 export function startConsole(kind: 'cold' | 'warm'){
   ensureAudio();
@@ -83,7 +90,7 @@ export function startConsole(kind: 'cold' | 'warm'){
   overlay.hidden = true; clearInput();
   $('pauseBtn').setAttribute('aria-pressed', 'false');
   if (kind === 'cold') { age.dipLeft = 0.2; setAccReset(); }
-  setGame(null); setManual('console');
+  setGame(null); setManual('console'); useButtons(BOOT_BUTTONS);
   playBoot(kind);
 }
 export function drawBoot(){
@@ -113,7 +120,7 @@ let menuRects: { x: number; y: number; w: number; h: number; i: number }[] = [];
 export function enterMenu(){
   S.mode = 'menu'; S.menuT = 0; S.menuDir = null; S.menuRep = 0;
   if (S.menuSel == null) { let i = 0; try { i = Math.max(0, GAMES.findIndex(d => d.id === localStorage.getItem('gg-last'))); } catch (_) {} S.menuSel = i; }
-  overlay.hidden = true; setGame(null); setManual('console');
+  overlay.hidden = true; setGame(null); setManual('console'); useButtons(MENU_BUTTONS);
 }
 export function menuMove(d: string){
   const n = GAMES.length;
@@ -172,7 +179,7 @@ export function drawMenu(){
     }
   });
   const by = top + 60 + n * (rowH + gap) + 6;
-  if (Math.floor(t * 2) % 2 === 0) txt('STICK TO CHOOSE · FIRE TO LOAD', LW / 2, by, 'hud', 'center');
+  if (Math.floor(t * 2) % 2 === 0) txt('STICK TO CHOOSE · SELECT TO LOAD', LW / 2, by, 'hud', 'center');
   if (S.diskError > 0) { S.diskError -= 1 / 60; txt('DISK ERROR · CONNECT AND TRY AGAIN', LW / 2, by + 14, 'gold', 'center'); }
   else txt(`DRIVE A: ${n} DISKS`, LW / 2, by + 14, 'textDim', 'center');
 }

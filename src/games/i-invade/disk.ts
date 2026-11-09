@@ -40,6 +40,6 @@ export const disk: GameDisk = {
   title: 'I INVADE', nameKey: 'iiName', file: 'IINVADE.EXE', size: 24576, loadSecs: 2.6,
   steps: [[0, 0], [0.1, 0.1], [0.18, 0.12], [0.34, 0.4], [0.46, 0.42], [0.6, 0.66], [0.7, 0.7], [0.86, 0.94], [1, 1]],
   blurb: 'STEER · BOMB · LAND', verb: 'INVADE', tap: true,
-  fireKey: 'bomb', boostKey: 'ufo', overKey: 'iiOver', againKey: 'iiAgain',
+  buttons: { fire: { label: 'bomb' }, boost: { label: 'ufo' } }, overKey: 'iiOver', againKey: 'iiAgain',
   manual: MANUAL, strings, drawLoad,
 };

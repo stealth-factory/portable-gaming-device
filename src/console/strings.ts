@@ -5,6 +5,7 @@ const kb = (k: string) => `<kbd>${k}</kbd>`;
 
 export const CONSOLE_STRINGS: Strings = {
   en: {
+    menuSel: 'SELECT',
     tag: 'An old home computer on a glowing phosphor monitor. Switch it on, pick a disk, play.',
     model: 'Model GG-3000 DX · 12″ phosphor monitor',
     diskFor: 'Game disk for the Game Guy 3000 Deluxe',
@@ -18,6 +19,7 @@ export const CONSOLE_STRINGS: Strings = {
     aboutH: 'About this disk',
   },
   'zh-hant': {
+    menuSel: '選擇',
     tag: '一部舊式家用電腦，配一部發光的螢光顯示器。開機、選碟、開玩。',
     model: '型號 GG-3000 DX · 12 吋螢光顯示器',
     diskFor: 'Game Guy 3000 Deluxe 遊戲磁碟',
@@ -31,6 +33,7 @@ export const CONSOLE_STRINGS: Strings = {
     aboutH: '關於這隻磁碟',
   },
   'zh-hans': {
+    menuSel: '选择',
     tag: '一台老式家用电脑，配一台发光的荧光显示器。开机、选盘、开玩。',
     model: '型号 GG-3000 DX · 12 英寸荧光显示器',
     diskFor: 'Game Guy 3000 Deluxe 游戏磁盘',

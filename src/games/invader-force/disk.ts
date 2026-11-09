@@ -55,6 +55,6 @@ export const disk: GameDisk = {
   title: 'INVADER FORCE', nameKey: 'ifName', file: 'INVFORCE.EXE', size: 28672, loadSecs: 3.1,
   steps: [[0, 0], [0.08, 0.04], [0.2, 0.22], [0.3, 0.24], [0.45, 0.48], [0.52, 0.5], [0.66, 0.7], [0.74, 0.72], [0.9, 0.96], [1, 1]],
   blurb: 'AIM · FIRE · HOLD', verb: 'FIGHT', tap: true,
-  fireKey: 'spark', boostKey: 'shield', overKey: 'ifOver', againKey: 'ifAgain',
+  buttons: { fire: { label: 'spark' }, boost: { label: 'shield' } }, overKey: 'ifOver', againKey: 'ifAgain',
   manual: MANUAL, strings, drawLoad,
 };

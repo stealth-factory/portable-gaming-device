@@ -77,7 +77,7 @@ function start(){
   api.fitGrid();
   const S = api.S;
   S.score = 0; S.level = 1; S.lives = 3; S.charge = 1; S.boost = 1; S.boostT = 0;
-  F.extra = EXTRA_EVERY; F.weapon = 'basic'; F.weaponT = 0; F.speed = 0; F.speedT = 0; F.nuke = false; F.flash = 0; api.setBoostLabel(null);
+  F.extra = EXTRA_EVERY; F.weapon = 'basic'; F.weaponT = 0; F.speed = 0; F.speedT = 0; F.nuke = false; F.flash = 0; api.setButtons({ boost: null });
   F.px = Math.round(api.LW / 2 - 6);
   newWave();
 }
@@ -167,7 +167,7 @@ function lightning(x: number){
 function arm(w: Drop){
   if (w === 'nuke') {
     if (F.nuke) { addScore(500, F.px, cannonY() - 14); return; }   // only one at a time: a spare is worth 500
-    F.nuke = true; api.setBoostLabel('nuke');
+    F.nuke = true; api.setButtons({ boost: { label: 'nuke' } });
     [262, 330, 392, 523, 392, 523].forEach((f, i) => tone(f, 0.12, 0.05, 0, i * 0.09));
     F.bursts.push({ x: Math.max(4, Math.min(api.LW - 60, F.px - 12)), y: labelY(), t: 1.2, text: 'NUKE READY' });
     return;
@@ -194,7 +194,7 @@ function explode(c: Capsule){
 }
 /** Launch the atomic bomb: a missile that flies up until it hits something. */
 function nuke(){
-  F.nuke = false; api.setBoostLabel(null);
+  F.nuke = false; api.setButtons({ boost: null });
   F.missile = { x: Math.round(F.px) + 6, y: cannonY() - 8 };
   tone(180, 0.6, 0.05, 700); tone(90, 0.6, 0.04, 300);
 }

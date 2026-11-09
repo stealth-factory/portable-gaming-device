@@ -127,7 +127,8 @@ export const disk: GameDisk = {
   page: { title: 'Paddle Ball', description: 'Bat the blip past the other paddle.' },
   title: 'PADDLE BALL', nameKey: 'pbName', file: 'PADDLE.COM', size: 6144, loadSecs: 1.2,
   steps: [[0, 0], [0.3, 0.4], [0.5, 0.45], [1, 1]],
-  blurb: 'BAT · BOUNCE · WIN', verb: 'PLAY', fireKey: 'spark', boostKey: 'boost', overKey: 'over', againKey: 'again',
+  blurb: 'BAT · BOUNCE · WIN', verb: 'PLAY', overKey: 'over', againKey: 'again',
+  buttons: { fire: { label: 'spark' }, boost: { label: 'boost', enabled: false } },   // no BOOST in this game: it stays dark
   manual: [{ h: 'howH', p: 'pbHow' }],
   strings: { en: { pbName: 'Paddle Ball', pbHow: '…' }, 'zh-hant': { … }, 'zh-hans': { … } },
   drawLoad(api: ConsoleAPI, p: number, t: number){ api.txt('PADDLE BALL', api.LW / 2, 40, 'text', 'center', 16); api.diskInfo(80, p, t, disk); },

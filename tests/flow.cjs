@@ -12,11 +12,17 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.screenshot({ path: `${out}/${tag}-boot.png` });
   await p.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 8000 });
   await p.waitForTimeout(300); await p.screenshot({ path: `${out}/${tag}-menu.png` });
+  // the menu maps its own buttons: FIRE reads SELECT, BOOST is dark and ignores presses
+  const menuBtns = await p.evaluate(() => ({ fire: document.querySelector('#fireBtn').textContent, boostOff: document.querySelector('#boostBtn').getAttribute('aria-disabled') }));
+  await p.keyboard.press('Shift'); const afterBoost = await mode(p);
+  if (menuBtns.fire !== 'SELECT' || menuBtns.boostOff !== 'true' || afterBoost !== 'menu') errs.push(tag + ' menu buttons: ' + JSON.stringify({ ...menuBtns, afterBoost }));
   // tunnel raider via FIRE
   const t0 = Date.now(); await p.click('#fireBtn');
   await p.waitForTimeout(2000); await p.screenshot({ path: `${out}/${tag}-load-tunnel.png` });
   await p.waitForFunction(() => __gg.S.mode === 'ready' || __gg.S.mode === 'play', null, { timeout: 8000 });
   const tl = (Date.now() - t0) / 1000;
+  const gameBtns = await p.evaluate(() => ({ fire: document.querySelector('#fireBtn').textContent, boostOff: document.querySelector('#boostBtn').getAttribute('aria-disabled') }));
+  if (gameBtns.fire !== 'FIRE' || gameBtns.boostOff !== 'false') errs.push(tag + ' game buttons: ' + JSON.stringify(gameBtns));
   await p.waitForTimeout(1600); await p.screenshot({ path: `${out}/${tag}-tunnel.png` });
   // SELECT back to the menu, pick Dino Run
   await p.keyboard.press('g'); await p.waitForTimeout(400);   // SELECT's key (the button is hidden for now)

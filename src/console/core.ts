@@ -2,6 +2,7 @@ import { track as vaTrack } from '@vercel/analytics';
 import { DISKS, loadGameCode } from "../games/registry";
 import type { GameDisk, GameRuntime, ConsoleAPI } from "../games/types";
 import { bus } from "./bus";
+import * as Btn from "./buttons";
 import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame } from "./loader";
 export let W = 15, H = 10;
 export const C = 32, CELL = 24, HUD = 20, K = CELL / C;   // game units per cell, low-res pixels per cell
@@ -245,8 +246,8 @@ export const S: any = {
 
 /* ---------- input ---------- */
 export const held = [];
-export let stickDir = null, fireHeld = false, fireCool = false, boostQueued = false, boostShown = '';
-export let fireQueued = false, boostHeld = false, tapQueued = false, tapHeld = false;
+export let stickDir = null, fireCool = false, boostShown = '';
+export let tapQueued = false, tapHeld = false;
 export const KEYMAP = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', KeyW:'up', KeyS:'down', KeyA:'left', KeyD:'right' };
 export const press = d => { if (!held.includes(d)) held.push(d); };
 export const release = d => { const i = held.indexOf(d); if (i >= 0) held.splice(i, 1); };
@@ -259,17 +260,18 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyG') { pressSelect(); e.preventDefault(); return; }
   const d = KEYMAP[e.code];
   if (d) { press(d); e.preventDefault(); return; }
-  if (e.code === 'Space' || e.code === 'KeyZ' || e.code === 'KeyX') { if (menuFire()) e.preventDefault(); else if (S.mode !== 'title' && S.mode !== 'over') { fireQueued = true; fireHeld = true; e.preventDefault(); } return; }   // held like the FIRE button
+  if (e.code === 'Space' || e.code === 'KeyZ' || e.code === 'KeyX') { if (!Btn.button('fire').enabled || menuFire()) e.preventDefault(); else if (S.mode !== 'title' && S.mode !== 'over') { Btn.press('fire'); e.preventDefault(); } return; }   // held like the FIRE button
   if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
   if (e.code === 'KeyF') { setFull(!full); return; }
-  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyB') { if (S.mode === 'play') boostQueued = true; boostHeld = true; e.preventDefault(); return; }
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyB') { if (Btn.press('boost') && S.mode !== 'play') Btn.clearQueued('boost'); e.preventDefault(); return; }
+  { const sl = Btn.slotForKey(e.code); if (sl) { Btn.press(sl.id); e.preventDefault(); return; } }   // any further slots
   if (e.code === 'KeyC') { setMode(MODE_ORDER[(MODE_ORDER.indexOf(modeKey) + 1) % MODE_ORDER.length]); track('theme', { theme: modeKey, via: 'key' }); return; }
   if (e.code === 'Enter' && !tvOn) { ensureAudio(); powerOn(); e.preventDefault(); return; }
   if (e.code === 'Enter' && (S.mode === 'title' || S.mode === 'over')) { startGame(); e.preventDefault(); }
 });
-addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); if (e.code === 'Space' || e.code === 'KeyZ' || e.code === 'KeyX') fireHeld = false; if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyB') boostHeld = false; });
-addEventListener('blur', () => { held.length = 0; fireHeld = false; if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
+addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); const sl = Btn.slotForKey(e.code); if (sl) Btn.release(sl.id); });
+addEventListener('blur', () => { held.length = 0; Btn.release('fire'); if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
 
 /* floating thumb-stick: the stick centres wherever the thumb lands, follows it past the rim,
    snaps to four directions with a dead zone and hysteresis so diagonal wobble doesn't flicker */
@@ -316,14 +318,17 @@ addEventListener('blur', () => { held.length = 0; fireHeld = false; if (S.mode =
   zone.addEventListener('pointercancel', end);
   zone.addEventListener('contextmenu', e => e.preventDefault());
 
+  // the set's action buttons, as slots any app can map (src/console/buttons.ts); a third button is one more line here
+  Btn.defineSlot('fire', ['Space', 'KeyZ', 'KeyX'], 'spark', $('fireBtn'));
+  Btn.defineSlot('boost', ['ShiftLeft', 'ShiftRight', 'KeyB'], 'boost', $('boostBtn'), $('boostBtn').querySelector('span'));
   const fire = $('fireBtn');
-  fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (menuFire()) { fire.classList.add('on'); return; } fireQueued = true; fireHeld = true; fire.classList.add('on'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
-  const off = () => { fireHeld = false; fire.classList.remove('on'); };
+  fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
+  const off = () => Btn.release('fire');
   fire.addEventListener('pointerup', off); fire.addEventListener('pointercancel', off); fire.addEventListener('lostpointercapture', off);
   fire.addEventListener('contextmenu', e => e.preventDefault());
   const boost = $('boostBtn');
-  boost.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (S.mode === 'play') boostQueued = true; boostHeld = true; boost.classList.add('on'); try { boost.setPointerCapture(e.pointerId); } catch (_) {} });
-  const boff = () => { boostHeld = false; boost.classList.remove('on'); };
+  boost.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.press('boost')) return; if (S.mode !== 'play') Btn.clearQueued('boost'); try { boost.setPointerCapture(e.pointerId); } catch (_) {} });
+  const boff = () => Btn.release('boost');
   boost.addEventListener('pointerup', boff); boost.addEventListener('pointercancel', boff); boost.addEventListener('lostpointercapture', boff);
   boost.addEventListener('contextmenu', e => e.preventDefault());
 })();
@@ -334,24 +339,18 @@ export const overlay = $('overlay');
 import { I18N, LANGS, LANG_ALIAS, hashLang, kb } from './i18n';
 export { I18N, LANGS, LANG_ALIAS, hashLang, kb };
 export let lang = 'en', ovKind = 'title', ovVars: any = {};
+Btn.setTranslator(k => I18N[lang][k] ?? k);
 /* ---------- instructions: the console's while the menu is up, the loaded game's otherwise (rendered by the React leaflet) ---------- */
 export let manCtx = 'console';
 export function setManual(ctx: string){ manCtx = ctx; bus.set({ manual: ctx }); }
-/* the loaded game: its scores, its FIRE and BOOST labels and its instructions (null for the console's own screens) */
+/* the loaded game: its scores, its buttons and its instructions (null for the console's own screens, which set their own buttons) */
 export function setGame(d: GameDisk | null){
-  if (d) { game = d; loadScores(d.id); }
+  if (d) { game = d; loadScores(d.id); Btn.useButtons(d.buttons); }
   document.documentElement.setAttribute('data-game', d ? d.id : 'menu');
-  $('fireBtn').dataset.i18n = d ? d.fireKey : 'spark';
-  $('boostBtn').querySelector('span').dataset.i18n = d ? d.boostKey : 'boost';
-  const T = I18N[lang]; $('fireBtn').innerHTML = T[$('fireBtn').dataset.i18n]; $('boostBtn').querySelector('span').innerHTML = T[$('boostBtn').querySelector('span').dataset.i18n];
   if (d) setManual(d.id);
 }
-/* a game can relabel BOOST for a while (Invader Force's NUKE); null goes back to the disk's label */
-export function setBoostLabel(key: string | null){
-  const span = $('boostBtn').querySelector('span'), k = key || (game ? game.boostKey : 'boost');
-  if (span.dataset.i18n === k) return;
-  span.dataset.i18n = k; span.innerHTML = I18N[lang][k] ?? k;
-}
+/** @deprecated games use api.setButtons({ boost: { label } }); kept so older game code still runs */
+export function setBoostLabel(key: string | null){ Btn.setButtons({ boost: key ? { label: key } : null }); }
 export function renderOverlay(){
   const T = I18N[lang];
   const v = { title: ['TUNNEL RAIDER', T.titleText, T.start], paused: [T.paused, T.pausedText, T.resume], over: [T[game.overKey], T.overText(ovVars.n, ovVars.s), T[game.againKey]] }[ovKind];
@@ -366,7 +365,7 @@ export function applyLang(l, writeHash){
   $('manualLbl').textContent = $('manualBtn').getAttribute('aria-expanded') === 'true' ? T.manualHide : T.manual;
   document.querySelectorAll('#langSeg [data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   $('exitFull').setAttribute('aria-label', T.exitFull);
-  renderOverlay(); bus.set({ lang });
+  Btn.relabel(); renderOverlay(); bus.set({ lang });
   try { localStorage.setItem('tr-lang', lang); } catch (_) {}
   if (writeHash && hashLang() !== lang) location.hash = lang;
 }
@@ -461,14 +460,14 @@ export function finishGame(){
   if (S.score > 0 && S.score > (S.bestAtStart || 0)) track('new_best', { game: game.id, score: S.score });
   if (qualifies(S.score)) startEntry(); else enterOver(false);
 }
-export function clearInput(){ held.length = 0; stickDir = null; fireHeld = false; fireQueued = false; boostQueued = false; boostHeld = false; tapQueued = false; tapHeld = false; }
+export function clearInput(){ held.length = 0; stickDir = null; Btn.releaseAll(); tapQueued = false; tapHeld = false; }
 /* power: off collapses the picture to a line, then a dot that fades; on warms up, degausses and boots */
 export let tvOn = false, offT = 99;   // the set starts switched off
 S.mode = 'off';
 document.documentElement.setAttribute('data-off', ''); document.documentElement.setAttribute('data-fresh', '');
 export function powerOff(){
   document.documentElement.setAttribute('data-off', '');
-  tvOn = false; offT = 0; S.mode = 'off'; held.length = 0; stickDir = null; fireHeld = false;
+  tvOn = false; offT = 0; S.mode = 'off'; held.length = 0; stickDir = null; Btn.releaseAll();
   overlay.hidden = true; saveBest();
   $('pauseBtn').setAttribute('aria-pressed', 'false');
   $('powerBtn').setAttribute('aria-checked', 'false');
@@ -933,8 +932,8 @@ requestAnimationFrame(frame);
 
 /* setters for state the game modules change (an imported binding can't be assigned from outside its module) */
 export function setBest(v){ best = v; }
-export function clearFireQueued(){ fireQueued = false; }
-export function clearBoostQueued(){ boostQueued = false; }
+export function clearFireQueued(){ Btn.clearQueued('fire'); }
+export function clearBoostQueued(){ Btn.clearQueued('boost'); }
 export function clearTap(){ tapQueued = false; }
 export function setAccReset(){ accReset = true; }
 
@@ -949,8 +948,9 @@ export const api: ConsoleAPI = {
   txt, banner, rr, poly, circ, idx, inb, DIRS,
   get S(){ return S; },
   get held(){ return held as any; }, get stickDir(){ return stickDir as any; }, wantDir: () => wantDir() as any,
-  get fireQueued(){ return fireQueued; }, get fireHeld(){ return fireHeld; },
-  get boostQueued(){ return boostQueued; }, get boostHeld(){ return boostHeld; },
+  button: Btn.button, clearButton: Btn.clearQueued, setButtons: Btn.setButtons,
+  get fireQueued(){ return Btn.button('fire').queued; }, get fireHeld(){ return Btn.button('fire').held; },
+  get boostQueued(){ return Btn.button('boost').queued; }, get boostHeld(){ return Btn.button('boost').held; },
   get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; },
   clearFire: clearFireQueued, clearBoost: clearBoostQueued, clearTap, setBoostLabel,
   tone,

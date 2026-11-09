@@ -64,12 +64,18 @@ export interface ConsoleAPI {
   readonly stickDir: Dir | null;
   /** The step to move in now (stick first, then the newest key), or null. */
   wantDir(): Step | null;
-  /** FIRE / BOOST / tap-on-screen: `…Queued` is a press not yet handled, `…Held` is down now. */
+  /** Any action button by slot id ('fire', 'boost', and whatever slots the set gains): its label, whether it's live, and its press state. */
+  button(id: string): ButtonState;
+  /** Take a press off a slot once it's handled. */
+  clearButton(id: string): void;
+  /** Change slots for now (label and/or on/off); null puts a slot back to the disk's `buttons`. Unknown slots are ignored. */
+  setButtons(patch: ButtonPatch): void;
+  /** Shorthands for the two buttons on the set today, and taps on the screen: `…Queued` is a press not yet handled, `…Held` is down now. */
   readonly fireQueued: boolean; readonly fireHeld: boolean;
   readonly boostQueued: boolean; readonly boostHeld: boolean;
   readonly tapQueued: boolean; readonly tapHeld: boolean;
   clearFire(): void; clearBoost(): void; clearTap(): void;
-  /** Relabel the BOOST button for now with one of the game's I18N keys; null puts the disk's own label back. */
+  /** @deprecated use setButtons({ boost: { label } }) / setButtons({ boost: null }). */
   setBoostLabel(key: string | null): void;
 
   /* ---- sound ---- */
@@ -134,11 +140,23 @@ export interface GameDisk {
   verb: string;
   /** Taps on the screen count as a press (`tapQueued` / `tapHeld`) while playing, e.g. to jump or fire. */
   tap?: boolean;
-  /** I18N keys for the FIRE and BOOST labels, and the game-over card's title and button. */
-  fireKey: string; boostKey: string; overKey: string; againKey: string;
+  /** What each action button is for in this game: an I18N key for its label, and `enabled: false` to leave it dark. Slots left out go dark. */
+  buttons: ButtonMap;
+  /** I18N keys for the game-over card's title and button. */
+  overKey: string; againKey: string;
   /** Operating Instructions, and the strings they (and the labels above) use. */
   manual: ManualSection[];
   strings: Partial<Strings>;
   /** The themed loading screen; p is 0..1 loaded, t the seconds since the drive started. */
   drawLoad(api: ConsoleAPI, p: number, t: number): void;
 }
+
+/* ---------- action buttons (see src/console/buttons.ts) ---------- */
+/** One slot as an app wants it: an I18N key for the label, and whether it's live (default true). */
+export interface ButtonSpec { label: string; enabled?: boolean }
+/** An app's buttons, by slot id ('fire', 'boost', …). Slots it leaves out go dark. */
+export type ButtonMap = Record<string, ButtonSpec>;
+/** A change for now: new label and/or on/off per slot, or null to go back to the declared spec. */
+export type ButtonPatch = Record<string, Partial<ButtonSpec> | null>;
+/** What a game can read about a slot. */
+export interface ButtonState { label: string; enabled: boolean; queued: boolean; held: boolean }
