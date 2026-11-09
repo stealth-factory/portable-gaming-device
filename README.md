@@ -215,3 +215,7 @@ Once the console has its own address:
 ## Credits
 
 Tunnel Raider is a tribute to Windmill Software's *Digger* (1983); Dino Run to the offline dinosaur game in Google Chrome (2014); Invader Force to Taito's *Space Invaders* (1978), and I Invade turns that genre round so you play the invaders. All four are original work: no characters, art, sound or code are copied.
+
+## Licence
+
+Copyright © 2026 wiiiimm. The code is under the [GNU AGPL-3.0](LICENSE): you can play, study and change it freely, but if you share a changed version or run one on a website, you must release it under the same licence with its full source. The images are under [CC BY-NC-SA 4.0](LICENSES/CC-BY-NC-SA-4.0.txt). Commercial use outside those terms needs a separate licence: ask [wiiiimm](https://github.com/wiiiimm). The vendored agent skills keep their own licences. See [`LICENSING.md`](LICENSING.md), [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md).
