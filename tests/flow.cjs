@@ -86,17 +86,16 @@ async function playEveryDisk(p, tag){
     if (!await chooseDisk(p, tag, i)) { console.log(tag, 'disk', id, { pick: 'missed' }); continue; }
     await p.waitForFunction(id => (__gg.S.mode === 'load' || __gg.S.mode === 'ready' || __gg.S.mode === 'play') && __gg.game && __gg.game.id === id, id, { timeout: 4000 });
     await p.waitForFunction(id => __gg.S.mode === 'play' && __gg.game && __gg.game.id === id && globalThis.__ggBus.get().manual === id && (document.querySelector('#manH')?.textContent || '') !== 'Operating Instructions', id, { timeout: 12000 });
-    // Bricks does not auto-serve: Space is what first sets the ember moving
-    let bricksBefore = null;
-    if (id === 'bricks') bricksBefore = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { served: s.served, vx: s.vx, vy: s.vy, mode: __gg.S.mode }; });
-    await p.keyboard.press('Space');
+    // Bricks does not auto-serve. Enter is what the instructions promise, and it is the first key that moves the ember.
     if (id === 'bricks') {
+      const before = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { served: s.served, vx: s.vx, vy: s.vy, mode: __gg.S.mode }; });
+      await p.keyboard.press('Enter');
       await p.waitForTimeout(60);
       const after = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { served: s.served, vx: s.vx, vy: s.vy }; });
-      const serveOk = bricksBefore && bricksBefore.mode === 'play' && bricksBefore.served === false && bricksBefore.vx === 0 && bricksBefore.vy === 0 && after.served === true && (after.vx !== 0 || after.vy !== 0);
-      if (!serveOk) errs.push(tag + ' bricks serve: ' + JSON.stringify({ bricksBefore, after }));
-      console.log(tag, 'bricks serve', { before: bricksBefore, after });
-    }
+      const serveOk = before.mode === 'play' && before.served === false && before.vx === 0 && before.vy === 0 && after.served === true && (after.vx !== 0 || after.vy !== 0);
+      if (!serveOk) errs.push(tag + ' bricks enter serve: ' + JSON.stringify({ before, after }));
+      console.log(tag, 'bricks enter serve', { before, after });
+    } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
     const hold = await holdOnHide(p);
