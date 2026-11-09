@@ -88,15 +88,22 @@ jobs:
             | grep -cE '^(feat|fix|perf|revert)(\(.+\))?!?:|^[a-z]+(\(.+\))?!:' \
             || true)
 
-          # --bumped-version gives the tag name; strip the v for the manifest.
-          next=$(git cliff --bumped-version 2>/dev/null | sed 's/^v//' || true)
-          if [ -z "$next" ] || [ "$next" = "$current" ] || [ "$releasable" -eq 0 ]; then
+          if [ "$releasable" -eq 0 ]; then
             # Nothing releasable since the last tag. No release PR, and any
             # existing one is left alone.
             echo "nothing to release: still $current"
-            echo "  ${releasable} releasable commits in ${range}"
+            echo "  0 releasable commits in ${range}"
             echo "release=no" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          # --bumped-version gives the tag name; strip the v for the manifest.
+          # Not silenced: a bad config or git error should fail the run, not
+          # read as "nothing to release".
+          next=$(git cliff --bumped-version | sed 's/^v//')
+          if [ -z "$next" ] || [ "$next" = "$current" ]; then
+            echo "git-cliff offered '${next}' after ${releasable} releasable commits" >&2
+            exit 1
           fi
           echo "${releasable} releasable commits in ${range}"
           echo "$current -> $next"
@@ -166,7 +173,9 @@ jobs:
             "is the PR title that produced it, on main." \
             "" \
             "---")
-          notes=$(awk '/^## \[/{n++} n==1' CHANGELOG.md | head -80)
+          # The limit is inside awk: piping to `head` can close the pipe
+          # while awk is still writing, which pipefail turns into a failure.
+          notes=$(awk '/^## \[/{n++} n==1 {print; if (++lines == 80) exit}' CHANGELOG.md)
           full=$(printf '%s\n\n%s\n' "$body" "$notes")
           # Search for an OPEN pull request explicitly. `gh pr view release`
           # falls back to the last merged one, which would rewrite that

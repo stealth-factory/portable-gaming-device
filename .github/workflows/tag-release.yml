@@ -108,6 +108,11 @@ jobs:
               echo "production is already at ${TAG}"
               exit 0
             fi
+            # An older tag re-run must not roll production backwards.
+            if git merge-base --is-ancestor "$sha" "$current"; then
+              echo "production is already past ${TAG}"
+              exit 0
+            fi
             # Fast-forward only. If production holds a commit main does not,
             # that is a divergence for a person to look at, not something to
             # force past.
@@ -117,11 +122,6 @@ jobs:
               exit 1; }
             if ! git merge-base --is-ancestor "$current" "$(git rev-parse origin/main)"; then
               echo "production is not on main" >&2; exit 1
-            fi
-            # An older tag re-run must not roll production backwards.
-            if git merge-base --is-ancestor "$sha" "$current"; then
-              echo "production is already past ${TAG}"
-              exit 0
             fi
           fi
           git push origin "${sha}:refs/heads/production"
