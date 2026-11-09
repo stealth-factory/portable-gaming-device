@@ -3,6 +3,21 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.3.1] - 2026-11-09
+
+### Bug Fixes
+
+- **stick**: Never leave the joystick stuck when a finger's release is lost (WII-54) (#14)
+
+### Documentation
+
+- Track every change in Linear and land it through a pull request (WII-45) (#13)
+- Point AGENTS.md at the Game Guy team and its GAM issue prefix (GAM-21) (#19)
+
+### Tests
+
+- Play every disk from the menu (WII-41) (#16)
+
 ## [0.3.0] - 2026-11-09
 
 ### Bug Fixes
