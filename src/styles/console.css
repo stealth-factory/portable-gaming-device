@@ -30,7 +30,10 @@ img{max-width:100%}
 html,body{background:var(--desk);color:var(--label)}
 body{background:radial-gradient(110% 60% at 50% -8%, #2b2720 0, #191712 42%, var(--desk) 78%) var(--desk) no-repeat}
 /* iOS: no double-tap zoom (pinch zoom still works), no text selection, callouts or grey tap flashes on the controls */
-html,body,.tv,button,.manual-bar,.netbadge{touch-action:manipulation}
+html,body,button,.manual-bar,.netbadge{touch-action:manipulation}
+/* the set itself is a control surface: a drag or pinch that starts on it never scrolls, zooms or pull-to-refreshes the page; scroll from the desk around it */
+.tv,.tv button{touch-action:none}
+.tv{overscroll-behavior:contain}
 .tv,.manual-bar,.netbadge{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 button,.stickzone,.dial,.tv{-webkit-tap-highlight-color:transparent}
 body{font-family:var(--body);font-size:14px;line-height:1.55}

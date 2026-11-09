@@ -396,6 +396,13 @@ window.trToast = trToast;
   }, { passive: false });
   document.addEventListener('dblclick', e => { if (e.target.closest && e.target.closest('.tv')) e.preventDefault(); }, { passive: false });
 }
+/* backstop for browsers that ignore touch-action: a finger moving on the set never drags the page, and a mouse drag never picks up a piece of it */
+{ const set = document.querySelector('.tv');
+  if (set) {
+    set.addEventListener('touchmove', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+    set.addEventListener('dragstart', e => e.preventDefault());
+  }
+}
 window.trT = k => I18N[lang][k];
 addEventListener('offline', () => trToast(I18N[lang].netOff, { state: 'off', ms: 5000 }));
 addEventListener('online', () => trToast(I18N[lang].netOn, { state: 'on', ms: 5000 }));
