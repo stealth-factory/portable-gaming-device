@@ -27,6 +27,7 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
 
 ## The console
 
+- **Nameplate:** Game Guy and the phosphor in use, with the release version stamped on its own line under the plate. The version is the one in `package.json`, so it moves with the release.
 - **POWER** switches the set on (or press <kbd>Enter</kbd>). It runs a memory test, beeps, spins up the drive and boots the disk menu.
 - **Disk menu:**
   - **Choose a game:** stick, arrow keys or <kbd>1</kbd>–<kbd>9</kbd>.
