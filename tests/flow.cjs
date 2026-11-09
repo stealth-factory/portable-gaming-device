@@ -1,5 +1,5 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
-// plus Invader Force's weapon capsules, speed boost and blasts, and I Invade's three bomb bays.
+// plus Invader Force's weapon capsules, speed boost and blasts, and I Invade's button pad and weapons.
 // Then every disk on the menu (future games included): choose it with the menu's keys or a tap,
 // play, game over, name entry or the table, G back to the menu.
 const { chromium, devices } = require('playwright');
@@ -156,42 +156,67 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const ok = capOk && flashLeft <= 0 && rapid.shots >= 2 && basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
   if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked, flashLeft, rapid, shotCap, livesBefore }));
   console.log(tag, { invader: { basic: basic.shots, caught: caught.weapon, twin: twin.shots, spread: spread.shots, pierce: pierce.beam, speed: pierce.speed, alive: [pierce.alive, blasts.alive, nuked.alive], label: [label, label2], end: await mode(p) } });
-  // I Invade: the side fire buttons show only while it's loaded; Z, Space and V (and the side buttons) bomb from the
-  // left-hand, middle and right-hand columns, the bomb flies up, and there is only ever one bomb in the air
+  // I Invade has no stick: while it plays, a button pad takes the stick's place (and FIRE's row steps aside). The pad's
+  // top row and ← ↑ → (Z X C) bomb from the left, middle and right bays, Space from the middle, one bomb in the air
+  // per bay; A drops a cluster bomb once it's armed, S the meteor swarm once charged. The stick is back on the menu.
   await backToMenu(p);
-  const bayVis = () => p.evaluate(() => ['fireLBtn', 'fireBtn', 'fireRBtn'].map(id => !document.getElementById(id).hidden).join(','));
-  const menuBays = await bayVis();
+  const padView = () => p.evaluate(() => ({
+    pad: document.documentElement.hasAttribute('data-pad'),
+    keys: [1, 2, 3, 4, 5, 6].map(n => { const el = document.getElementById(`pad${n}Btn`); return el.hidden || !el.getClientRects().length ? '-' : el.textContent; }).join(' '),
+    stick: !!document.getElementById('stickbase').getClientRects().length,
+    fire: !!document.getElementById('fireBtn').getClientRects().length,
+  }));
+  const menuPad = await padView();
   await p.evaluate(() => __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'iinvade')));
   await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 12000 });
-  const gameBays = await bayVis();
-  const holdFire = () => p.evaluate(() => __gg.runtime.debug.holdFire());   // tank shots would knock bombs out mid-check
-  const iiBomb = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); return F.bomb && { col: Math.round((F.bomb.x - Math.round(F.ox) - 5) / 16), y: F.bomb.y }; });
-  const iiFired = () => p.waitForFunction(() => !!__gg.runtime.debug.state().bomb, null, { timeout: 1000 }).catch(() => {});
-  const iiReady = () => p.waitForFunction(() => __gg.S.mode === 'play' && !__gg.runtime.debug.state().bomb, null, { timeout: 8000 });
-  const want = await p.evaluate(() => { const cs = __gg.runtime.debug.state().aliens.filter(a => a.alive).map(a => a.c); return { L: Math.min(...cs), M: Math.round((Math.min(...cs) + Math.max(...cs)) / 2), R: Math.max(...cs) }; });
+  const gamePad = await padView();
+  await p.screenshot({ path: `${out}/${tag}-iinvade-pad.png` });
+  const ii = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); return { bombs: F.bombs.map(b => ({ k: b.k, bay: b.bay, x: Math.round(b.x), y: b.y })), meteors: F.meteors.length, bays: F.bays, clusterCD: F.clusterCD }; });
+  const holdFire = () => p.evaluate(() => __gg.runtime.debug.holdFire());   // tank shells would knock bombs out mid-check
+  const clearSky = () => p.waitForFunction(() => __gg.S.mode === 'play' && !__gg.runtime.debug.state().bombs.length, null, { timeout: 8000 });
   const bays = {}; let one = null, up = null;
-  for (const [k, key] of [['L', 'z'], ['M', ' '], ['R', 'v']]) {
-    await iiReady(); await holdFire(); await p.keyboard.press(key); await iiFired();
-    const b = await iiBomb(); bays[k] = b && b.col;
-    if (k === 'R' && b) {   // a second press while a bomb is up does nothing, and the bomb is climbing
-      await p.keyboard.press('z'); await p.waitForTimeout(60);
-      const b2 = await iiBomb(); one = !!b2 && b2.col === b.col; up = !!b2 && b2.y < b.y;
+  for (const [k, key] of [['L', 'ArrowLeft'], ['M', 'x'], ['R', 'c'], ['S', 'Space'], ['L2', 'z'], ['R2', 'ArrowRight'], ['M2', 'ArrowUp']]) {
+    await clearSky(); await holdFire();
+    const before = await ii();
+    await p.keyboard.press(key);
+    await p.waitForFunction(() => __gg.runtime.debug.state().bombs.length > 0, null, { timeout: 1000 }).catch(() => {});
+    const after = await ii(), b = after.bombs[0], bay = k[0] === 'S' ? 'M' : k[0];
+    bays[k] = !!b && b.bay === bay && Math.abs(b.x - before.bays[bay].x) <= 4;
+    if (k === 'R' && b) {   // a second press on the same bay while its bomb is up does nothing, and the bomb is rising
+      await p.waitForTimeout(450); await p.keyboard.press('c'); await p.waitForTimeout(60);
+      const now = await ii();
+      one = now.bombs.filter(q => q.bay === 'R').length === 1; up = now.bombs.length > 0 && now.bombs[0].y < b.y;
     }
   }
-  let tapL = 'hidden';
-  if (await p.isVisible('#fireLBtn')) {
-    await iiReady(); await holdFire(); await p.dispatchEvent('#fireLBtn', 'pointerdown', { pointerId: 7 }); await iiFired();
-    tapL = (await iiBomb())?.col; await p.dispatchEvent('#fireLBtn', 'pointerup', { pointerId: 7 });
-  }
-  // a fleet that climbs to the tanks' row touches down and wins the wave
-  await iiReady(); await holdFire();
+  // a tap on a pad key fires its bay and leaves the keyboard where it was (Space still bombs, nothing is focused)
+  await clearSky(); await holdFire();
+  await p.dispatchEvent('#pad1Btn', 'pointerdown', { pointerId: 7 }); await p.dispatchEvent('#pad1Btn', 'pointerup', { pointerId: 7 });
+  await p.dispatchEvent('#pad1Btn', 'click', { detail: 1 }); await p.waitForTimeout(50);
+  const tapPad = (await ii()).bombs.some(b => b.bay === 'L');
+  const focus = await p.evaluate(() => document.activeElement?.id || '');
+  // the cluster bomb arms a moment into the wave; the meteor swarm once charged: 18 rocks
+  await p.waitForFunction(() => __gg.runtime.debug.state().clusterCD <= 0, null, { timeout: 8000 });
+  await clearSky(); await holdFire(); await p.keyboard.press('a'); await p.waitForTimeout(80);
+  const cluster = (await ii()).bombs.some(b => b.k === 'cluster');
+  const meteorsDark = await p.evaluate(() => document.getElementById('pad5Btn').getAttribute('aria-disabled'));
+  await p.evaluate(() => __gg.runtime.debug.charge()); await p.waitForTimeout(80);
+  const meteorsLit = await p.evaluate(() => document.getElementById('pad5Btn').getAttribute('aria-disabled'));
+  await p.keyboard.press('s'); await p.waitForTimeout(80);
+  const meteors = (await ii()).meteors;
+  // a fleet that reaches the tanks' row touches down and wins the wave
+  await holdFire();
   await p.evaluate(() => __gg.runtime.debug.climb(-400));
   const landed = await p.waitForFunction(() => __gg.S.mode === 'clear' && __gg.runtime.debug.state().landed, null, { timeout: 4000 }).then(() => true, () => false);
+  // the high-score screens are the console's: the stick comes back
+  await p.evaluate(() => { __gg.S.score = 0; __gg.finishGame(); }); await p.waitForTimeout(100);
+  const overPad = await padView();
   await backToMenu(p);
-  const backBays = await bayVis();
-  const iiOk = menuBays === 'false,true,false' && gameBays === 'true,true,true' && backBays === menuBays && bays.L === want.L && bays.M === want.M && bays.R === want.R && one && up && landed && (tapL === 'hidden' || tapL === want.L);
-  if (!iiOk) errs.push(tag + ' i invade bays: ' + JSON.stringify({ menuBays, gameBays, backBays, bays, want, one, up, landed, tapL }));
-  console.log(tag, JSON.stringify({ iinvade: { bays, want, one, up, landed, tapL } }));
+  const backPad = await padView();
+  const want = { menu: { pad: false, keys: '- - - - - -', stick: true, fire: true }, game: { pad: true, keys: '◀ ▲ ▶ CLUSTER METEORS -', stick: false, fire: false } };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const iiOk = same(menuPad, want.menu) && same(gamePad, want.game) && same(backPad, want.menu) && !overPad.pad && overPad.stick && Object.values(bays).every(Boolean) && one && up && tapPad && !/^pad/.test(focus) && cluster && meteorsDark === 'true' && meteorsLit === 'false' && meteors === 18 && landed;
+  if (!iiOk) errs.push(tag + ' i invade pad: ' + JSON.stringify({ menuPad, gamePad, overPad, backPad, bays, one, up, tapPad, focus, cluster, meteorsDark, meteorsLit, meteors, landed }));
+  console.log(tag, JSON.stringify({ iinvade: { gamePad, bays, one, up, tapPad, cluster, meteors, landed, overPad: overPad.pad } }));
   await playEveryDisk(p, tag);
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();

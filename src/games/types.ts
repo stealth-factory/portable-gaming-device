@@ -76,6 +76,8 @@ export interface ConsoleAPI {
   readonly fireQueued: boolean; readonly fireHeld: boolean;
   readonly boostQueued: boolean; readonly boostHeld: boolean;
   readonly tapQueued: boolean; readonly tapHeld: boolean;
+  /** Where the last tap on the screen landed, in low-res pixels across the tube (for a game that fires where you tap). */
+  readonly tapX: number;
   clearFire(): void; clearBoost(): void; clearTap(): void;
   /** @deprecated use setButtons({ boost: { label } }) / setButtons({ boost: null }). */
   setBoostLabel(key: string | null): void;
@@ -142,6 +144,10 @@ export interface GameDisk {
   verb: string;
   /** Taps on the screen count as a press (`tapQueued` / `tapHeld`) while playing, e.g. to jump or fire. */
   tap?: boolean;
+  /** 'pad' swaps the on-screen stick for a pad of up to six buttons (slots `pad1`…`pad6`: top row ← ↑ → or Z X C,
+      bottom row A S D) while the game is playing, and hides the FIRE row beside it; the stick comes back whenever the
+      console runs (menu, loading, name entry, high scores). Default 'stick'. */
+  controls?: 'stick' | 'pad';
   /** What each action button is for in this game: an I18N key for its label, and `enabled: false` to leave it dark. Slots left out go dark. */
   buttons: ButtonMap;
   /** I18N keys for the game-over card's title and button. */

@@ -248,7 +248,7 @@ export const S: any = {
 /* ---------- input ---------- */
 export const held = [];
 export let stickDir = null, fireCool = false, boostShown = '';
-export let tapQueued = false, tapHeld = false;
+export let tapQueued = false, tapHeld = false, tapX = 0;
 export const KEYMAP = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', KeyW:'up', KeyS:'down', KeyA:'left', KeyD:'right' };
 export const press = d => { if (!held.includes(d)) held.push(d); };
 export const release = d => { const i = held.indexOf(d); if (i >= 0) held.splice(i, 1); };
@@ -259,7 +259,7 @@ addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (S.mode === 'menu' && menuKey(e)) { e.preventDefault(); return; }
   if (e.code === 'KeyG') { pressSelect(); e.preventDefault(); return; }
-  { const sl = Btn.slotForKey(e.code); if (sl?.optional) { if (Btn.press(sl.id) && S.mode !== 'play') Btn.clearQueued(sl.id); e.preventDefault(); return; } }   // an extra button the app maps takes its keys first (Z and V in I Invade)
+  { const sl = Btn.slotForKey(e.code); if (sl?.optional && inGame()) { if (Btn.press(sl.id) && S.mode !== 'play') Btn.clearQueued(sl.id); e.preventDefault(); return; } }   // an extra button the game maps takes its keys first while it plays (I Invade's pad: arrows, Z X C, A S)
   const d = KEYMAP[e.code];
   if (d) { press(d); e.preventDefault(); return; }
   if (e.code === 'Space' || e.code === 'KeyZ' || e.code === 'KeyX') { if (!Btn.button('fire').enabled || menuFire()) e.preventDefault(); else if (S.mode !== 'title' && S.mode !== 'over') { Btn.press('fire'); e.preventDefault(); } return; }   // held like the FIRE button
@@ -273,7 +273,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Enter' && (S.mode === 'title' || S.mode === 'over')) { startGame(); e.preventDefault(); }
 });
 addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); const sl = Btn.slotForKey(e.code); if (sl) Btn.release(sl.id); });
-addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.release('fireL'); Btn.release('fireR'); if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
+addEventListener('blur', () => { held.length = 0; for (const id of Btn.slotIds()) if (id !== 'boost') Btn.release(id); if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
 
 /* floating thumb-stick: the logic lives in stick.ts; this wires it to the pad. A dropped finger must never leave the
    stick held or deaf to the next touch, so it lets go on every sign the finger has gone, and a new touch takes over. */
@@ -305,6 +305,7 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.relea
   }
   zone.addEventListener('pointerdown', e => {
     e.preventDefault(); ensureAudio();
+    if (padShown) return;   // the button pad has the zone: no stick under it
     const old = stick.id;
     if (old !== null && old !== e.pointerId) { try { zone.releasePointerCapture(old); } catch (_) {} }
     zr = zone.getBoundingClientRect();
@@ -355,7 +356,30 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.relea
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
     el.addEventListener('contextmenu', e => e.preventDefault());
   }
+  // the button pad that stands in for the stick in a game that has none (`controls: 'pad'`): two rows of three, each
+  // with its own keys, shown only while the game maps it. It sits inside the stick's zone, so the stick ignores it.
+  const PAD_KEYS = [['ArrowLeft', 'KeyZ'], ['ArrowUp', 'KeyX'], ['ArrowRight', 'KeyC'], ['KeyA'], ['KeyS'], ['KeyD']];
+  PAD_KEYS.forEach((keys, i) => {
+    const id = 'pad' + (i + 1), el = $(id + 'Btn');
+    Btn.defineSlot(id, keys, 'spark', el, null, true, true);
+    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
+    const up = () => Btn.release(id);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  });
 })();
+/** The loaded game's runtime is in charge (its pad and its own keys apply), as opposed to the console's screens. */
+export const inGame = () => ['ready', 'play', 'dying', 'clear', 'paused'].includes(S.mode);
+/* a game with no stick (`controls: 'pad'`) gets the button pad in the stick's place while it plays; the stick is back
+   for the console's own screens (menu, loading, name entry, high scores), so SELECT and RESET restore it too */
+export let padShown = false;
+export function syncPad(){
+  const on = !!game && game.controls === 'pad' && inGame() && tvOn;
+  if (on === padShown) return;
+  padShown = on;
+  document.documentElement.toggleAttribute('data-pad', on);
+  if (on) { stickDir = null; $('stickzone').querySelectorAll('.tick').forEach(t => t.classList.remove('on')); }
+}
 
 /* ---------- UI ---------- */
 export const overlay = $('overlay');
@@ -651,7 +675,7 @@ addEventListener('pointercancel', () => { tapHeld = false; });
 cv.addEventListener('pointerdown', e => {
   const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * LW, y = (e.clientY - r.top) / r.height * LH;
   if (S.mode === 'menu') { e.preventDefault(); ensureAudio(); menuTap(x, y); return; }
-  if (game.tap && (S.mode === 'play' || S.mode === 'ready')) { e.preventDefault(); tapQueued = true; tapHeld = true; return; }   // games that take taps (jump, fire)
+  if (game.tap && (S.mode === 'play' || S.mode === 'ready')) { e.preventDefault(); tapQueued = true; tapHeld = true; tapX = x; return; }   // games that take taps (jump, fire)
   if (S.mode !== 'entry' && !(S.mode === 'over' && S.showBoard)) return;
   e.preventDefault(); ensureAudio();
   if (S.mode === 'over') { if (S.overT > 0.8) startGame(); return; }
@@ -939,6 +963,7 @@ export function frame(now){
   frameDt = Math.max(0.001, dt); warmT += dt; tickAge(dt);
   if (!tvOn) offT += dt;
   if (S.mode !== 'paused') { while (dt > 0) { const step = Math.min(dt, 1 / 60); update(step); dt -= step; } }
+  syncPad();
   renderFrame(); present();
   const cool = S.charge < 1; if (cool !== fireCool) { fireCool = cool; $('fireBtn').classList.toggle('cool', cool); }
   const bk = (S.boostT > 0 ? 'a' : '') + Math.round((S.boost || 0) * 40);
@@ -975,7 +1000,7 @@ export const api: ConsoleAPI = {
   button: Btn.button, clearButton: Btn.clearQueued, setButtons: Btn.setButtons,
   get fireQueued(){ return Btn.button('fire').queued; }, get fireHeld(){ return Btn.button('fire').held; },
   get boostQueued(){ return Btn.button('boost').queued; }, get boostHeld(){ return Btn.button('boost').held; },
-  get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; },
+  get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; }, get tapX(){ return tapX; },
   clearFire: clearFireQueued, clearBoost: clearBoostQueued, clearTap, setBoostLabel,
   tone,
   get best(){ return best; }, set best(v: number){ best = v; },

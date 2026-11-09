@@ -90,18 +90,16 @@ const IMAGES = [
   await p.waitForTimeout(7000);
   await until(() => { const F = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && F.shots.length && F.shots[0].y < __gg.LH - 60 && F.bombs.length > 0; }, 20000).catch(() => {});
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await shot('play-invader.png');
-  // I Invade: its loading screen, then an autopilot steering the bomb bay over a tank, caught mid-UFO run
+  // I Invade: its loading screen, then an autopilot timing the three bomb bays as the fleet marches, caught mid-UFO run
   await p.keyboard.press('KeyG'); await until(() => __gg.S.mode === 'menu');
   await p.evaluate(() => { __gg.loadGame(3); __gg.S.loadLen = 4.2; }); await until(() => __gg.S.loadT > 2.6); await shot('load-iinvade.png');
   await until(() => __gg.S.mode === 'play');
   await p.evaluate(() => { setInterval(() => {
-    const F = __gg.runtime.debug.state(), S = __gg.S; if (S.mode !== 'play') return;
+    const F = __gg.runtime.debug.state(), S = __gg.S; if (S.mode !== 'play' || !F.bays) return;
     const k = (t, c) => dispatchEvent(new KeyboardEvent(t, { code: c, key: c }));
-    const al = F.aliens.filter(a => a.alive), tk = F.tanks.find(t => !t.out); if (!al.length || !tk) return;
-    const cs = al.map(a => a.c), mid = F.ox + (Math.min(...cs) + Math.max(...cs)) * 8 + 5;
-    k('keyup', 'ArrowLeft'); k('keyup', 'ArrowRight');
-    if (tk.x + 6 < mid - 3) k('keydown', 'ArrowLeft'); else if (tk.x + 6 > mid + 3) k('keydown', 'ArrowRight');
-    else { k('keydown', 'Space'); k('keyup', 'Space'); }
+    for (const [b, key] of [['L', 'ArrowLeft'], ['M', 'ArrowUp'], ['R', 'ArrowRight']]) {
+      if (F.tanks.some(t => !t.out && t.downT <= 0 && Math.abs(t.x + 6.5 - F.bays[b].x) < 8)) { k('keydown', key); k('keyup', key); }
+    }
   }, 30); });
   await p.waitForTimeout(4000);
   await p.keyboard.press('Shift');

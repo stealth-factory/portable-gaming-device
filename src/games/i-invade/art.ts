@@ -104,5 +104,5 @@ export const PILLBOX: Sprite = [
   '##################',
   '##################',
 ];
-/** A spare fleet in the top bar. */
-export const MINI: Sprite = ['.#####.', '###.###', '#######', '.#.#.#.'];
+/** A defender in the top bar, with its lives as pips underneath. */
+export const MINI: Sprite = ['...#...', '..###..', '#######', '#.#.#.#'];

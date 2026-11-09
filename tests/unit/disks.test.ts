@@ -19,6 +19,21 @@ describe('game disks', () => {
     expect(d.loadSecs).toBeGreaterThan(0);
     expect(d.loadSecs).toBeLessThanOrEqual(5);
   });
+  it.each(DISKS.map(d => [d.id, d] as const))('%s labels every button it maps in all three languages', async (_id, d) => {
+    const { I18N } = await import('../../src/console/i18n');
+    for (const lang of ['en', 'zh-hant', 'zh-hans'] as const) for (const [slot, spec] of Object.entries(d.buttons)) {
+      const text = d.strings[lang]?.[spec.label] ?? (I18N as any)[lang]?.[spec.label];
+      expect(typeof text, `${slot} → ${spec.label} (${lang})`).toBe('string');
+    }
+  });
+  it('a stickless disk maps only the pad slots the set has (pad1 to pad6)', () => {
+    for (const d of DISKS.filter(d => d.controls === 'pad')) {
+      const pads = Object.keys(d.buttons).filter(k => k.startsWith('pad'));
+      expect(pads.length).toBeGreaterThan(0);
+      for (const k of pads) expect(k).toMatch(/^pad[1-6]$/);
+    }
+    expect(DISKS.find(d => d.id === 'iinvade')?.controls).toBe('pad');
+  });
   it('load times differ between games', () => {
     expect(new Set(DISKS.map(d => d.loadSecs)).size).toBe(DISKS.length);
   });
