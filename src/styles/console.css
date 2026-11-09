@@ -376,6 +376,11 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 /* boost key: amber, with its own recharge meter */
 .keyrow{display:flex;flex-direction:column;gap:12px}
 .keyrow .fire{width:auto;flex:none}
+/* FIRE's row: FIRE alone fills it; with the extra fire keys shown (fireL, fireR) the three share it */
+.firerow{display:flex;gap:10px;min-width:0}
+.keyrow .firerow .fire{flex:1 1 0;min-width:0;padding:0 4px}
+.firerow:has(.side:not([hidden])){gap:8px}
+.firerow:has(.side:not([hidden])) .fire{font-size:11px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:clip}
 .boost{flex:none;min-width:0;height:58px;border-radius:9px;cursor:pointer;touch-action:none;display:grid;place-items:center;align-content:center;gap:5px;padding:0 8px;font-family:var(--display);font-size:13px;letter-spacing:.16em;color:#2b1a00;border:2px solid #4a3300;
   background:linear-gradient(180deg,#ffe39a 0,#f0b23c 26%,#d18f16 72%,#9a6408);
   box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 0 0 4px #191815,0 0 0 5px #3a372f,0 5px 0 4px #0d0c0a,0 8px 12px 4px rgba(0,0,0,.45);transition:transform .06s,box-shadow .06s,filter .3s}
