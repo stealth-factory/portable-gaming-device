@@ -141,6 +141,15 @@ describe('hud', () => {
     expect(f.texts.find(t => t.s === 'NUKE')!.x).toBe(48 + 42);
     expect(badgesWidth([{ text: 'AB', role: 'x' }])).toBe(18);
   });
+  it('leaves out badges that would run into the lives on a narrow tube', () => {
+    const f = fakeApi({ LW: 240 });
+    f.S.lives = 6;
+    drawHud(f.api, { right: 'WAVE 1', lives: { art: MINI, role: 'cart' }, badges: [{ text: 'SPREAD', role: 'gold' }, { text: 'NUKE', role: 'text' }, { text: 'SHIELD', role: 'gem' }] });
+    const livesX = Math.min(...[...f.pixels('c:cart')].map(p => Number(p.split(',')[0])));
+    expect(livesX).toBe(142);
+    expect(f.texts.map(t => t.s)).toEqual(['000000', 'WAVE 1', 'SPREAD', 'NUKE']);
+    for (const t of f.texts.filter(t => t.s === 'SPREAD' || t.s === 'NUKE')) expect(t.x + t.s.length * 6).toBeLessThanOrEqual(livesX - 4);
+  });
   it('blinks a badge', () => {
     const f = fakeApi();
     f.S.time = 0.1; drawHud(f.api, { right: 'X', badges: [{ text: 'NUKE', role: 'text', blink: 3 }] });
