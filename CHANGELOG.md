@@ -3,6 +3,21 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.7.0] - 2026-11-09
+
+### Bug Fixes
+
+- **i-invade**: Repair the operating instructions from the weapons section (#44)
+- **bricks**: Quicken the bat on a sideways stick (GAM-30) (#45)
+
+### Features
+
+- **i-invade**: Sweep cluster fire and move the console pad (#46)
+
+### Performance
+
+- **ImgBot**: Optimize images (#42)
+
 ## [0.6.0] - 2026-11-09
 
 ### Bug Fixes
