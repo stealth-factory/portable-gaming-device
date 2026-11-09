@@ -186,7 +186,7 @@ Every pull request belongs to a Linear issue in the Game Guy project, and the is
    | Work starts (branch made) | In Progress |
    | PR marked ready for review | In Review |
    | CI green and review comments dealt with | Ready to Merge |
-   | PR merged into `main` | Released |
+   | PR merged into `main` | Released (Linear's name for merged: the change reaches players with the next `release: vX.Y.Z` PR, which lists it) |
    | Not doing it, or the PR is closed unmerged | Canceled (say why in a comment) |
    | Waiting on a decision or another issue | Paused |
 
@@ -198,7 +198,7 @@ Release PRs (`release: vX.Y.Z`) and bot PRs (ImgBot) need no issue; the release 
 ## Gotchas paid for already
 
 - **A push GitHub warns about is a push that landed.** See [Never push to `main`](#never-push-to-main): `--no-track`, an explicit `HEAD:refs/heads/<branch>` refspec and an `ls-remote` of `main` after the push each stop an accidental push to `main`; use all three.
-- **`gh pr view <branch>` finds the most recently *merged* PR when no open one exists.** Ask `gh pr list --state open --head <branch>` and act on the number (`--jq '.[0].number // empty'`, or jq prints `null`).
+- **`gh pr view <branch>` finds the most recently *merged* PR when no open one exists.** Ask `gh pr list --state open --head <branch> --json number --jq '.[0].number // empty'` and act on the number (`// empty` stops jq printing `null` when no open PR exists).
 - **Under squash merge a branch is permanently ahead of `main`.** Comparing commits can never tell you a branch merged; ask the pull request.
 - **A secret scan of the diff cannot see commit messages.** This repo is public. Scan `git log origin/main..HEAD` as well as the diff before pushing, and describe a removed secret by its shape, never its value.
 - **`$( )` strips every trailing newline.** When building a PR body in a shell, join the pieces explicitly: `printf '%s\n\n%s\n' "$a" "$b"`.
