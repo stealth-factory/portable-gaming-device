@@ -102,7 +102,7 @@ Anything on the tube goes through the palette quantiser, so it looks right on gr
 
 The share image and screenshots are never drawn by hand. To make them for a new game:
 
-1. Add the capture steps to `make.cjs`: load the disk, wait for a good moment on the loading screen and in play, and `shot('load-<short>.png')` and `shot('play-<short>.png')`. Add both names to the README screenshots list near the end of the script.
+1. Add the capture steps to `make.cjs`: load the disk, wait for a good moment on the loading screen and in play, and `shot('load-<short>.png')` and `shot('play-<short>.png')`. Add `load-<short>` and `play-<short>` (without `.png`; the script adds it) to the README screenshots list near the end of the script.
 2. Add an `IMAGES` entry: `out: 'og-<slug>.png'`, the play capture as `tv`, the title, the `<small>on the Game Guy 3000 Deluxe</small>` line, a one-sentence tagline and a fan of two floppies.
 3. Run it against a preview build:
 
@@ -125,7 +125,7 @@ Share images stay out of the offline precache; players never download them.
 
 ## Plug-in rules
 
-The unit tests check the first three.
+`disks.test.ts` checks the first (no `src/console` imports in any game file). The rest are checked in review, so a passing test run doesn't mean a `disk.ts` import is light enough.
 
 - **No console imports.** A game never imports from `src/console`. Everything comes through the `ConsoleAPI` it is handed. If a game needs something new, add it to `ConsoleAPI` in `types.ts` and to `api` in `core.ts`.
 - **No side effects.** Loading a game's modules does nothing; make canvases and listeners in `create()`.
