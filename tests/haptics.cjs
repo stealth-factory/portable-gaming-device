@@ -82,12 +82,14 @@ if (JSON.stringify(after) !== JSON.stringify(want)) errs.push('after reset ' + J
 if (!/Settings reset/.test(await p.textContent('.set-done'))) errs.push('no "Settings reset." note');
 
 // 5. clearing the scores is its own button, with its own confirm
+await p.evaluate(() => { __gg.S.mode = 'over'; __gg.S.overT = 0; __gg.S.showBoard = true; __gg.overlay.hidden = true; });   // the high-score table is on the tube
 await click('#setScores');
 const q = await p.textContent('#setQ'); if (!/can’t be undone/.test(q)) errs.push('scores confirm reads ' + q);
 await click('#setYes'); await p.waitForTimeout(200);
 const left = await p.evaluate(() => Object.keys(localStorage).filter(k => /^gg-(best|board)-|^gg-name$/.test(k)));
 if (left.length) errs.push('scores left after clearing: ' + left.join(', '));
 if (await p.evaluate(() => __gg.board.length)) errs.push('the loaded game still shows a table');
+if (await p.evaluate(() => __gg.S.mode === 'over' && (__gg.S.showBoard || __gg.overlay.hidden))) errs.push('an empty table was left on the tube after clearing');
 if (await p.evaluate(() => localStorage.getItem('eb-mode')) !== 'greenP1') errs.push('clearing scores touched the settings');
 await p.screenshot({ path: `${out}/haptics-done.png` });
 

@@ -484,6 +484,7 @@ export function clearScores(){
   for (const id of Object.keys(bestCache)) delete bestCache[id];
   lastName = ''; S.bestAtStart = 0;
   loadScores(game.id);
+  if (S.mode === 'over' && S.showBoard) { S.showBoard = false; S.boardHi = -1; overlay.hidden = false; }   // the attract loop only swaps views while there is a table
   track('scores_cleared', { game: game.id });
 }
 addEventListener(SETTINGS_EVENT, (e: Event) => {
