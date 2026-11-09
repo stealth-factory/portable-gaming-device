@@ -2,7 +2,7 @@
    Steer the formation, drop bombs from its bomb bay, and call in the UFO for a strike from above.
    The fleet, tanks, art, sound and code here are original. Everything is in low-res screen pixels. */
 import type { ConsoleAPI, CreateGame } from '../types';
-import { makeFx, makeWalls, makeScore, makeRound, drawHud, drawSprite, horizontal, play, rnd } from '../../kit/play';
+import { makeFx, makeWalls, makeScore, makeRound, drawHud, drawSprite, horizontal, pressed, consume, play, rnd } from '../../kit/play';
 import type { Fx, Walls, Score, Round, Jingle, Role, Sprite } from '../../kit/play';
 import { CROWN, PUFFER, POD, TANK, UFO, BLAST, PILLBOX, MINI } from './art';
 
@@ -52,7 +52,9 @@ function newFleet(){
 }
 /* the fleet sinks a step every few seconds, sooner each wave */
 const dropEvery = () => Math.max(1.6, 3.2 - 0.25 * (api.S.level - 1));
-/* the columns still flying, the bomb bay (the column nearest the middle) and where it is */
+/* the columns still flying, the three bomb bays (the outermost columns and the one nearest the middle) and where they are */
+type Bay = 'L' | 'M' | 'R';
+const BAY_SLOTS = ['fireL', 'fire', 'fireR'];
 function span(){
   const al = alive(); if (!al.length) return null;
   const cs = al.map(a => a.c), minC = Math.min(...cs), maxC = Math.max(...cs);
@@ -61,7 +63,12 @@ function span(){
   const bay = cols.reduce((b, c) => Math.abs(F.ox + c * SX + 5 - mid) < Math.abs(F.ox + b * SX + 5 - mid) ? c : b, cols[0]);
   const low = al.filter(a => a.c === bay).reduce((p, q) => (q.r > p.r ? q : p));
   const bottom = F.oy + Math.max(...al.map(a => a.r)) * SY + AH;
-  return { minC, maxC, mid, bay, bayX: F.ox + bay * SX + 5, bayY: F.oy + low.r * SY + AH, bottom, cols };
+  const at = (c: number) => {
+    const lo = al.filter(a => a.c === c).reduce((p, q) => (q.r > p.r ? q : p));
+    return { x: F.ox + c * SX + 5, y: F.oy + lo.r * SY + AH };
+  };
+  const bays: Record<Bay, { x: number; y: number }> = { L: at(minC), M: at(bay), R: at(maxC) };
+  return { minC, maxC, mid, bay, bayX: F.ox + bay * SX + 5, bayY: F.oy + low.r * SY + AH, bays, bottom, cols };
 }
 
 /* ---------- a wave: a fresh fleet, a row of tanks and the walls they hide behind ---------- */
@@ -111,13 +118,15 @@ function update(dt: number){
     const lo = 4 - sp.minC * SX, hi = LW - 4 - AW - sp.maxC * SX;
     F.ox = Math.max(lo, Math.min(hi, F.ox + dir * FLEET_SPEED * dt));
   }
-  if ((api.fireQueued || api.tapQueued) && !F.bomb) {
-    F.bomb = { x: Math.round(sp.bayX), y: sp.bayY };
+  const which: Bay | null = pressed(api, 'fireL') ? 'L' : pressed(api, 'fireR') ? 'R' : pressed(api, 'fire', true) ? 'M' : null;
+  if (which && !F.bomb) {
+    const b = sp.bays[which];
+    F.bomb = { x: Math.round(b.x), y: b.y };
     tone(330, 0.12, 0.035, -200);
     const chance = Math.min(0.75, 0.2 + 0.1 * S.level);   // the defenders get better at spotting bombs
     for (const t of F.tanks) t.dodge = Math.random() < chance;
   }
-  api.clearFire(); api.clearTap();
+  consume(api, BAY_SLOTS, true);
   S.charge = F.bomb ? 0 : 1;
 
   /* BOOST calls in the UFO: it crosses the sky and drops one heavy bomb on the first tank it passes over */
@@ -238,10 +247,13 @@ function update(dt: number){
 function draw(){
   const { g, LW, S } = api;
   walls.draw('gem');
-  // your fleet, with the bomb bay lit while a bomb is ready
+  // your fleet, with the bomb bays lit while a bomb is ready
   for (const a of F.aliens) if (a.alive) sprite(SPRITES[a.r][F.frame], F.ox + a.c * SX, F.oy + a.r * SY, ROLES[a.r]);
   const sp = span();
-  if (sp && !F.bomb && S.mode === 'play' && Math.floor(S.time * 4) % 2 === 0) { g.fillStyle = api.col('spark'); g.fillRect(Math.round(sp.bayX) - 1, sp.bayY + 1, 3, 1); }
+  if (sp && !F.bomb && S.mode === 'play' && Math.floor(S.time * 4) % 2 === 0) {
+    g.fillStyle = api.col('spark');
+    for (const b of Object.values(sp.bays)) g.fillRect(Math.round(b.x) - 1, b.y + 1, 3, 1);
+  }
   if (F.ufo) sprite(UFO, F.ufo.x, api.HUD + 3, 'sun');
   // bombs and shots
   g.fillStyle = api.col('gold');
@@ -262,7 +274,7 @@ const create: CreateGame = a => {
   api = a;
   fx = makeFx(a); walls = makeWalls(a);
   score = makeScore(a, { extraEvery: EXTRA_EVERY, fx, onExtra: () => play(a, EXTRA) });
-  round = makeRound(a, { respawn: newFleet, nextLevel: newWave, times: { ready: 1.2, respawn: 0.9, dying: 1.6, clear: 1.8 }, clearOnReady: ['fire', 'boost'] });
+  round = makeRound(a, { respawn: newFleet, nextLevel: newWave, times: { ready: 1.2, respawn: 0.9, dying: 1.6, clear: 1.8 }, clearOnReady: [...BAY_SLOTS, 'boost'] });
   return { start, update, draw, debug: { state: () => ({ ...F, walls: walls.list, fx: fx.count, nextLife: score.nextLife }) } };
 };
 export default create;
