@@ -3,6 +3,20 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.6.0] - 2026-11-09
+
+### Bug Fixes
+
+- **layout**: Widen action-button gap and tidy the upright power row (GAM-27) (#39)
+
+### Documentation
+
+- Switch the code licence to PolyForm Noncommercial (GAM-29) (#38)
+
+### Features
+
+- **bricks**: Add the bricks disk (GAM-28) (#40)
+
 ## [0.5.0] - 2026-11-09
 
 ### Bug Fixes
