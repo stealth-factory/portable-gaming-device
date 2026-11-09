@@ -35,9 +35,11 @@ function drawLoad(a: ConsoleAPI, p: number, t: number){
 
 const MANUAL: GameDisk['manual'] = [
   { h: 'howH', p: 'iiHow' },
-  { h: 'iiArmsH', list: [{ k: 'iiw1', v: 'iiw1v' }, { k: 'iiw2', v: 'iiw2v' }, { k: 'iiw3', v: 'iiw3v' }, { k: 'iiw4', v: 'iiw4v' }] },
-  { h: 'secScore', list: [{ k: 'ii1', v: 'ii1v' }, { k: 'ii2', v: 'ii2v' }, { k: 'ii3', v: 'ii3v' }, { k: 'ii4', v: 'ii4v' }] },
-  { h: 'ctlH', keys: true, list: [
+  /* sentences, not a score row: a nowrap leader ran each weapon across the page and over the sections after it */
+  { h: 'iiArmsH', notes: true, list: [{ k: 'iiw1', v: 'iiw1v' }, { k: 'iiw2', v: 'iiw2v' }, { k: 'iiw3', v: 'iiw3v' }, { k: 'iiw4', v: 'iiw4v' }] },
+  { h: 'secScore', wrap: true, list: [{ k: 'ii1', v: 'ii1v' }, { k: 'ii2', v: 'ii2v' }, { k: 'ii3', v: 'ii3v' }, { k: 'ii4', v: 'ii4v' }] },
+  /* the bomb bay is a sentence of keys; beside the name it wrapped into a pile and, in Chinese, crushed the label */
+  { h: 'ctlH', keys: true, notes: true, list: [
     { k: 'iik2', v: 'iik2v' }, { k: 'iik4', v: 'iik4v' }, { k: 'iik5', v: 'iik5v' }, { k: 'iik3', v: 'iik3v' }, { k: 'k3', v: 'k3v' }, { k: 'c3', v: 'c3v' },
   ] },
   { h: 'aboutH', p: 'iiCred' },

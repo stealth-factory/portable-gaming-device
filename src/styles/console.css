@@ -460,6 +460,27 @@ kbd{font-family:var(--body);font-size:11px;font-weight:600;line-height:1.5;color
 .leaders i{flex:1 1 18px;min-width:18px;align-self:flex-end;margin-bottom:6px;border-bottom:2px dotted var(--paper-rule)}
 .leaders b{flex:none;font-family:var(--body);font-weight:600;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--paper-ink)}
 .leaders .kv{flex:0 1 auto;max-width:62%;text-align:right;font-size:13.5px;line-height:1.9}
+/* a long score line. Not `.wrap`: that class is the page column and would pad the list.
+   Wide enough, the name stays one line and the value wraps only once the row is full.
+   Narrower than the longest English row, the value sits under the name so nothing spills. */
+.leaders.leaders-wrap{container-type:inline-size}
+.leaders.leaders-wrap li > span:first-child{flex:none}
+.leaders.leaders-wrap b{flex:0 1 auto;min-width:0;max-width:100%;white-space:normal;text-align:right;line-height:1.4}
+.leaders.leaders-wrap i{flex:1 1 12px;min-width:12px}
+.leaders .nw{white-space:nowrap}
+@container (max-width:24rem){
+  .leaders.leaders-wrap li{flex-wrap:wrap;row-gap:1px}
+  .leaders.leaders-wrap li > span:first-child{flex:1 1 100%;min-width:0}
+  .leaders.leaders-wrap i{display:none}
+  .leaders.leaders-wrap b{flex:1 1 100%;max-width:100%}
+}
+/* a sentence per row (weapons, a control that will not fit beside its name): the name, then the text under it */
+.man-notes{margin:0;font-family:var(--book);font-size:15.5px;line-height:1.58;color:#352e23}
+.man-notes div{margin:0 0 11px}
+.man-notes div:last-child{margin:0}
+.man-notes dt{font-weight:700;color:var(--paper-ink)}
+.man-notes dd{margin:0}
+.man-notes dd.keys{font-size:14px;line-height:1.75}
 /* the leaflet's settings: two printed buttons, each with a confirm step; clearing scores is the wine-red one, like RESET */
 .man-settings{margin:2px 0 16px;padding-top:12px;border-top:1px solid var(--paper-rule)}
 .man-settings h3{margin:0 0 9px;font-family:var(--print);font-weight:700;font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--paper-ink)}

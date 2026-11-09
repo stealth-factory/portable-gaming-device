@@ -1,6 +1,6 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
 // plus Invader Force's weapon capsules, speed boost and blasts, I Invade's button pad and weapons,
-// and Bricks' Enter serve, bowed bat and falling capsules.
+// and Bricks' Enter serve, bowed bat, sideways stick speed and falling capsules.
 // Then every disk on the menu (future games included): choose it with the menu's keys or a tap,
 // play, HOLD when the tab is hidden, game over, name entry or the table, G back to the menu.
 const { chromium, devices } = require('playwright');
@@ -108,6 +108,60 @@ async function playEveryDisk(p, tag){
       const bowOk = bowed && flipped && eased && up.bend > 0.7 && Math.abs(up.px - base.px) < 2;
       if (!bowOk) errs.push(tag + ' bricks bow: ' + JSON.stringify({ base, up, bowed, flipped, eased }));
       console.log(tag, 'bricks bow', { base, up, bowed, flipped, eased });
+      // Keys first, from the middle, so a later stick push cannot pin the bat on the wall and fake a slow key.
+      // A small sideways push (18px: past the 12px dead zone, short of the 46px rim) then slides faster than the old 210 px/s.
+      // The same stick pushed up still only bows.
+      await p.keyboard.down('ArrowRight');
+      const keyed = await p.evaluate(() => new Promise(resolve => {
+        const x0 = __gg.runtime.debug.state().px;
+        const t0 = performance.now();
+        setTimeout(() => {
+          const s = __gg.runtime.debug.state();
+          resolve({ speed: (s.px - x0) / ((performance.now() - t0) / 1000), px: s.px });
+        }, 160);
+      }));
+      await p.keyboard.up('ArrowRight');
+      const steer = await p.evaluate(async () => {
+        const zone = document.querySelector('#stickzone');
+        const r = zone.getBoundingClientRect();
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const fire = (type, x, y) => zone.dispatchEvent(new PointerEvent(type, {
+          pointerId: 41, pointerType: 'mouse', clientX: x, clientY: y, bubbles: true, cancelable: true,
+        }));
+        const sample = ms => new Promise(resolve => {
+          const x0 = __gg.runtime.debug.state().px;
+          const t0 = performance.now();
+          setTimeout(() => {
+            const s = __gg.runtime.debug.state();
+            const dt = (performance.now() - t0) / 1000;
+            resolve({ speed: Math.abs(s.px - x0) / dt, px: s.px, bend: s.bend, dt });
+          }, ms);
+        });
+        fire('pointerdown', cx, cy);
+        fire('pointermove', cx - 18, cy);
+        const stick = await sample(160);
+        fire('pointerup', cx - 18, cy);
+        await new Promise(r => setTimeout(r, 40));
+        fire('pointerdown', cx, cy);
+        fire('pointermove', cx, cy - 30);
+        const bow = await new Promise(resolve => {
+          const x0 = __gg.runtime.debug.state().px;
+          const t0 = performance.now();
+          const step = () => {
+            const s = __gg.runtime.debug.state();
+            if (s.bend > 0.7 || performance.now() - t0 > 1500) resolve({ bend: s.bend, dx: Math.abs(s.px - x0) });
+            else requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        });
+        fire('pointerup', cx, cy - 30);
+        return { stick, bow };
+      });
+      const steerOk = steer.stick.speed > 260 && steer.stick.speed < 420 && Math.abs(steer.stick.bend) < 0.35
+        && steer.bow.bend > 0.7 && steer.bow.dx < 3
+        && keyed.speed > 140 && keyed.speed < 245;
+      if (!steerOk) errs.push(tag + ' bricks stick: ' + JSON.stringify({ steer, keyed }));
+      console.log(tag, 'bricks stick', { stick: Math.round(steer.stick.speed), bow: steer.bow, key: Math.round(keyed.speed) });
       const caught = await p.evaluate(async () => {
         const dbg = __gg.runtime.debug;
         const baseW = dbg.state().bw;

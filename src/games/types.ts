@@ -13,10 +13,16 @@ export type { Haptic, HapticName } from '../kit/platform/haptics';
 export type Lang = 'en' | 'zh-hant' | 'zh-hans';
 export type Strings = Record<Lang, Record<string, any>>;
 
-/** A section of a game's Operating Instructions. Strings are I18N keys; `v` is a key or, with `lit`, literal HTML. */
+/** One row of a leaflet list. Strings are I18N keys; `v` is a key or, with `lit`, literal HTML. */
+export type ManualItem = { k: string; v: string; lit?: boolean };
+
+/** A section of a game's Operating Instructions.
+    A paragraph (`p`), a dotted-leader list (scores, or `keys` for controls), or the same list
+    set in `notes` (the name on its own line, the text wrapping under it) when a row is a sentence.
+    `wrap` keeps the dotted leaders but lets a long value break, and on a narrow column puts the value under the name. */
 export type ManualSection =
   | { h: string; p: string }
-  | { h: string; list: { k: string; v: string; lit?: boolean }[]; keys?: boolean };
+  | { h: string; list: ManualItem[]; keys?: boolean; notes?: boolean; wrap?: boolean };
 
 /** Colour roles every phosphor theme defines; draw only with these so the game works on green, amber, white and CGA. */
 export type Role =
