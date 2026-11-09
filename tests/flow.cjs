@@ -1,11 +1,51 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
 // plus Invader Force's weapon capsules, speed boost and blasts.
+// Then every disk on the menu (future games included): load → play → game over → name entry
+// or the table → G back to the menu.
 const { chromium, devices } = require('playwright');
 (async () => {
 const BASE = process.env.BASE || 'http://localhost:4173/', out = process.env.OUT || '/tmp/shots';
 const b = await chromium.launch(); const errs = [];
 async function page(tag, opts){ const p = await (await b.newContext(opts)).newPage(); p.on('pageerror', e => errs.push(tag + ': ' + e.message)); p.on('response', r => { if (r.status() >= 400 && !r.url().includes('/_vercel/')) errs.push(tag + ' ' + r.status() + ' ' + r.url()); }); await p.goto(BASE + '?test'); await p.waitForTimeout(500); return p; }
 const mode = p => p.evaluate(() => __gg.S.mode);
+// disks that have to be on the menu today; the loop below still plays whatever else is listed
+const REQUIRED = ['tunnel', 'dino', 'invader', 'iinvade'];
+async function backToMenu(p){
+  if (await mode(p) !== 'menu') await p.keyboard.press('g');
+  await p.waitForFunction(() => __gg.S.mode === 'menu' && globalThis.__ggBus.get().manual === 'console' && document.querySelector('#manH')?.textContent === 'Operating Instructions', null, { timeout: 8000 });
+}
+// one pass per disk: boot is already done; load, play, qualify for the table, then G home
+async function playEveryDisk(p, tag){
+  await backToMenu(p);
+  const disks = await p.evaluate(() => __gg.DISKS.map(d => d.id));
+  for (const id of REQUIRED) if (!disks.includes(id)) errs.push(tag + ' menu missing ' + id);
+  for (let i = 0; i < disks.length; i++) {
+    const id = disks[i];
+    await p.evaluate(i => __gg.loadGame(i), i);
+    await p.waitForFunction(id => __gg.S.mode === 'play' && __gg.game && __gg.game.id === id && globalThis.__ggBus.get().manual === id && (document.querySelector('#manH')?.textContent || '') !== 'Operating Instructions', id, { timeout: 12000 });
+    await p.keyboard.press('Space'); await p.waitForTimeout(200);
+    await p.screenshot({ path: `${out}/${tag}-every-${id}.png` });
+    const live = await p.evaluate(() => ({ mode: __gg.S.mode, heading: document.querySelector('#manH')?.textContent || '', fireKey: document.querySelector('#fireBtn')?.dataset.i18n || '', runtime: !!__gg.runtime }));
+    const ended = await p.evaluate(sc => { if (['ready', 'play', 'dying', 'clear'].includes(__gg.S.mode)) { __gg.S.score = sc; __gg.finishGame(); } return __gg.S.mode; }, 8000 + i);
+    let named = false;
+    if (ended === 'entry') {
+      await p.waitForTimeout(200);
+      for (let n = 0; n < 9; n++) await p.keyboard.press('Backspace');
+      await p.keyboard.type('GUY'); await p.keyboard.press('Enter');
+      await p.waitForFunction(() => __gg.S.mode === 'over', null, { timeout: 4000 });
+      named = await p.evaluate(id => {
+        let stored = []; try { stored = JSON.parse(localStorage.getItem('gg-board-' + id) || '[]'); } catch (_) {}
+        return __gg.S.mode === 'over' && !!__gg.S.showBoard && (__gg.board || []).some(e => e.n === 'GUY') && stored.some(e => e && e.n === 'GUY' && e.s > 0);
+      }, id);
+      await p.screenshot({ path: `${out}/${tag}-every-${id}-table.png` });
+    }
+    const playing = ['play', 'dying', 'clear', 'ready'].includes(live.mode) && live.runtime && live.fireKey !== 'menuSel' && !!live.heading && live.heading !== 'Operating Instructions';
+    if (!playing || ended !== 'entry' || !named) errs.push(tag + ' disk ' + id + ': ' + JSON.stringify({ live, ended, named }));
+    console.log(tag, 'disk', id, { play: live.mode, leaflet: live.heading, end: ended, table: named });
+    await backToMenu(p);
+  }
+  console.log(tag, { everyDisk: disks.join(',') });
+}
 for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }], ['phone', { ...devices['iPhone 15 Pro'] }], ['land', { ...devices['iPhone 15 Pro landscape'] }]]) {
   const p = await page(tag, opts);
   await p.click('#powerBtn'); await p.waitForTimeout(1500);
@@ -91,6 +131,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const ok = capOk && flashLeft <= 0 && rapid.shots >= 2 && basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
   if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked, flashLeft, rapid, shotCap, livesBefore }));
   console.log(tag, { invader: { basic: basic.shots, caught: caught.weapon, twin: twin.shots, spread: spread.shots, pierce: pierce.beam, speed: pierce.speed, alive: [pierce.alive, blasts.alive, nuked.alive], label: [label, label2], end: await mode(p) } });
+  await playEveryDisk(p, tag);
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();
 })();
