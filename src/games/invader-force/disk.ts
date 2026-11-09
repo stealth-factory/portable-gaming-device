@@ -1,12 +1,14 @@
 /* Invader Force's disk: its label, loading screen and instructions. */
 import type { ConsoleAPI, GameDisk } from '../types';
-import { useApi, sprite, JELLY, BEETLE, DRONE, CANNON } from './art';
+import { drawSprite } from '../../kit/play/sprite';
+import type { Role, Sprite } from '../../kit/play/types';
+import { JELLY, BEETLE, DRONE, CANNON } from './art';
 import { strings } from './strings';
 
 /* the loading screen: under the stars, the formation marches in a row at a time as the disk reads,
    while your cannon takes pot shots at it */
 function drawLoad(a: ConsoleAPI, p: number, t: number){
-  useApi(a);
+  const sprite = (art: Sprite, x: number, y: number, role: Role) => drawSprite(a, art, x, y, role);
   const { g, LW, LH, HUD, txt } = a;
   const top = HUD + Math.max(6, Math.round((LH - HUD - 150) / 3));
   txt('INVADER FORCE', LW / 2, top, 'text', 'center', 16);

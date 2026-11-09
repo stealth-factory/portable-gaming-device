@@ -2,14 +2,24 @@
    A tribute to the fixed-screen alien shooters of the late 1970s (Taito's Space Invaders, 1978).
    The aliens, cannon, art, sound and code here are original. Everything is in low-res screen pixels. */
 import type { ConsoleAPI, CreateGame } from '../types';
-import { useApi, sprite, JELLY, BEETLE, DRONE, CANNON, SAUCER, BURST, CAPSULE, CAPSULE_MARK, BLAST } from './art';
+import { makeFx, makeWalls, makeScore, makeRound, makePickups, drawHud, drawSprite, horizontal, play, rnd } from '../../kit/play';
+import type { Fx, Walls, Score, Round, Pickups, Pickup, Badge, Jingle, Role, Sprite } from '../../kit/play';
+import { JELLY, BEETLE, DRONE, CANNON, SAUCER, BURST, CAPSULE, CAPSULE_MARK, BLAST, CASTLE, MINI } from './art';
 import {
-  type Weapon, type Shot, type Capsule, WEAPON_NAME, WEAPON_TIME, CAPSULE_W, CAPSULE_H, CAPSULE_SPEED, BEAM_TIME, BLAST_R, CLASH_R,
+  type Weapon, type Shot, type Capsule, MAX_CAPSULES, WEAPON_NAME, WEAPON_TIME, CAPSULE_W, CAPSULE_H, CAPSULE_SPEED, BEAM_TIME, BLAST_R, CLASH_R,
   SPEED_TIME, stackSpeed, SAUCER_NUKE, NUKE_BLAST_R, rollNuke, nukeRows, nukeDepth, NUKE_SPEED, waveRows, rowType, shotSpeedFactor, tickSpeed, type Drop,
-  volley, canFire, fireGap, rollDrop, pickDrop, catches, tickWeapon, inBeam, bombHitsCapsule, shotHitsCapsule, inBlast,
+  volley, canFire, fireGap, rollDrop, pickDrop, tickWeapon, inBeam, bombHitsCapsule, shotHitsCapsule, inBlast,
 } from './weapons';
 
-let api: ConsoleAPI;
+let api: ConsoleAPI, fx: Fx, walls: Walls, score: Score, round: Round, caps: Pickups<Drop>;
+const sprite = (s: Sprite, x: number, y: number, role: Role) => drawSprite(api, s, x, y, role);
+/** A falling capsule, as the weapon rules see it. */
+const asCapsule = (c: Pickup<Drop>): Capsule => ({ x: c.x, y: c.y, w: c.kind });
+const live = (c: Pickup<Drop>) => caps.list.includes(c);
+/* tunes */
+const EXTRA: Jingle = { notes: [1047, 1319, 1568], dur: 0.09, vol: 0.05, gap: 0.08 };
+const LOST: Jingle = { notes: [440, 392, 330, 262, 196], dur: 0.16, vol: 0.045, gap: 0.15, slide: -20 };
+const CLEARED: Jingle = { notes: [392, 523, 659, 784, 1047], dur: 0.1, vol: 0.04, gap: 0.09 };
 
 const SX = 16, SY = 12, AW = 11, AH = 8;              // formation spacing; alien size
 const CANNON_SPEED = 72, SHOT_SPEED = 240;
@@ -19,26 +29,23 @@ const ROLES = ['rockjaw', 'borer', 'grub'];
 const SPRITES = [JELLY, BEETLE, DRONE];
 
 type Alien = { c: number; r: number; t: number; alive: boolean };
-type Bunker = { x: number; y: number; px: Uint8Array };
-const BW = 18, BH = 12;
 
 const F = {
   aliens: [] as Alien[], cols: 11, rows: 6, total: 0, ox: 0, oy: 0, dir: 1, stepT: 0, frame: 0, note: 0,
   px: 0, shots: [] as Shot[],
   weapon: 'basic' as Weapon, weaponT: 0, fireCd: 0, speed: 0, speedT: 0, nuke: false, flash: 0, missile: null as null | { x: number; y: number },
   beam: null as null | { x: number; t: number },
-  capsules: [] as Capsule[],
+  /** The falling capsules (kept by the kit's pickups; setting it replaces them, for the tests). */
+  get capsules(): Pickup<Drop>[] { return caps.list as Pickup<Drop>[]; },
+  set capsules(v: Pickup<Drop>[]) { caps.clear(); for (const c of v) caps.drop(c.x, c.y, c.kind, true); },
   blasts: [] as { x: number; y: number; t: number; r: number }[],
   bombs: [] as { x: number; y: number; v: number; k: number }[],
-  bunkers: [] as Bunker[],
   ufo: null as null | { x: number; dir: number; pts: number; sirenT: number }, ufoT: 20,
-  bursts: [] as { x: number; y: number; t: number; text?: string }[],
-  extra: EXTRA_EVERY, invaded: false,
+  invaded: false,
 };
 
 const cannonY = () => api.LH - 14;
 const bunkerY = () => cannonY() - 28;
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const tone: ConsoleAPI['tone'] = (...a) => api.tone(...a);
 
 /* ---------- a wave ---------- */
@@ -53,19 +60,9 @@ function newWave(){
   F.total = F.aliens.length;
   F.ox = Math.round((LW - (F.cols - 1) * SX - AW) / 2);
   F.dir = 1; F.stepT = 0.6; F.frame = 0;
-  F.shots = []; F.beam = null; F.missile = null; F.capsules = []; F.blasts = []; F.flash = 0; F.fireCd = 0; F.bombs = []; F.ufo = null; F.ufoT = rnd(16, 24); F.bursts = []; F.invaded = false;
-  // bunkers: castle walls with a gate, rebuilt every wave
-  const n = LW >= 300 ? 4 : 3, gap = (LW - n * BW) / (n + 1);
-  F.bunkers = [];
-  for (let i = 0; i < n; i++) {
-    const px = new Uint8Array(BW * BH);
-    for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {
-      const merlon = y < 2 ? x % 4 < 2 : true;
-      const gate = y >= BH - 3 && x >= 6 && x < 12;
-      px[y * BW + x] = merlon && !gate ? 1 : 0;
-    }
-    F.bunkers.push({ x: Math.round(gap + i * (BW + gap)), y: bunkerY(), px });
-  }
+  F.shots = []; F.beam = null; F.missile = null; caps.clear(); F.blasts = []; F.flash = 0; F.fireCd = 0; F.bombs = []; F.ufo = null; F.ufoT = rnd(16, 24); fx.clear(); F.invaded = false;
+  // castle walls with a gate, rebuilt every wave
+  walls.clear(); walls.row(LW >= 300 ? 4 : 3, bunkerY(), CASTLE);
 }
 function stepInterval(){
   const alive = F.aliens.filter(a => a.alive).length;
@@ -76,68 +73,44 @@ function stepInterval(){
 function start(){
   api.fitGrid();
   const S = api.S;
-  S.score = 0; S.level = 1; S.lives = 3; S.charge = 1; S.boost = 1; S.boostT = 0;
-  F.extra = EXTRA_EVERY; F.weapon = 'basic'; F.weaponT = 0; F.speed = 0; F.speedT = 0; F.nuke = false; F.flash = 0; api.setButtons({ boost: null });
+  S.level = 1; S.lives = 3; S.charge = 1; S.boost = 1; S.boostT = 0;
+  score.reset(); F.weapon = 'basic'; F.weaponT = 0; F.speed = 0; F.speedT = 0; F.nuke = false; F.flash = 0; api.setButtons({ boost: null });
   F.px = Math.round(api.LW / 2 - 6);
   newWave();
 }
 
-/* ---------- scoring ---------- */
-function addScore(n: number, x?: number, y?: number){
-  const S = api.S;
-  S.score += n;
-  if (S.score > api.best) api.best = S.score;
-  if (S.score >= F.extra) { F.extra += EXTRA_EVERY; S.lives++; [1047, 1319, 1568].forEach((f, i) => tone(f, 0.09, 0.05, 0, i * 0.08)); }
-  if (x != null) F.bursts.push({ x, y: y!, t: 0.8, text: String(n) });
-}
-
-/* ---------- bunkers ---------- */
-function bunkerHit(x: number, y: number, radius = 2){
-  for (const b of F.bunkers) {
-    const lx = Math.floor(x - b.x), ly = Math.floor(y - b.y);
-    if (lx < 0 || ly < 0 || lx >= BW || ly >= BH || !b.px[ly * BW + lx]) continue;
-    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
-      const xx = lx + dx, yy = ly + dy;
-      if (xx < 0 || yy < 0 || xx >= BW || yy >= BH) continue;
-      if (dx * dx + dy * dy <= radius * radius + 1 && Math.random() < 0.75) b.px[yy * BW + xx] = 0;   // ragged bites
-    }
-    return true;
-  }
-  return false;
-}
 
 /* ---------- the player is hit, or the line falls ---------- */
 function loseLife(invaded = false){
   const S = api.S;
   F.invaded = invaded;
-  S.lives = invaded ? 0 : S.lives - 1;
-  S.mode = 'dying'; S.modeT = 1.4;
+  round.lose({ fatal: invaded });
   F.shots = []; F.beam = null; F.weapon = 'basic'; F.weaponT = 0;
-  [440, 392, 330, 262, 196].forEach((f, i) => tone(f, 0.16, 0.045, -20, i * 0.15));
-  F.bursts.push({ x: F.px + 1, y: cannonY(), t: 1.2 });
+  play(api, LOST);
+  fx.burst(F.px + 1, cannonY(), 1.2, BURST, burstRole);
 }
 
 /* ---------- shots, the laser, capsules ---------- */
 function killAlien(a: Alien, drops = true){
   const ax = F.ox + a.c * SX, ay = F.oy + a.r * SY;
-  a.alive = false; addScore(POINTS[a.t]);
-  F.bursts.push({ x: ax, y: ay, t: 0.18 }); tone(260, 0.12, 0.04, -180);
+  a.alive = false; score.add(POINTS[a.t]);
+  fx.burst(ax, ay, 0.18, BURST, burstRole); tone(260, 0.12, 0.04, -180);
   if (!drops) return;
-  if (rollNuke(Math.random(), F.capsules.length)) dropCapsule(ax + 1, ay + AH, 'nuke');
-  else if (rollDrop(Math.random(), F.capsules.length)) dropCapsule(ax + 1, ay + AH);
+  if (rollNuke(Math.random(), caps.falling)) dropCapsule(ax + 1, ay + AH, 'nuke');
+  else if (rollDrop(Math.random(), caps.falling)) dropCapsule(ax + 1, ay + AH);
 }
 function hitSaucer(){
   const u = F.ufo!;
-  addScore(u.pts, u.x + 2, api.HUD + 4); tone(1200, 0.25, 0.045, -900);
+  score.add(u.pts, u.x + 2, api.HUD + 4); tone(1200, 0.25, 0.045, -900);
   dropCapsule(u.x + 4, api.HUD + 10, Math.random() < SAUCER_NUKE ? 'nuke' : undefined);   // the saucer always carries one
   F.ufo = null;
 }
 function dropCapsule(x: number, y: number, w?: Drop){
-  F.capsules.push({ x: Math.round(x), y, w: w ?? pickDrop(Math.random(), F.weapon) });
+  caps.drop(Math.round(x), y, w ?? pickDrop(Math.random(), F.weapon), true);   // the odds were rolled already; the saucer always drops
   tone(1568, 0.05, 0.025, 400);
 }
 /** A capsule right on top of the barrel is yours to catch, not to shoot. */
-const reachable = (c: Capsule) => c.y + CAPSULE_H > cannonY() - 4;
+const reachable = (c: Pickup<Drop>) => c.y + CAPSULE_H > cannonY() - 4;
 /** A shot at (x, y): does it hit something (and is it used up)? */
 function shotHits(x: number, y: number){
   if (F.ufo && y < api.HUD + 12 && x >= F.ufo.x && x < F.ufo.x + 16) { hitSaucer(); return true; }
@@ -147,8 +120,8 @@ function shotHits(x: number, y: number){
     if (x >= ax && x < ax + AW && y + 3 >= ay && y < ay + AH) { killAlien(a); return true; }
   }
   for (const b of F.bombs) if (Math.abs(b.x - x) <= 1 && Math.abs(b.y - y) < 4) { b.y = 9999; clash(x, y); return true; }   // shots meet and go off
-  for (const c of F.capsules) if (c.y < 9999 && !reachable(c) && shotHitsCapsule(x, y, c)) { explode(c, false); return true; }   // shoot one and it goes off
-  return bunkerHit(x, y, 1);
+  for (const c of caps.list) if (!reachable(c) && shotHitsCapsule(x, y, asCapsule(c))) { explode(c, false); return true; }   // shoot one and it goes off
+  return walls.bite(x, y, 1);
 }
 function fire(){
   const x = Math.round(F.px) + 6, y = cannonY() - 2;
@@ -160,43 +133,45 @@ function fire(){
 }
 /** The lightning laser: one bolt straight up the column, through walls, bombs, aliens and the saucer. */
 function lightning(x: number){
-  const before = F.capsules.slice();                  // a drop this bolt shakes loose isn't caught in it
+  const before = caps.list.slice();                  // a drop this bolt shakes loose isn't caught in it
   F.beam = { x, t: BEAM_TIME };
   tone(1900, 0.18, 0.035, -1600); tone(70, 0.26, 0.05, 140); tone(2600, 0.05, 0.02, -900, 0.06);
   if (F.ufo && x >= F.ufo.x - 1 && x < F.ufo.x + 17) hitSaucer();
   for (const a of F.aliens) if (a.alive && inBeam(x, F.ox + a.c * SX, AW)) killAlien(a);
   for (const b of F.bombs) if (Math.abs(b.x - x) <= 2) b.y = 9999;
-  for (const c of before) if (c.y < 9999 && !reachable(c) && inBeam(x, c.x, CAPSULE_W)) explode(c, false);
-  for (let y = cannonY() - 2; y > api.HUD; y -= 2) bunkerHit(x, y, 1);
+  for (const c of before) if (live(c) && !reachable(c) && inBeam(x, c.x, CAPSULE_W)) explode(c, false);
+  for (let y = cannonY() - 2; y > api.HUD; y -= 2) walls.bite(x, y, 1);
 }
 function arm(w: Drop){
   if (w === 'nuke') {
-    if (F.nuke) { addScore(500, F.px, cannonY() - 14); return; }   // only one at a time: a spare is worth 500
+    if (F.nuke) { score.add(500, F.px, cannonY() - 14); return; }   // only one at a time: a spare is worth 500
     F.nuke = true; api.setButtons({ boost: { label: 'nuke' } });
-    [262, 330, 392, 523, 392, 523].forEach((f, i) => tone(f, 0.12, 0.05, 0, i * 0.09));
-    F.bursts.push({ x: Math.max(4, Math.min(api.LW - 60, F.px - 12)), y: labelY(), t: 1.2, text: 'NUKE READY' });
+    play(api, { notes: [262, 330, 392, 523, 392, 523], dur: 0.12, vol: 0.05, gap: 0.09 });
+    label('NUKE READY', Math.max(4, Math.min(api.LW - 60, F.px - 12)), 1.2);
     return;
   }
   if (w === 'speed') {
     ({ level: F.speed, t: F.speedT } = stackSpeed(F.speed));
-    [523, 659, 784, 1047, 1319].slice(0, 2 + F.speed).forEach((f, i) => tone(f, 0.05, 0.035, 0, i * 0.045));
-    F.bursts.push({ x: Math.max(4, Math.min(api.LW - 40, F.px - 6)), y: labelY(), t: 0.9, text: 'SPEED x' + F.speed });
+    play(api, { notes: [523, 659, 784, 1047, 1319].slice(0, 2 + F.speed), dur: 0.05, vol: 0.035, gap: 0.045 });
+    label('SPEED x' + F.speed, Math.max(4, Math.min(api.LW - 40, F.px - 6)), 0.9);
     return;
   }
   F.weapon = w; F.weaponT = WEAPON_TIME; F.fireCd = 0;
-  [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.07, 0.04, 0, i * 0.06));
-  F.bursts.push({ x: Math.max(4, Math.min(api.LW - 40, F.px - 6)), y: labelY(), t: 0.9, text: WEAPON_NAME[w] });
+  play(api, { notes: [784, 988, 1175, 1568], dur: 0.07, vol: 0.04, gap: 0.06 });
+  label(WEAPON_NAME[w], Math.max(4, Math.min(api.LW - 40, F.px - 6)), 0.9);
 }
-/** Where a pickup's label goes: above the cannon, stacked over any label still showing. */
-function labelY(){ return cannonY() - 14 - 9 * F.bursts.filter(b => b.text && b.y > cannonY() - 60).length; }
+/** A pickup's label: above the cannon, stacked over any label still showing. */
+function label(text: string, x: number, secs: number){ fx.pop(text, x, cannonY() - 14, { secs, stack: { step: 9, within: 46 } }); }
+/** Bursts blink while your cannon goes up; otherwise they're gold. */
+const burstRole = (t: number): Role => (api.S.mode === 'dying' && t > 0.2 && Math.floor(t * 10) % 2 ? 'spark' : 'gold');
 /** A capsule goes off: a wide blast that bites the walls and takes out aliens, bombs and other capsules.
     Set off by a bomb it takes your cannon too unless the shield is up; set off by your own shot or the
     laser (`hurtsYou` false) it spares you. Returns true if it cost you a life. */
-function explode(c: Capsule, hurtsYou = true){
+function explode(c: Pickup<Drop>, hurtsYou = true){
   const cx = c.x + CAPSULE_W / 2, cy = c.y + CAPSULE_H / 2;
-  c.y = 9999;
+  caps.remove(c);
   tone(55, 0.5, 0.07, -30); tone(160, 0.3, 0.05, -120); tone(900, 0.12, 0.03, -800);
-  return blast(cx, cy, c.w === 'nuke' ? NUKE_BLAST_R : BLAST_R, hurtsYou, true);
+  return blast(cx, cy, c.kind === 'nuke' ? NUKE_BLAST_R : BLAST_R, hurtsYou, true);
 }
 /** Launch the atomic bomb: a missile that flies up until it hits something. */
 function nuke(){
@@ -208,7 +183,7 @@ function flyMissile(dt: number){
   const m = F.missile!;
   m.y -= NUKE_SPEED * dt;
   for (const b of F.bombs) if (Math.abs(b.x - m.x) <= 2 && b.y + 4 >= m.y && b.y < m.y + 7) b.y = 9999;   // it shrugs off bombs
-  for (let y = m.y; y < m.y + 7; y += 2) bunkerHit(m.x, y, 1);                                         // and punches through walls
+  for (let y = m.y; y < m.y + 7; y += 2) walls.bite(m.x, y, 1);                                         // and punches through walls
   if (F.ufo && m.y < api.HUD + 10 && m.x >= F.ufo.x && m.x < F.ufo.x + 16) return detonate(m.x, m.y, 0);
   for (const a of F.aliens) {
     if (!a.alive) continue;
@@ -237,14 +212,11 @@ function clash(x: number, y: number){
 /** A blast of radius r at (cx, cy). Returns true if it cost you a life. */
 function blast(cx: number, cy: number, r: number, hurtsYou: boolean, hitsCapsules: boolean){
   F.blasts.push({ x: cx, y: cy, t: 0.5, r });
-  for (const b of F.bunkers) for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {
-    const dx = b.x + x - cx, dy = b.y + y - cy;
-    if (b.px[y * BW + x] && dx * dx + dy * dy <= r * r && Math.random() < 0.85) b.px[y * BW + x] = 0;
-  }
+  walls.blast(cx, cy, r);
   for (const a of F.aliens) if (a.alive && inBlast(cx, cy, F.ox + a.c * SX, F.oy + a.r * SY, AW, AH, r)) killAlien(a, false);
   if (F.ufo && inBlast(cx, cy, F.ufo.x, api.HUD + 4, 16, 6, r)) hitSaucer();
   for (const b of F.bombs) if (inBlast(cx, cy, b.x - 1, b.y, 3, 4, r)) b.y = 9999;
-  if (hitsCapsules) for (const o of F.capsules) if (o.y < 9999 && inBlast(cx, cy, o.x, o.y, CAPSULE_W, CAPSULE_H, r)) o.y = 9999;
+  if (hitsCapsules) for (const o of caps.list.slice()) if (inBlast(cx, cy, o.x, o.y, CAPSULE_W, CAPSULE_H, r)) caps.remove(o);
   if (hurtsYou && inBlast(cx, cy, F.px, cannonY(), 13, 7, r)) {
     if (api.S.boostT > 0) tone(1500, 0.05, 0.03);       // the shield takes it
     else { loseLife(); return true; }
@@ -255,26 +227,16 @@ function blast(cx: number, cy: number, r: number, hurtsYou: boolean, hitsCapsule
 function update(dt: number){
   const S = api.S, LW = api.LW;
   // visual effects run down in every mode, so a flash or blast never sticks over the clear and ready screens
-  for (const b of F.bursts) b.t -= dt;
+  fx.update(dt);
   for (const b of F.blasts) b.t -= dt;
   F.blasts = F.blasts.filter(b => b.t > 0);
   if (F.beam && (F.beam.t -= dt) <= 0) F.beam = null;
   if (F.flash > 0) F.flash -= dt;
-  F.bursts = F.bursts.filter(b => b.t > 0);
-  if (S.mode === 'ready') { if ((S.modeT -= dt) <= 0) S.mode = 'play'; api.clearFire(); api.clearTap(); return; }
-  if (S.mode === 'clear') { if ((S.modeT -= dt) <= 0) { S.level++; newWave(); S.mode = 'ready'; S.modeT = 1.2; } return; }
-  if (S.mode === 'dying') {
-    if ((S.modeT -= dt) > 0) return;
-    if (S.lives > 0) { F.bombs = []; F.px = Math.round(LW / 2 - 6); S.mode = 'ready'; S.modeT = 0.9; }
-    else api.finishGame();
-    return;
-  }
-  if (S.mode !== 'play') return;
+  if (!round.tick(dt)) return;
 
   /* your cannon: left and right, one shot in the air at a time (more with a weapon), and a short shield */
-  const sd = api.stickDir, keys = api.held.filter(d => d === 'left' || d === 'right');
-  const dir = sd === 'left' || sd === 'right' ? sd : keys[keys.length - 1];
-  if (dir) F.px = Math.max(4, Math.min(LW - 4 - 13, F.px + (dir === 'left' ? -1 : 1) * CANNON_SPEED * dt));
+  const dir = horizontal(api);
+  if (dir) F.px = Math.max(4, Math.min(LW - 4 - 13, F.px + dir * CANNON_SPEED * dt));
   if (F.fireCd > 0) F.fireCd -= dt;
   const press = api.fireQueued || api.tapQueued || (F.weapon === 'rapid' && (api.fireHeld || api.tapHeld));
   if (press && canFire(F.weapon, F.shots.length, F.fireCd)) fire();
@@ -304,15 +266,11 @@ function update(dt: number){
   F.shots = F.shots.filter(sh => sh.y > -99);
 
   /* capsules fall; catch one with the cannon to arm it */
-  for (const c of F.capsules) {
-    c.y += CAPSULE_SPEED * dt;
-    if (catches(c, F.px, cannonY())) { arm(c.w); c.y = 9999; }
-  }
-  F.capsules = F.capsules.filter(c => c.y < api.LH - 6);
+  for (const w of caps.update(dt, { x: F.px, y: cannonY(), w: 13, h: 7 })) arm(w);
 
   /* the formation marches; at an edge it drops a row and turns */
   const alive = F.aliens.filter(a => a.alive);
-  if (!alive.length) { S.mode = 'clear'; S.modeT = 1.8; [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.1, 0.04, 0, i * 0.09)); return; }
+  if (!alive.length) { round.clear(); play(api, CLEARED); return; }
   if ((F.stepT -= dt) <= 0) {
     F.stepT = stepInterval();
     const minC = Math.min(...alive.map(a => a.c)), maxC = Math.max(...alive.map(a => a.c));
@@ -334,7 +292,7 @@ function update(dt: number){
     const bottom = F.oy + Math.max(...alive.map(a => a.r)) * SY + AH;
     for (const a of alive) {
       const ax = F.ox + a.c * SX, ay = F.oy + a.r * SY;
-      if (ay + AH >= bunkerY()) for (let x = ax; x < ax + AW; x += 2) for (let y = ay; y < ay + AH; y += 2) bunkerHit(x, y, 1);
+      if (ay + AH >= bunkerY()) walls.chew({ x: ax, y: ay, w: AW, h: AH });
     }
     if (bottom >= cannonY()) { loseLife(true); return; }
   }
@@ -343,9 +301,9 @@ function update(dt: number){
   for (const b of F.bombs) {
     if (b.y >= 9999) continue;                         // already used up this step (a blast took it)
     b.y += b.v * dt;
-    const hitCap = F.capsules.find(c => c.y < 9999 && bombHitsCapsule(b.x, b.y, c));
+    const hitCap = caps.list.find(c => bombHitsCapsule(b.x, b.y, asCapsule(c)));
     if (hitCap) { b.y = 9999; if (explode(hitCap)) return; continue; }
-    if (bunkerHit(b.x, b.y + 3, 2)) { b.y = 9999; continue; }
+    if (walls.bite(b.x, b.y + 3, 2)) { b.y = 9999; continue; }
     const cy = cannonY();
     if (b.y + 4 >= cy && b.y < cy + 7 && b.x >= F.px && b.x < F.px + 13) {
       b.y = 9999;
@@ -393,42 +351,17 @@ function drawBeam(){
   g.fillStyle = api.col('text');
   for (const p of pulses) { g.fillRect(b.x - 1, Math.round(p) - 1, 3, 3); g.fillRect(b.x - 2, Math.round(p), 5, 1); }
 }
-const MINI = ['...#...', '..###..', '#######', '#.#.#.#'];   // a spare cannon in the HUD
+/** The top bar: the weapon you hold (draining as it runs down), a NUKE and the speed boost as badges. */
 function hud(){
-  const { g, LW, HUD, S, txt } = api;
-  g.fillStyle = api.col('bg'); g.fillRect(0, 0, LW, HUD);
-  txt(String(S.score).padStart(6, '0'), 6, 6, 'text');
-  const wave = 'WAVE ' + S.level;
-  txt(wave, LW - 6, 6, 'hud', 'right');
-  const lives = Math.max(0, Math.min(5, S.lives - (S.mode === 'dying' ? 0 : 1)));
-  const livesX = LW - 12 - wave.length * 6 - lives * 10;
-  let x = livesX;
-  for (let i = 0; i < lives; i++, x += 10) sprite(MINI, x, 6, 'cart');
-  g.fillStyle = api.col('hud'); for (let i = 0; i < LW; i += 4) g.fillRect(i, HUD - 2, 2, 1);
-  // the weapon you hold, a NUKE and the speed boost go after HI when they fit before the spare cannons,
-  // otherwise in HI's place, so they never run into the cannons
-  const need = (F.weapon !== 'basic' ? WEAPON_NAME[F.weapon].length * 6 + 6 : 0) + (F.nuke ? 30 : 0) + (F.speed ? 12 : 0);
-  const afterHi = LW >= 300 && 142 + need <= livesX - 4;
-  if (LW >= 300 && (afterHi || !need)) txt('HI ' + String(api.best).padStart(6, '0'), 80, 6, 'hud');
-  let wx = afterHi ? 142 : 48;
-  if (F.weapon !== 'basic') {
-    const name = WEAPON_NAME[F.weapon];
-    if (F.weaponT > 3 || Math.floor(S.time * 6) % 2) txt(name, wx, 6, 'gold');
-    g.fillStyle = api.col('gold'); g.fillRect(wx, HUD - 4, Math.ceil(name.length * 6 * F.weaponT / WEAPON_TIME), 1);
-    wx += name.length * 6 + 6;
-  }
-  if (F.nuke) { if (Math.floor(S.time * 3) % 2) txt('NUKE', wx, 6, 'text'); wx += 30; }
-  if (F.speed) {
-    const label = '>' + F.speed;
-    if (F.speedT > 5 || Math.floor(S.time * 6) % 2) txt(label, wx, 6, 'spark');
-    g.fillStyle = api.col('spark'); g.fillRect(wx, HUD - 4, Math.ceil(label.length * 6 * F.speedT / SPEED_TIME), 1);
-  }
+  const badges: Badge[] = [];
+  if (F.weapon !== 'basic') badges.push({ text: WEAPON_NAME[F.weapon], role: 'gold', frac: F.weaponT / WEAPON_TIME, blink: F.weaponT > 3 ? 0 : 6 });
+  if (F.nuke) badges.push({ text: 'NUKE', role: 'text', blink: 3 });
+  if (F.speed) badges.push({ text: '>' + F.speed, role: 'spark', frac: F.speedT / SPEED_TIME, blink: F.speedT > 5 ? 0 : 6 });
+  drawHud(api, { right: 'WAVE ' + api.S.level, lives: { art: MINI, role: 'cart' }, badges });
 }
 function draw(){
   const { g, LW, LH, S } = api;
-  // bunkers
-  g.fillStyle = api.col('gem');
-  for (const b of F.bunkers) for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) if (b.px[y * BW + x]) g.fillRect(b.x + x, b.y + y, 1, 1);
+  walls.draw('gem');
   // the formation
   for (const a of F.aliens) if (a.alive) sprite(SPRITES[a.t][F.frame], F.ox + a.c * SX, F.oy + a.r * SY, ROLES[a.t]);
   if (F.ufo) sprite(SAUCER, F.ufo.x, api.HUD + 4, 'sun');
@@ -443,10 +376,7 @@ function draw(){
     g.fillStyle = api.col('spark'); for (let i = 0; i < 4; i++) if (Math.random() < 0.7) g.fillRect(m.x + Math.round(Math.random() * 2 - 1), y + 7 + i * 2, 1, 1);
   }
   // capsules, blinking as they fall
-  for (const c of F.capsules) {
-    sprite(CAPSULE, c.x, c.y, Math.floor(S.time * 6) % 2 ? 'gold' : 'sun');
-    sprite(CAPSULE_MARK[c.w], c.x + 2, c.y + 2, 'text');
-  }
+  caps.draw();
   g.fillStyle = api.col('gold');
   for (const b of F.bombs) {
     const y = Math.round(b.y), w = Math.floor(S.time * 12 + b.x) % 2;
@@ -471,10 +401,7 @@ function draw(){
     for (let i = 0; i < 28; i++) { const a = i / 28 * Math.PI * 2; g.fillRect(Math.round(b.x + Math.cos(a) * r), Math.round(b.y + Math.sin(a) * r), 1, 1); }
   }
   // bursts and points
-  for (const b of F.bursts) {
-    if (b.text) api.txt(b.text, b.x, b.y, 'gold');
-    else sprite(BURST, b.x, b.y, S.mode === 'dying' && b.t > 0.2 && Math.floor(b.t * 10) % 2 ? 'spark' : 'gold');
-  }
+  fx.draw();
   // the nuke's flash: the whole field burns white, then a shockwave sweeps up the screen
   if (F.flash > 0) {
     const k = F.flash / 0.7;
@@ -492,19 +419,34 @@ function draw(){
 }
 
 const create: CreateGame = a => {
-  api = a; useApi(a);
+  api = a;
+  fx = makeFx(a); walls = makeWalls(a);
+  score = makeScore(a, { extraEvery: EXTRA_EVERY, fx, onExtra: () => play(a, EXTRA) });
+  round = makeRound(a, {
+    respawn: () => { F.bombs = []; F.px = Math.round(a.LW / 2 - 6); },
+    nextLevel: newWave,
+    times: { ready: 1.2, respawn: 0.9, dying: 1.4, clear: 1.8 },
+  });
+  caps = makePickups<Drop>(a, {
+    size: { w: CAPSULE_W, h: CAPSULE_H }, speed: CAPSULE_SPEED, max: MAX_CAPSULES,
+    floor: () => a.LH - 6 - 1e-9,          // gone once its top reaches 6 px above the bottom, as before
+    draw: (w, x, y) => {                   // capsules blink as they fall
+      sprite(CAPSULE, x, y, Math.floor(a.S.time * 6) % 2 ? 'gold' : 'sun');
+      sprite(CAPSULE_MARK[w], x + 2, y + 2, 'text');
+    },
+  });
   return { start, update, draw, debug: {
     state: () => F,
     /** Drop a capsule just above the cannon (tests). */
-    drop: (w: Drop = 'twin') => { F.capsules.push({ x: Math.round(F.px) + 2, y: cannonY() - 20, w }); },
+    drop: (w: Drop = 'twin') => { caps.drop(Math.round(F.px) + 2, cannonY() - 20, w, true); },
     /** Arm a weapon or a speed boost straight away (tests). */
     arm: (w: Drop) => arm(w),
     /** Set off a capsule at (x, y) (tests). */
-    blast: (x: number, y: number) => explode({ x, y, w: 'twin' }),
+    blast: (x: number, y: number) => { caps.drop(x, y, 'twin', true); explode(caps.list[caps.list.length - 1]); },
     clash: (x: number, y: number) => clash(x, y),
     cannonY: () => cannonY(),
     /** Drop a capsule straight above the barrel, low enough that its blast reaches you, but not yet catchable (tests). */
-    target: (w: Drop = 'twin') => { F.capsules.push({ x: Math.round(F.px) + 2, y: cannonY() - 17, w }); },
+    target: (w: Drop = 'twin') => { caps.drop(Math.round(F.px) + 2, cannonY() - 17, w, true); },
   } };
 };
 export default create;
