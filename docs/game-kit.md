@@ -87,9 +87,10 @@ phases the console core is untouched; the platform layer (below) comes after.
 The test counts every directory under `src/games/` as a game and expects a
 disk for each. With the kit at `src/kit/` that test needs no change; its
 plug-in rule check gains a second file list for `src/kit/**` with the same
-assertion (no `src/console` imports). If the owner prefers `src/kit/`
-after all, the first kit PR changes the test to treat a folder as a game only
-when it holds `disk.ts`.
+assertion (no `src/console` imports). If the owner prefers `src/games/kit/`
+after all, the first kit PR excludes `kit/` by name from the folder count and
+keeps every other folder in it, so a game whose `disk.ts` goes missing still
+fails the test.
 
 ### Bundling
 
