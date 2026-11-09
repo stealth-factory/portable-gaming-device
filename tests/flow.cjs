@@ -1,5 +1,5 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
-// plus Invader Force's weapon capsules, speed boost and blasts.
+// plus Invader Force's weapon capsules, speed boost and blasts, and I Invade's three bomb bays.
 // Then every disk on the menu (future games included): choose it with the menu's keys or a tap,
 // play, game over, name entry or the table, G back to the menu.
 const { chromium, devices } = require('playwright');
@@ -156,6 +156,38 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const ok = capOk && flashLeft <= 0 && rapid.shots >= 2 && basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
   if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked, flashLeft, rapid, shotCap, livesBefore }));
   console.log(tag, { invader: { basic: basic.shots, caught: caught.weapon, twin: twin.shots, spread: spread.shots, pierce: pierce.beam, speed: pierce.speed, alive: [pierce.alive, blasts.alive, nuked.alive], label: [label, label2], end: await mode(p) } });
+  // I Invade: the side fire buttons show only while it's loaded; Z, Space and V (and the side buttons) bomb from the
+  // left-hand, middle and right-hand columns, the bomb flies up, and there is only ever one bomb in the air
+  await backToMenu(p);
+  const bayVis = () => p.evaluate(() => ['fireLBtn', 'fireBtn', 'fireRBtn'].map(id => !document.getElementById(id).hidden).join(','));
+  const menuBays = await bayVis();
+  await p.evaluate(() => __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'iinvade')));
+  await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 12000 });
+  const gameBays = await bayVis();
+  const holdFire = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); F.shots = []; F.tanks.forEach(t => { t.cool = 99; }); });   // tank shots would knock bombs out mid-check
+  const iiBomb = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); return F.bomb && { col: Math.round((F.bomb.x - Math.round(F.ox) - 5) / 16), y: F.bomb.y }; });
+  const iiFired = () => p.waitForFunction(() => !!__gg.runtime.debug.state().bomb, null, { timeout: 1000 }).catch(() => {});
+  const iiReady = () => p.waitForFunction(() => __gg.S.mode === 'play' && !__gg.runtime.debug.state().bomb, null, { timeout: 8000 });
+  const want = await p.evaluate(() => { const cs = __gg.runtime.debug.state().aliens.filter(a => a.alive).map(a => a.c); return { L: Math.min(...cs), M: Math.round((Math.min(...cs) + Math.max(...cs)) / 2), R: Math.max(...cs) }; });
+  const bays = {}; let one = null, up = null;
+  for (const [k, key] of [['L', 'z'], ['M', ' '], ['R', 'v']]) {
+    await iiReady(); await holdFire(); await p.keyboard.press(key); await iiFired();
+    const b = await iiBomb(); bays[k] = b && b.col;
+    if (k === 'R' && b) {   // a second press while a bomb is up does nothing, and the bomb is climbing
+      await p.keyboard.press('z'); await p.waitForTimeout(60);
+      const b2 = await iiBomb(); one = !!b2 && b2.col === b.col; up = !!b2 && b2.y < b.y;
+    }
+  }
+  let tapL = 'hidden';
+  if (await p.isVisible('#fireLBtn')) {
+    await iiReady(); await holdFire(); await p.dispatchEvent('#fireLBtn', 'pointerdown', { pointerId: 7 }); await iiFired();
+    tapL = (await iiBomb())?.col; await p.dispatchEvent('#fireLBtn', 'pointerup', { pointerId: 7 });
+  }
+  await backToMenu(p);
+  const backBays = await bayVis();
+  const iiOk = menuBays === 'false,true,false' && gameBays === 'true,true,true' && backBays === menuBays && bays.L === want.L && bays.M === want.M && bays.R === want.R && one && up && (tapL === 'hidden' || tapL === want.L);
+  if (!iiOk) errs.push(tag + ' i invade bays: ' + JSON.stringify({ menuBays, gameBays, backBays, bays, want, one, up, tapL }));
+  console.log(tag, JSON.stringify({ iinvade: { bays, want, one, up, tapL } }));
   await playEveryDisk(p, tag);
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();
