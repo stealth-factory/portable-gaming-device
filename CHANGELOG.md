@@ -3,6 +3,23 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.4.0] - 2026-11-09
+
+### Bug Fixes
+
+- **console**: Hold the game when the tab or app is hidden (GAM-20) (#29)
+
+### Features
+
+- **kit**: Add the game kit's play layer (GAM-14) (#15)
+- Extra fire buttons that appear only when a game maps them (GAM-7) (#17)
+- **console**: Show the release version under the nameplate (#25)
+
+### Refactor
+
+- **i-invade**: Move I Invade onto the game kit, with three bomb bays and the fleet attacking upward (GAM-13) (#21)
+- **invader-force**: Run Invader Force on the game kit (GAM-12) (#24)
+
 ## [0.3.1] - 2026-11-09
 
 ### Bug Fixes
