@@ -26,7 +26,7 @@ Every change goes through a pull request, unless the owner explicitly says to pu
 
 **Game Guy 3000 Deluxe** (Game Guy for short) is a browser game console: one old CRT monitor that boots, shows a game loader, and runs several games. It starts as a copy of [Tunnel Raider](https://github.com/wiiiimm/tunnel-raider), which is still its own repo and site (`tunnel-raider.wiiiimm.codes`); changes made here do not flow back to it.
 
-Requirements 1 to 10 below are built: the console boots into a disk menu with four games, Tunnel Raider, Dino Run, Invader Force and I Invade, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
+Requirements 1 to 11 below are built: the console boots into a disk menu with five games, Tunnel Raider, Dino Run, Invader Force, I Invade and Bricks, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
 
 ## Requirements (from the owner)
 
@@ -101,6 +101,14 @@ Requirements 1 to 10 below are built: the console boots into a disk menu with fo
 - **Tuning:** `tools/autopilot/i-invade.mjs` plays the game headless (do-nothing, spam-every-bay and timing bots) on desk, phone portrait and phone landscape sizes and prints the waves reached. Targets: a do-nothing fleet is repelled in about 90 s without landing; spamming clears the early waves then thins out; a timing bot is repelled around wave 5 to 8.
 - Original fleet (crown, puffer, pod), tanks, UFO, sounds and code.
 
+### 11. Bricks
+
+- The fifth disk: an original one-bat brick game (GAM-28). Move a bat along the bottom, serve one ember into a wall, and clear every breakable brick. There is no second bat and no opponent. The name on the menu, the page and the tube is Bricks.
+- Five brick types and nothing else. Clay breaks in one hit. Kiln cracks, then shatters. Glass breaks and lets the ember through. Cinder takes one neighbouring clay and does not chain. Anvils bounce the ember and never break, so a wave can clear while they remain. No falling capsules, no second ember, and BOOST stays dark.
+- The ember does not auto-serve. FIRE, Space, Enter or a tap serves it off the bat; the same controls do nothing while it is in the air. A miss loses a bat and leaves the wall as it was. Three bats, another every 2,000, up to six. Clearing a wall scores 100 times the wave.
+- Walls are generated, never drawn by hand. Wave 1 is clay and empty slots only. Rules live in `src/games/bricks/rules.ts` (unit-tested). The leaflet's about line is the only place a commercial brick game is named.
+- Original bat, ember, bricks, art, sound and code.
+
 ## Stack (decided)
 
 **Astro + React components + a plain TypeScript console engine on Canvas 2D.** No game engine: the picture comes from the console's own four-colour quantiser and phosphor pass, which an engine's renderer would fight.
@@ -133,7 +141,7 @@ Requirements 1 to 10 below are built: the console boots into a disk menu with fo
 | `src/console/pwa.ts` | Install button, offline-ready and update prompts |
 | `src/games/types.ts` | The plug-in contract: `GameDisk`, `GameRuntime`, `ConsoleAPI` |
 | `src/games/registry.ts` | Finds `*/disk.ts` (eager) and `*/game.ts` (lazy) |
-| `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/` | The four games (`disk.ts`, `game.ts`, plus helpers) |
+| `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/`, `bricks/` | The five games (`disk.ts`, `game.ts`, plus helpers) |
 | `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Strict TypeScript (`tsconfig.kit.json`), tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
 | `src/kit/platform/` | Console services as DOM-free rules the core wires to the page. `haptics.ts` (GAM-5) is the first: named buzz patterns, the SOUND-off rule and which buzz wins, with the core supplying the vibrate call; button slots, gamepad and pause are to follow. See the [Shared game kit spec](https://linear.app/stealth-company/document/shared-game-kit-spec-338041de484b) |
 | `public/` | Icons, favicon, share images (`og-image.png`, `og-<slug>.png` per game) |
@@ -218,4 +226,4 @@ Release PRs (`release: vX.Y.Z`) and bot PRs (ImgBot) need no issue; the release 
 ## Open questions
 
 - The site address for the console. Then set `site` in `astro.config.mjs`, absolute share-image URLs and a canonical link in `ConsoleLayout.astro`.
-- Which games join after I Invade.
+- Which games join after Bricks.

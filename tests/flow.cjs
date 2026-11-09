@@ -14,12 +14,29 @@ async function backToMenu(p){
   if (await mode(p) !== 'menu') await p.keyboard.press('g');
   await p.waitForFunction(() => __gg.S.mode === 'menu' && globalThis.__ggBus.get().manual === 'console' && document.querySelector('#manH')?.textContent === 'Operating Instructions', null, { timeout: 8000 });
 }
-// the row's place on the tube, in the same units drawMenu uses, so a tap lands on that disk
+// the row's place on the tube, in the same units drawMenu uses, so a tap lands on that disk.
+// menuRows is nested because this function is sent to the page: keep it in step with src/console/menu-layout.ts
 function diskRow(i){
+  function menuRows(n, lh){
+    const frame = (rowH, gap, minTop) => {
+      const block = 64 + n * (rowH + gap) + 36;
+      const top = Math.max(minTop, Math.round((lh - block) / 2));
+      return { top, bottom: top + 88 + n * (rowH + gap) };
+    };
+    let rowH = Math.max(18, Math.min(36, Math.floor((lh - 16 - 64 - 36) / n) - 6));
+    let gap = rowH >= 30 ? 6 : 3;
+    const first = frame(rowH, gap, 8);
+    if (first.bottom <= lh - 1) return { rowH, gap, top: first.top };
+    gap = 2;
+    for (let rh = Math.min(rowH, 22); rh >= 12; rh--) {
+      const next = frame(rh, gap, 4);
+      if (next.bottom <= lh - 1) return { rowH: rh, gap, top: next.top };
+    }
+    return { rowH: 12, gap: 2, top: 4 };
+  }
   const LW = __gg.LW, LH = __gg.LH, n = __gg.DISKS.length;
-  const rowH = Math.max(18, Math.min(36, Math.floor((LH - 16 - 64 - 36) / n) - 6)), gap = rowH >= 30 ? 6 : 3;
+  const { rowH, gap, top } = menuRows(n, LH);
   const bw = Math.min(LW - 16, 300), x0 = Math.round(LW / 2 - bw / 2);
-  const block = 64 + n * (rowH + gap) + 36, top = Math.max(8, Math.round((LH - block) / 2));
   const y = top + 60 + i * (rowH + gap);
   return { x: (x0 + bw / 2) / LW, y: (y + rowH / 2) / LH };
 }
@@ -69,7 +86,18 @@ async function playEveryDisk(p, tag){
     if (!await chooseDisk(p, tag, i)) { console.log(tag, 'disk', id, { pick: 'missed' }); continue; }
     await p.waitForFunction(id => (__gg.S.mode === 'load' || __gg.S.mode === 'ready' || __gg.S.mode === 'play') && __gg.game && __gg.game.id === id, id, { timeout: 4000 });
     await p.waitForFunction(id => __gg.S.mode === 'play' && __gg.game && __gg.game.id === id && globalThis.__ggBus.get().manual === id && (document.querySelector('#manH')?.textContent || '') !== 'Operating Instructions', id, { timeout: 12000 });
-    await p.keyboard.press('Space'); await p.waitForTimeout(200);
+    // Bricks does not auto-serve: Space is what first sets the ember moving
+    let bricksBefore = null;
+    if (id === 'bricks') bricksBefore = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { served: s.served, vx: s.vx, vy: s.vy, mode: __gg.S.mode }; });
+    await p.keyboard.press('Space');
+    if (id === 'bricks') {
+      await p.waitForTimeout(60);
+      const after = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { served: s.served, vx: s.vx, vy: s.vy }; });
+      const serveOk = bricksBefore && bricksBefore.mode === 'play' && bricksBefore.served === false && bricksBefore.vx === 0 && bricksBefore.vy === 0 && after.served === true && (after.vx !== 0 || after.vy !== 0);
+      if (!serveOk) errs.push(tag + ' bricks serve: ' + JSON.stringify({ bricksBefore, after }));
+      console.log(tag, 'bricks serve', { before: bricksBefore, after });
+    }
+    await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
     const hold = await holdOnHide(p);
     if (!hold.ok) errs.push(tag + ' disk ' + id + ' hold on hide: ' + JSON.stringify(hold));

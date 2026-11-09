@@ -10,6 +10,7 @@ import type { GameDisk } from '../games/types';
 import { useButtons } from './buttons';
 import { BOOT_BUTTONS, MENU_BUTTONS } from './console-buttons';
 import { bootScript, PROMPT } from './boot';
+import { menuRows } from './menu-layout';
 
 export const BOOT_LEN = 4.0, WARM_LEN = 2.3, MAX_LOAD = 5;
 
@@ -143,9 +144,8 @@ function floppy(x: number, y: number, on: boolean){
 export function drawMenu(){
   const t = S.menuT, n = GAMES.length;
   // rows shrink (and drop their second line) when the disks don't all fit on a short tube
-  const rowH = Math.max(18, Math.min(36, Math.floor((LH - 16 - 64 - 36) / n) - 6)), tall = rowH >= 30, gap = tall ? 6 : 3;
+  const { rowH, gap, top } = menuRows(n, LH), tall = rowH >= 30;
   const bw = Math.min(LW - 16, 300), x0 = Math.round(LW / 2 - bw / 2);
-  const block = 64 + n * (rowH + gap) + 36, top = Math.max(8, Math.round((LH - block) / 2));
   txt('GAME GUY 3000', LW / 2, top, 'text', 'center', 16);
   txt('D E L U X E', LW / 2, top + 20, 'gold', 'center');
   g.fillStyle = col('hud'); for (let x = x0; x < x0 + bw; x += 4) g.fillRect(x, top + 34, 2, 1);

@@ -24,6 +24,14 @@ console.log('/dino-run after boot:', await d.evaluate(() => [__gg.S.mode, __gg.g
 await d.waitForFunction(() => __gg.S.mode === 'ready' || __gg.S.mode === 'play', null, { timeout: 30000 });
 await d.keyboard.press('KeyG'); await d.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 30000 });
 console.log('/dino-run after G:', await d.evaluate(() => __gg.S.mode));
+// 2b. /bricks boots straight into Bricks
+const bricks = await page('/bricks?test');
+console.log('/bricks title:', await bricks.title());
+await bricks.click('#powerBtn'); await bricks.waitForFunction(() => __gg.S.mode === 'load', null, { timeout: 30000 });
+console.log('/bricks after boot:', await bricks.evaluate(() => [__gg.S.mode, __gg.game.id]));
+await bricks.waitForFunction(() => __gg.S.mode === 'ready' || __gg.S.mode === 'play', null, { timeout: 30000 });
+await bricks.keyboard.press('KeyG'); await bricks.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 30000 });
+console.log('/bricks after G:', await bricks.evaluate(() => __gg.S.mode));
 // 3. offline: once the service worker has cached everything, game pages still open
 const w = await page('/');
 await w.evaluate(() => navigator.serviceWorker.ready); await w.waitForTimeout(2500);

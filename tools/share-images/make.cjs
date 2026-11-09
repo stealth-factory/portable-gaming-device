@@ -35,6 +35,9 @@ const IMAGES = [
   { out: 'og-dino-run.png', tv: 'play-dino.png', h1: 'Dino Run', sub: '<small>on the Game Guy 3000 Deluxe</small>',
     tag: 'Jump the cacti, duck the pterosaurs, run as far as the desert goes.',
     disks: disk('c2', 'Dino Run', 'DINORUN.COM · 9K', 40, -4, 2) + disk('c4', 'Tunnel Raider', 'TUNNEL.EXE', 190, 7, 1) },
+  { out: 'og-bricks.png', tv: 'play-bricks.png', h1: 'Bricks', sub: '<small>on the Game Guy 3000 Deluxe</small>',
+    tag: 'Serve an ember, bounce it off one bat, and clear the wall.',
+    disks: disk('c2', 'Bricks', 'BRICKS.EXE · 18K', 40, -4, 2) + disk('c4', 'Dino Run', 'DINORUN.COM', 190, 7, 1) },
 ];
 
 (async () => {
@@ -106,6 +109,21 @@ const IMAGES = [
   await p.keyboard.press('Shift');
   await until(() => { const F = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && F.ufo && F.ufo.x > __gg.LW * 0.35 && F.ufo.x < __gg.LW * 0.65; }, 20000);   // no catch: a missed UFO fails the run
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await shot('play-iinvade.png');
+  // Bricks: its loading screen, then a served ember on the way up into the wall
+  await p.keyboard.press('KeyG'); await until(() => __gg.S.mode === 'menu');
+  await p.evaluate(() => { __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'bricks')); __gg.S.loadLen = 4.2; });
+  await until(() => __gg.S.loadT > 1.1); await shot('load-bricks.png');
+  await until(() => __gg.S.mode === 'play');
+  await p.keyboard.press('Space');
+  await p.evaluate(() => { setInterval(() => {
+    const B = __gg.runtime.debug.state(), S = __gg.S; if (S.mode !== 'play' || !B.served) return;
+    const k = (t, c) => dispatchEvent(new KeyboardEvent(t, { code: c, key: c }));
+    k('keyup', 'ArrowLeft'); k('keyup', 'ArrowRight');
+    if (B.bx + 2 < B.px + 20) k('keydown', 'ArrowLeft');
+    else if (B.bx + 2 > B.px + 36) k('keydown', 'ArrowRight');
+  }, 30); });
+  await until(() => { const B = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && B.served && B.by < __gg.LH * 0.55; }, 8000).catch(() => {});
+  await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await shot('play-bricks.png');
   /* ---- 2. lay out and render the share images ---- */
   const r = await (await b.newContext({ viewport: { width: 1200, height: 630 } })).newPage();
   for (const img of IMAGES) {
@@ -118,7 +136,7 @@ const IMAGES = [
   /* ---- 3. README screenshots, 720 px wide ---- */
   fs.mkdirSync(SCREENS, { recursive: true });
   const s = await (await b.newContext({ viewport: { width: 1280, height: 860 } })).newPage();
-  for (const n of ['menu', 'load-tunnel', 'play-tunnel', 'load-dino', 'play-dino', 'load-invader', 'play-invader', 'load-iinvade', 'play-iinvade']) {
+  for (const n of ['menu', 'load-tunnel', 'play-tunnel', 'load-dino', 'play-dino', 'load-invader', 'play-invader', 'load-iinvade', 'play-iinvade', 'load-bricks', 'play-bricks']) {
     const html = path.join(TMP, n + '.html');
     fs.writeFileSync(html, `<body style="margin:0;background:transparent"><img src="${n}.png" style="width:720px;display:block"></body>`);
     await s.goto('file://' + html); await s.waitForTimeout(150);
