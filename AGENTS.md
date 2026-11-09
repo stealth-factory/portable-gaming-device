@@ -137,7 +137,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 - **Tests:** Vitest (`tests/unit`: disk rules and the plug-in rule) and Playwright scripts (`tests/flow.cjs`, `tests/pages.cjs`, `tests/stick.cjs`, `tests/haptics.cjs`) against `npm run preview`.
 - **Deploy:** Vercel's Astro preset, `npm run build` → `dist`.
 - **Releases (decided):** pooled release with production gated by a Promotion Branch. Production branch `production`, platform Vercel. Merges to `main` deploy previews and update one standing `release: vX.Y.Z` PR; merging that PR tags the version and fast-forwards `production`, which Vercel ships. See [docs/releasing.md](docs/releasing.md).
-- **Types:** `tsconfig.json` stays `strict: false` while the ported console is tightened module by module. `tsconfig.strict.json` lists the modules that already pass `strict`, and `npm run typecheck` runs it. That list is the plug-in contract, the disk registry, the bus, the language table, the loader, and the small modules those import. `core.ts` stays off the list until it is split. The kit has its own strict config, `tsconfig.kit.json`.
+- **Types:** `tsconfig.json` is `strict` (and `noImplicitAny`) for everything `npm run typecheck` covers: `src` and `tests`. A strict error anywhere fails that check. `tsconfig.kit.json` still typechecks the kit on its own; it is the same `strict` rules, not a looser set for the rest of the project. The console's state bag (`api.S`) stays `any`: each game owns its fields, and the kit names the ones it shares.
 
 ## Where things are now
 
@@ -149,7 +149,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 | `src/main.ts` | Engine entry: console, PWA, analytics |
 | `src/console/core.ts` | CRT picture pipeline, input, sound, switches, scores, name entry, game loop, and the `api` games get |
 | `src/console/loader.ts` | Boot screens, disk menu, loading screens and drive sounds, SELECT. Reads the console through `host.ts` |
-| `src/console/host.ts` | Typed seam the loader uses, so the loader can be strict before `core.ts` is |
+| `src/console/host.ts` | Typed seam the loader uses, so the loader does not import `core.ts` |
 | `src/console/i18n.ts` | Every string (base table plus console and disk strings), no side effects |
 | `src/console/strings.ts`, `manual.ts` | The console's own strings and instructions |
 | `src/console/bus.ts` | Tiny store shared by the engine and React islands (language, whose instructions) |
@@ -158,7 +158,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 | `src/games/registry.ts` | Finds `*/disk.ts` (eager) and `*/game.ts` (lazy) |
 | `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/`, `bricks/`, `martian-storm/` | The six games; what each folder holds is under [Game folders](#game-folders) |
 | `src/games/README.md` | Making a game disk: every file, the artwork and images, and the steps for a new one |
-| `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Strict TypeScript (`tsconfig.kit.json`), tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
+| `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
 | `src/kit/platform/` | Console services as DOM-free rules the core wires to the page. `haptics.ts` (GAM-5) is the first: named buzz patterns, the SOUND-off rule and which buzz wins, with the core supplying the vibrate call; button slots, gamepad and pause are to follow. See the [Shared game kit spec](https://linear.app/stealth-company/document/shared-game-kit-spec-338041de484b) |
 | `public/` | Icons, favicon, share images (`og-image.png`, `og-<slug>.png` per game) |
 | `tools/share-images/` | `make.cjs` captures the console and renders the share images and `docs/screens/`; `share.css` is their layout. `--covers` also writes each game's launcher cover (`src/games/<folder>/cover.ts`, generated, never edited by hand) from its play capture; `--covers-only` writes just those; `--previews` adds each game's flipbook (`preview.ts`, fetched lazily by `loadPreviews()` in the registry) |

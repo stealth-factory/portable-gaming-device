@@ -1,6 +1,6 @@
 import { track as vaTrack } from '@vercel/analytics';
 import { DISKS, loadGameCode } from "../games/registry";
-import type { GameDisk, GameRuntime, ConsoleAPI } from "../games/types";
+import type { Dir, GameDisk, GameRuntime, ConsoleAPI } from "../games/types";
 import { bus } from "./bus";
 import * as Btn from "./buttons";
 import { Stick } from "./stick";
@@ -12,17 +12,17 @@ import { bindHost } from "./host";
 export let W = 15, H = 10;
 export const C = 32, CELL = 24, HUD = 20, K = CELL / C;   // game units per cell, low-res pixels per cell
 export let LW = W * CELL, LH = H * CELL + HUD;              // low-res frame buffer, like a 1980s graphics mode; resized to fit the screen
-export const $ = (id: string): any => document.getElementById(id);
-export const cv = $('cv'), ctx = cv.getContext('2d');
+export const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
+export const cv = $('cv') as HTMLCanvasElement, ctx = cv.getContext('2d')!;
 export const lo = document.createElement('canvas'); lo.width = LW; lo.height = LH;
-export const lx = lo.getContext('2d', { willReadFrequently: true });
+export const lx = lo.getContext('2d', { willReadFrequently: true })!;
 export const glow = document.createElement('canvas'); glow.width = 120; glow.height = 87;   // resized with the grid
-export const gx = glow.getContext('2d');
+export const gx = glow.getContext('2d')!;
 export const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const acc = document.createElement('canvas'); acc.width = LW; acc.height = LH;   // what the phosphor is still glowing with
-export const ax = acc.getContext('2d');
+export const ax = acc.getContext('2d')!;
 export let accImg = ax.createImageData(LW, LH), A = new Float32Array(LW * LH * 4);
-export let accReset = true, warmT = 0, frameDt = 1 / 60, mask = null;
+export let accReset = true, warmT = 0, frameDt = 1 / 60, mask: HTMLCanvasElement | null = null;
 export const WARM = 0.75;
 /* an old tube's quirks: magnetised patches, burn-in, dust, the odd tear or brown-out */
 export const age = { dg: 99, next: 6, tearLeft: 0, tearY: 0, tearH: 0, tearDx: 0, dipLeft: 0,
@@ -30,10 +30,10 @@ export const age = { dg: 99, next: 6, tearLeft: 0, tearY: 0, tearH: 0, tearDx: 0
     { x: 0.08 + Math.random() * 0.18, y: 0.08 + Math.random() * 0.2, r: 0.36, tint: '#ff92e8', k: 0.85 },
     { x: 0.74 + Math.random() * 0.2, y: 0.62 + Math.random() * 0.26, r: 0.3, tint: '#9effb6', k: 0.7 },
   ] };
-export let burn = null;
+export let burn: HTMLCanvasElement | null = null;
 export const dust = document.createElement('canvas'); dust.width = 720; dust.height = 520;
 (() => {
-  const d = dust.getContext('2d');
+  const d = dust.getContext('2d')!;
   for (let i = 0; i < 16; i++) {
     d.fillStyle = `rgba(0,0,0,${0.15 + Math.random() * 0.3})`;
     d.beginPath(); d.arc(Math.random() * 720, Math.random() * 520, 0.6 + Math.random() * 1.6, 0, Math.PI * 2); d.fill();
@@ -46,7 +46,7 @@ export const dust = document.createElement('canvas'); dust.width = 720; dust.hei
 export function buildBurn(){
   // years of the same title screen wore the phosphor: those spots now glow a little less
   burn = document.createElement('canvas'); burn.width = LW; burn.height = LH;
-  const b = burn.getContext('2d');
+  const b = burn.getContext('2d')!;
   b.fillStyle = '#fff'; b.fillRect(0, 0, LW, LH);
   b.fillStyle = '#d0d0d0'; b.font = '16px Silkscreen, "Courier New", monospace'; b.textAlign = 'center'; b.textBaseline = 'middle';
   b.fillText('GAME GUY 3000', LW / 2, LH * 0.42);
@@ -62,7 +62,11 @@ export const MONO_ROLES = { bg:0, dirt:1, ds1:0, ds2:2, core:0, spawn:1, gemDark
   cart:3, cartShade:2, window:1, lamp:3, drill:2, drillLine:0, track:1, wheel:2, grub:2, grubBelly:3, borer:3, borerBelly:2, horn:3, eye:3, pupil:0,
   scared:1, scaredBelly:2, scaredFlash:3, sun:3, sunRay:2, spark:3, sparkTrail:2, text:3, textDim:2, hud:2 };
 /* half: seconds for the phosphor glow to halve after the beam moves on. bezel: highlight, body, shadow, plate ink, unlit glass */
-export const MODES = {
+type PhosphorMode = {
+  name: string; pal: string[]; roles: Record<string, number>;
+  phos: number; phos2: number; half: number; bloom: number; mask: boolean; sweep?: number; bezel: string[];
+};
+export const MODES: Record<string, PhosphorMode> = {
   greenP1:  { name:'GREEN P1', pal:['#140e09','#0f5a1d','#2fbf4b','#b2ffbd'], roles:MONO_ROLES, phos:3, phos2:2, half:0.045, bloom:0.36, mask:false,
               bezel:['#43473f','#2c2f2a','#1d1f1b','#8f978a','#1a120c'] },
   greenP39: { name:'LONG GREEN P39', pal:['#120c08','#0b4416','#33e05a','#c6ffd0'], roles:MONO_ROLES, phos:3, phos2:2, half:0.17, bloom:0.44, mask:false,
@@ -80,15 +84,16 @@ export const MODES = {
               bezel:['#ddd4bd','#c9bfa6','#a39a82','#574f40','#1a120d'] },
 };
 export const MODE_ORDER = Object.keys(MODES);
-export const LEGACY = { green:'greenP1', amber:'amberP3', white:'whiteP4' };
+export const LEGACY: Record<string, string> = { green:'greenP1', amber:'amberP3', white:'whiteP4' };
 export let modeKey = 'greenP1', fx = true;
-try { let m = localStorage.getItem('eb-mode'); m = LEGACY[m] || m; if (MODES[m]) modeKey = m; fx = localStorage.getItem('eb-fx') !== '0'; } catch (e) {}
-export let M = MODES[modeKey], palRGB = [];
-export const col = role => M.pal[M.roles[role]];
+try { let m = localStorage.getItem('eb-mode'); if (m) m = LEGACY[m] || m; if (m && MODES[m]) modeKey = m; fx = localStorage.getItem('eb-fx') !== '0'; } catch (e) {}
+export let M = MODES[modeKey] as (typeof MODES)[keyof typeof MODES], palRGB: number[][] = [];
+export const col = (role: string) => M.pal[M.roles[role]];
 document.querySelectorAll('#modes [data-mode]').forEach(b => {
-  b.querySelector('.sw4').innerHTML = MODES[b.dataset.mode].pal.map(c => `<i style="background:${c}"></i>`).join('');
+  const el = b as HTMLElement;
+  (el.querySelector('.sw4') as HTMLElement).innerHTML = MODES[el.dataset.mode!].pal.map(c => `<i style="background:${c}"></i>`).join('');
 });
-export function setMode(k){
+export function setMode(k: string){
   modeKey = k; M = MODES[k];
   palRGB = M.pal.map(h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]);
   document.querySelectorAll('#modes [data-mode]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === k)));
@@ -104,9 +109,9 @@ export function setMode(k){
   if (runtime && runtime.onPalette) runtime.onPalette();
 }
 /* the phosphor dial: seven detents, turned by dragging, clicking (next), scrolling, arrow keys or the labels */
-export const SHORT = { greenP1:'GREEN', greenP39:'P39', radarP7:'P7', amberP3:'AMBER', whiteP4:'WHITE', cga1:'CGA 1', cga0:'CGA 0' };
+export const SHORT: Record<string, string> = { greenP1:'GREEN', greenP39:'P39', radarP7:'P7', amberP3:'AMBER', whiteP4:'WHITE', cga1:'CGA 1', cga0:'CGA 0' };
 export const ANG = [-135, -90, -45, 0, 45, 90, 135];
-export function updateDial(i){
+export function updateDial(i: number){
   const cap = $('dialCap'), dial = $('dial'); if (!cap) return;
   cap.style.transform = `rotate(${ANG[i]}deg)`;
   dial.setAttribute('aria-valuenow', String(i)); dial.setAttribute('aria-valuetext', MODES[MODE_ORDER[i]].name);
@@ -117,7 +122,7 @@ export function track(name: string, data?: Record<string, string | number | bool
   try { vaTrack(name, data); } catch (_) {}
 }
 export const layoutName = () => document.documentElement.getAttribute('data-layout') || 'desk';
-export function turnTo(i){
+export function turnTo(i: number){
   i = Math.max(0, Math.min(MODE_ORDER.length - 1, i));
   if (MODE_ORDER[i] === modeKey) return;
   ensureAudio(); tone(2400, 0.012, 0.05); buzz('tick');   // detent click
@@ -135,7 +140,7 @@ export function turnTo(i){
     b.addEventListener('click', () => turnTo(i));
     wrap.appendChild(b);
   });
-  let pid = null, moved = false, sx = 0, sy = 0, wheelT = 0;
+  let pid: number | null = null, moved = false, sx = 0, sy = 0, wheelT = 0;
   dial.addEventListener('pointerdown', e => {
     pid = e.pointerId; moved = false; sx = e.clientX; sy = e.clientY;
     try { dial.setPointerCapture(pid); } catch (_) {}
@@ -172,12 +177,12 @@ export function turnTo(i){
     e.preventDefault(); e.stopPropagation();
   });
 })();
-export function setFx(v){ fx = v; accReset = true; $('fxBtn').setAttribute('aria-pressed', String(v)); try { localStorage.setItem('eb-fx', v ? '1' : '0'); } catch (e) {} }
+export function setFx(v: boolean){ fx = v; accReset = true; $('fxBtn').setAttribute('aria-pressed', String(v)); try { localStorage.setItem('eb-fx', v ? '1' : '0'); } catch (e) {} }
 
 /* ---------- utilities ---------- */
-export const idx = (x, y) => y * W + x;
-export const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
-export function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+export const idx = (x: number, y: number) => y * W + x;
+export const inb = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
+export function mulberry32(a: number){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 export const DIRS = { up:{dx:0,dy:-1}, down:{dx:0,dy:1}, left:{dx:-1,dy:0}, right:{dx:1,dy:0} };
 
 /* ---------- scores: each game keeps its own best and top-ten table on this device (localStorage only) ---------- */
@@ -196,7 +201,7 @@ const bestKey = (id: string) => 'gg-best-' + id, boardKey = (id: string) => 'gg-
 const OLD_KEYS: Record<string, { best: string; board: string }> = { tunnel: { best: 'eb-best', board: 'tr-board' } };   // from the standalone Tunnel Raider
 const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
 const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch (_) {} };
-export const cleanName = v => String(v || '').toUpperCase().replace(/[^A-Z ]/g, '').slice(0, NAME_MAX);
+export const cleanName = (v: unknown) => String(v || '').toUpperCase().replace(/[^A-Z ]/g, '').slice(0, NAME_MAX);
 export function readBoard(id: string){
   const raw = lsGet(boardKey(id)) ?? (OLD_KEYS[id] ? lsGet(OLD_KEYS[id].board) : null);
   try {
@@ -213,30 +218,30 @@ export function readBest(id: string){
   return (bestCache[id] = Math.max(parseInt(raw || '0', 10) || 0, b.length ? b[0].s : 0));
 }
 export function saveBest(){ bestCache[game.id] = best; lsSet(bestKey(game.id), String(best)); }
-export let board = [], lastName = cleanName(lsGet('gg-name') ?? lsGet('tr-name'));
+export let board: { n: string; s: number; l: number }[] = [], lastName = cleanName(lsGet('gg-name') ?? lsGet('tr-name'));
 export function loadScores(id: string){ board = readBoard(id); best = readBest(id); }
 loadScores(game.id);
 export function saveBoard(){ lsSet(boardKey(game.id), JSON.stringify(board)); lsSet('gg-name', lastName); }
-export const boardRank = sc => { const i = board.findIndex(e => sc > e.s); return i < 0 ? board.length : i; };   // ties go below the older score
-export const qualifies = sc => sc > 0 && boardRank(sc) < BOARD_MAX;
-export const ordinal = n => n + (n === 1 ? 'ST' : n === 2 ? 'ND' : n === 3 ? 'RD' : 'TH');
+export const boardRank = (sc: number) => { const i = board.findIndex(e => sc > e.s); return i < 0 ? board.length : i; };   // ties go below the older score
+export const qualifies = (sc: number) => sc > 0 && boardRank(sc) < BOARD_MAX;
+export const ordinal = (n: number) => n + (n === 1 ? 'ST' : n === 2 ? 'ND' : n === 3 ? 'RD' : 'TH');
 
 /* ---------- audio (PC-speaker style square waves) ---------- */
-export let ac = null, muted = false;
+export let ac: AudioContext | null = null, muted = false;
 export function ensureAudio(){
-  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+  if (!ac) { try { const Ctx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext; ac = Ctx ? new Ctx() : null; } catch (e) { ac = null; } }
   if (ac && ac.state === 'suspended') ac.resume().catch(()=>{});
 }
 /* every sound goes out through one gain node, so hush() can cut whatever is still ringing or already scheduled
    (the drive, a game's effects) by dropping it; the next sound makes a fresh one */
-let outNode = null;
-export function out(){ if (!outNode) { outNode = ac.createGain(); outNode.connect(ac.destination); } return outNode; }
+let outNode: GainNode | null = null;
+export function out(){ if (!outNode) { outNode = ac!.createGain(); outNode.connect(ac!.destination); } return outNode; }
 export function hush(){
   if (!outNode) return;
   const b = outNode; outNode = null;
   try { b.gain.cancelScheduledValues(0); b.gain.value = 0; b.disconnect(); } catch (_) {}
 }
-export function tone(f, dur, vol=0.045, slide=0, delay=0){
+export function tone(f: number, dur: number, vol = 0.045, slide = 0, delay = 0){
   if (!ac || muted) return;
   const t0 = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
   o.type = 'square'; o.frequency.setValueAtTime(f, t0);
@@ -267,12 +272,12 @@ export const S: any = {
 };
 
 /* ---------- input ---------- */
-export const held = [];
-export let stickDir = null, fireCool = false, boostShown = '';
+export const held: Dir[] = [];
+export let stickDir: Dir | null = null, fireCool = false, boostShown = '';
 export let tapQueued = false, tapHeld = false, tapX = 0;
-export const KEYMAP = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', KeyW:'up', KeyS:'down', KeyA:'left', KeyD:'right' };
-export const press = d => { if (!held.includes(d)) held.push(d); };
-export const release = d => { const i = held.indexOf(d); if (i >= 0) held.splice(i, 1); };
+export const KEYMAP: Record<string, Dir> = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', KeyW:'up', KeyS:'down', KeyA:'left', KeyD:'right' };
+export const press = (d: Dir) => { if (!held.includes(d)) held.push(d); };
+export const release = (d: Dir) => { const i = held.indexOf(d); if (i >= 0) held.splice(i, 1); };
 export const wantDir = () => stickDir ? DIRS[stickDir] : held.length ? DIRS[held[held.length - 1]] : null;
 
 /** Enter fires only where a leaflet promises it: Bricks (FIRE reads SERVE) and Martian Storm. */
@@ -325,15 +330,15 @@ document.addEventListener('visibilitychange', () => {
 (() => {
   const zone = $('stickzone'), base = $('stickbase'), knob = $('knob');
   const stick = new Stick();
-  let zr = null, touchFinger = false;   // touchGone only applies to a finger: a mouse or pen never shows in e.touches
-  function setDir(d){
+  let zr: DOMRect | null = null, touchFinger = false;   // touchGone only applies to a finger: a mouse or pen never shows in e.touches
+  function setDir(d: Dir | null){
     if (d === stickDir) return;
     stickDir = d;
     zone.querySelectorAll('.tick').forEach(t => t.classList.toggle('on', t.dataset.d === d));
     if (d) buzz(6);   // a tiny nudge on each new direction, silent with SOUND off like every buzz
   }
-  function show(v){
-    base.style.left = (v.ox - zr.left) + 'px'; base.style.top = (v.oy - zr.top) + 'px';
+  function show(v: { ox: number; oy: number; dx: number; dy: number; dir: Dir | null }){
+    base.style.left = (v.ox - zr!.left) + 'px'; base.style.top = (v.oy - zr!.top) + 'px';
     knob.style.transform = `translate(${v.dx}px,${v.dy}px)`;
     setDir(v.dir);
   }
@@ -342,7 +347,7 @@ document.addEventListener('visibilitychange', () => {
     zone.classList.remove('active');
     base.style.left = '50%'; base.style.top = '50%'; knob.style.transform = '';
   }
-  function end(e){
+  function end(e: PointerEvent){
     if (stick.id === null || e.pointerId !== stick.id) return;
     const id = stick.id;
     centre();
@@ -368,7 +373,7 @@ document.addEventListener('visibilitychange', () => {
   addEventListener('pointercancel', end, true);
   // older iOS can drop the pointer events of a finger it hands to a system gesture, but still ends the touch:
   // once no touch that started on the pad is left, the stick's finger has gone
-  const touchGone = e => {
+  const touchGone = (e: TouchEvent) => {
     if (stick.id === null || !touchFinger) return;
     for (const t of e.touches) if (t.target instanceof Node && zone.contains(t.target)) return;
     centre();
@@ -381,7 +386,7 @@ document.addEventListener('visibilitychange', () => {
 
   // the set's action buttons, as slots any app can map (src/console/buttons.ts); a third button is one more line here
   Btn.defineSlot('fire', ['Space', 'KeyZ', 'KeyX'], 'spark', $('fireBtn'), null, true);
-  Btn.defineSlot('boost', ['ShiftLeft', 'ShiftRight', 'KeyB'], 'boost', $('boostBtn'), $('boostBtn').querySelector('span'), true);
+  Btn.defineSlot('boost', ['ShiftLeft', 'ShiftRight', 'KeyB'], 'boost', $('boostBtn'), $('boostBtn').querySelector('span') as HTMLElement | null, true);
   const fire = $('fireBtn');
   fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
   const off = () => Btn.release('fire');
@@ -431,7 +436,7 @@ export const overlay = $('overlay');
 /* ---------- languages: English (default) and Traditional Chinese, carried in the link as #en / #zh-hant ---------- */
 import { I18N, LANGS, LANG_ALIAS, hashLang, kb } from './i18n';
 export { I18N, LANGS, LANG_ALIAS, hashLang, kb };
-export let lang = 'en', ovKind = 'title', ovVars: any = {};
+export let lang = 'en', ovKind: 'title' | 'paused' | 'over' = 'title', ovVars: any = {};
 Btn.setTranslator(k => I18N[lang][k] ?? k);
 /* ---------- instructions: the console's while the menu is up, the loaded game's otherwise (rendered by the React leaflet) ---------- */
 export let manCtx = 'console';
@@ -449,12 +454,13 @@ export function renderOverlay(){
   const v = { title: ['TUNNEL RAIDER', T.titleText, T.start], paused: [T.paused, T.pausedText, T.resume], over: [T[game.overKey], T.overText(ovVars.n, ovVars.s), T[game.againKey]] }[ovKind];
   $('ovTitle').textContent = v[0]; $('ovText').innerHTML = v[1]; $('ovBtn').innerHTML = '<span class="blink">▶</span> ' + v[2];
 }
-export function showOverlay(kind, vars: any = {}){ ovKind = kind; ovVars = vars; renderOverlay(); overlay.hidden = false; }
-export function applyLang(l, writeHash){
-  lang = LANGS.includes(l) ? l : 'en';
-  document.documentElement.lang = { en: 'en', 'zh-hant': 'zh-Hant', 'zh-hans': 'zh-Hans' }[lang];
+export function showOverlay(kind: 'title' | 'paused' | 'over', vars: any = {}){ ovKind = kind; ovVars = vars; renderOverlay(); overlay.hidden = false; }
+export function applyLang(l: string | null | undefined, writeHash: boolean){
+  lang = l && LANGS.includes(l) ? l : 'en';
+  const htmlLang: Record<string, string> = { en: 'en', 'zh-hant': 'zh-Hant', 'zh-hans': 'zh-Hans' };
+  document.documentElement.lang = htmlLang[lang] || lang;
   const T = I18N[lang];
-  document.querySelectorAll('[data-i18n]').forEach(el => { const v = T[el.dataset.i18n]; if (typeof v === 'string') el.innerHTML = v; });
+  document.querySelectorAll('[data-i18n]').forEach(el => { const key = (el as HTMLElement).dataset.i18n; const v = key ? T[key] : undefined; if (typeof v === 'string') (el as HTMLElement).innerHTML = v; });
   $('manualLbl').textContent = $('manualBtn').getAttribute('aria-expanded') === 'true' ? T.manualHide : T.manual;
   document.querySelectorAll('#langSeg [data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   $('exitFull').setAttribute('aria-label', T.exitFull);
@@ -474,7 +480,7 @@ $('manualBtn').addEventListener('click', () => {
 
 /* ---------- status badge: network changes (5 s) and, in the installed app, offline-ready and update notices ---------- */
 export let badgeTimer = 0;
-export function trToast(text, opts: any = {}){
+export function trToast(text: string, opts: any = {}){
   const box = $('netToast'), btn = $('netBtn');
   clearTimeout(badgeTimer); box.classList.remove('leaving');
   box.dataset.state = opts.state || 'info'; $('netMsg').textContent = text;
@@ -489,10 +495,11 @@ window.trToast = trToast;
 { let lastTap = 0;
   document.addEventListener('touchend', e => {
     const now = e.timeStamp || Date.now();
-    if (now - lastTap < 350 && e.target.closest && e.target.closest('.tv, .netbadge')) e.preventDefault();
+    const t = e.target as Element;
+    if (now - lastTap < 350 && t.closest && t.closest('.tv, .netbadge')) e.preventDefault();
     lastTap = now;
   }, { passive: false });
-  document.addEventListener('dblclick', e => { if (e.target.closest && e.target.closest('.tv')) e.preventDefault(); }, { passive: false });
+  document.addEventListener('dblclick', e => { const t = e.target as Element; if (t.closest && t.closest('.tv')) e.preventDefault(); }, { passive: false });
 }
 /* backstop for browsers that ignore touch-action: a finger moving on the set never drags the page, and a mouse drag never picks up a piece of it */
 { const set = document.querySelector('.tv');
@@ -501,13 +508,13 @@ window.trToast = trToast;
     set.addEventListener('dragstart', e => e.preventDefault());
   }
 }
-window.trT = k => I18N[lang][k];
+window.trT = (k: string) => I18N[lang][k];
 addEventListener('offline', () => trToast(I18N[lang].netOff, { state: 'off', ms: 5000 }));
 addEventListener('online', () => trToast(I18N[lang].netOn, { state: 'on', ms: 5000 }));
 
 /* ---------- full screen: the picture alone, browser full screen where the page allows it ---------- */
 export let full = false;
-export function setFull(v){
+export function setFull(v: boolean){
   if (v !== full) track('fullscreen', { on: v, layout: layoutName() });
   full = v;
   if (v) document.documentElement.setAttribute('data-full', ''); else document.documentElement.removeAttribute('data-full');
@@ -525,7 +532,7 @@ $('ovBtn').addEventListener('click', () => { ensureAudio(); if (S.mode === 'paus
 $('pauseBtn').addEventListener('click', () => togglePause());
 $('muteBtn').addEventListener('click', () => toggleMute());
 $('fxBtn').addEventListener('click', () => setFx(!fx));
-document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode((b as HTMLElement).dataset.mode!)));
 export function toggleMute(){ muted = !muted; $('muteBtn').setAttribute('aria-pressed', String(!muted)); }
 /* ---------- the leaflet's reset buttons: the set back to factory settings, and (separately) this device's scores wiped ---------- */
 export function resetSettings(){
@@ -549,7 +556,7 @@ addEventListener(SETTINGS_EVENT, (e: Event) => {
   const what = (e as CustomEvent).detail;
   if (what === 'reset') resetSettings(); else if (what === 'scores') clearScores();
 });
-export function togglePause(forceOn?){
+export function togglePause(forceOn?: boolean){
   if (typeof tvOn !== 'undefined' && !tvOn) return;
   if (S.mode === 'paused') { if (forceOn) return; S.mode = S.prevMode; overlay.hidden = true; $('pauseBtn').setAttribute('aria-pressed', 'false'); return; }
   if (!GAME_MODES.includes(S.mode)) return;
@@ -598,7 +605,7 @@ export function powerOn(){
 }
 export function flipPower(){ ensureAudio(); buzz('tick'); if (ac) { tone(700, 0.03, 0.06, -200); tone(1400, 0.015, 0.05, 0, 0.06); } if (tvOn) powerOff(); else powerOn(); }
 // tap to toggle, or flick the knob: right for on, left for off
-{ let sx = null, flicked = false;
+{ let sx: number | null = null, flicked = false;
   $('powerBtn').addEventListener('pointerdown', e => { sx = e.clientX; flicked = false; });
   $('powerBtn').addEventListener('pointerup', e => {
     if (sx === null) return; const dx = e.clientX - sx; sx = null;
@@ -625,19 +632,19 @@ $('selectBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key
 $('resetBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); $('resetBtn').dispatchEvent(new PointerEvent('pointerdown')); } });
 
 /* ---------- cold boot: POST beep, then the floppy drive spins up, recalibrates and reads ---------- */
-export let noiseBuf = null;
+export let noiseBuf: AudioBuffer | null = null;
 export function noise(){
-  if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
-  const s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s;
+  if (!noiseBuf) { noiseBuf = ac!.createBuffer(1, ac!.sampleRate, ac!.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const s = ac!.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s;
 }
-export function headClick(t, vol = 0.22, freq = 2600){
-  const s = noise(), f = ac.createBiquadFilter(), g = ac.createGain();
+export function headClick(t: number, vol = 0.22, freq = 2600){
+  const s = noise(), f = ac!.createBiquadFilter(), g = ac!.createGain();
   f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 2.5;
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
   s.connect(f).connect(g).connect(out()); s.start(t, Math.random()); s.stop(t + 0.03);
 }
 /* ---------- main update ---------- */
-export function update(dt){
+export function update(dt: number){
   S.time += dt;
   for (let i = S.parts.length - 1; i >= 0; i--) { const q = S.parts[i]; q.life -= dt; q.vy += 220 * dt; q.x += q.vx * dt; q.y += q.vy * dt; if (q.life <= 0) S.parts.splice(i, 1); }
   for (let i = S.pops.length - 1; i >= 0; i--) { const q = S.pops[i]; q.life -= dt; q.y -= 24 * dt; if (q.life <= 0) S.pops.splice(i, 1); }
@@ -655,15 +662,15 @@ export function update(dt){
 
 /* ---------- drawing into the low-res buffer (game units, C = 32) ---------- */
 export const g = lx;
-export function rr(x, y, w, h, r){ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
-export function poly(pts){ g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); }
-export function circ(x, y, r){ g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+export function rr(x: number, y: number, w: number, h: number, r: number){ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+export function poly(pts: number[]){ g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); }
+export function circ(x: number, y: number, r: number){ g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
 
-export function txt(s, x, y, role, align = 'left', size = 8){
-  g.font = `${size}px Silkscreen, "Courier New", monospace`; g.textAlign = align as CanvasTextAlign; g.textBaseline = 'top';
+export function txt(s: string, x: number, y: number, role: string, align: CanvasTextAlign = 'left', size = 8){
+  g.font = `${size}px Silkscreen, "Courier New", monospace`; g.textAlign = align; g.textBaseline = 'top';
   g.fillStyle = col(role); g.fillText(s, x, y);
 }
-export function banner(t1, t2?){
+export function banner(t1: string, t2?: string){
   const y = HUD + Math.round((LH - HUD) / 2) - 23;
   g.fillStyle = col('bg'); g.fillRect(0, y, LW, t2 ? 46 : 32);
   g.fillStyle = col('hud'); g.fillRect(0, y, LW, 1); g.fillRect(0, y + (t2 ? 45 : 31), LW, 1);
@@ -672,22 +679,22 @@ export function banner(t1, t2?){
 }
 
 /* ---------- name entry and the table, drawn on the tube like an arcade cabinet ---------- */
-export const NKEYS = [];
+export const NKEYS: { k: string; r: number; c: number; w: number }[] = [];
 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((k, i) => NKEYS.push({ k, r: Math.floor(i / 10), c: i % 10, w: 1 }));
 NKEYS.push({ k: ' ', r: 2, c: 6, w: 1 }, { k: 'DEL', r: 2, c: 7, w: 1 }, { k: 'END', r: 2, c: 8, w: 2 });
-export let keyRects = [];
+export let keyRects: { x: number; y: number; w: number; h: number; i: number }[] = [];
 export function startEntry(){
   S.mode = 'entry'; overlay.hidden = true;
   S.entry = { name: lastName, cur: lastName ? NKEYS.length - 1 : 0, rank: boardRank(S.score), dir: null, rep: 0, t: 0 };
   held.length = 0;
   if (ac && !muted) [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.09, 0.04, 0, i * 0.09));
 }
-export function enterOver(boardFirst){
+export function enterOver(boardFirst: boolean){
   S.mode = 'over'; S.overT = 0; S.boardFirst = boardFirst;
   showOverlay('over', { n: S.level, s: String(S.score).padStart(6, '0') });
   S.showBoard = boardFirst && board.length > 0; overlay.hidden = S.showBoard;
 }
-export function entryMove(d){
+export function entryMove(d: Dir){
   const E = S.entry, k = NKEYS[E.cur];
   if (d === 'left' || d === 'right') { const n = NKEYS.length; E.cur = (E.cur + (d === 'right' ? 1 : n - 1)) % n; }
   else {
@@ -697,7 +704,7 @@ export function entryMove(d){
   }
   if (ac && !muted) tone(660, 0.02, 0.03);
 }
-export function entryType(k){
+export function entryType(k: string){
   const E = S.entry;
   if (k === 'END') return entryFinish();
   if (k === 'DEL') { if (E.name) { E.name = E.name.slice(0, -1); if (ac && !muted) tone(330, 0.04, 0.04, -80); } return; }
@@ -714,7 +721,7 @@ export function entryFinish(){
   if (ac && !muted) [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, 0.07, 0.04, 0, i * 0.07));
   enterOver(true);
 }
-export function entryKey(e){
+export function entryKey(e: KeyboardEvent){
   const dir = KEYMAP[e.code];
   if (dir && e.code.startsWith('Arrow')) { entryMove(dir); return true; }
   if (e.code === 'Space') { entryType(NKEYS[S.entry.cur].k); return true; }
@@ -724,7 +731,7 @@ export function entryKey(e){
   if (m) { S.entry.cur = NKEYS.findIndex(q => q.k === m[1]); entryType(m[1]); return true; }
   return false;
 }
-export function updateEntry(dt){
+export function updateEntry(dt: number){
   const E = S.entry; E.t += dt; E.rep -= dt;
   if (stickDir !== E.dir) { E.dir = stickDir; if (stickDir) { entryMove(stickDir); E.rep = 0.4; } }
   else if (stickDir && E.rep <= 0) { entryMove(stickDir); E.rep = 0.15; }
@@ -836,7 +843,7 @@ export function renderFrame(){
 }
 
 /* ---------- CRT presentation ---------- */
-export function tickAge(dt){
+export function tickAge(dt: number){
   age.dg += dt;
   if (age.tearLeft > 0) age.tearLeft -= dt;
   if (age.dipLeft > 0) age.dipLeft -= dt;
@@ -849,7 +856,7 @@ export function tickAge(dt){
     age.next = Math.random() < 0.18 ? 0.35 + Math.random() * 0.5 : 3 + Math.random() * 7;
   }
 }
-export function drawOff(w, h){
+export function drawOff(w: number, h: number){
   const t = reduceMotion ? 9 : offT, hi = M.pal[3], cx = w / 2, cy = h / 2;
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   ctx.fillStyle = M.bezel[4]; ctx.fillRect(0, 0, w, h);
@@ -875,8 +882,8 @@ export function drawOff(w, h){
   if (vig) ctx.drawImage(vig, 0, 0);
   ctx.imageSmoothingEnabled = true; ctx.drawImage(dust, 0, 0, w, h);
 }
-export function hexA(hex, a){ return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`; }
-export function drawPicture(src, oy, dh){
+export function hexA(hex: string, a: number){ return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`; }
+export function drawPicture(src: CanvasImageSource, oy: number, dh: number){
   const w = cv.width, live = fx && !reduceMotion;
   const wob = live ? Math.max(0, 1 - age.dg / 0.9) : 0;      // degauss wobble, dying away
   const tearing = live && age.tearLeft > 0;
@@ -889,7 +896,7 @@ export function drawPicture(src, oy, dh){
     ctx.drawImage(src, 0, y, LW, strip, dx, oy + y * sh, w, strip * sh);
   }
 }
-export function drawAged(w, h){
+export function drawAged(w: number, h: number){
   if (burn) { ctx.globalCompositeOperation = 'multiply'; ctx.imageSmoothingEnabled = true; ctx.drawImage(burn, 0, 0, w, h); }
   const k = Math.min(1, age.dg / 6);   // magnetisation creeps back after each degauss
   if (k > 0) {
@@ -902,17 +909,17 @@ export function drawAged(w, h){
   }
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
 }
-export let scan = null, vig = null;
+export let scan: HTMLCanvasElement | null = null, vig: HTMLCanvasElement | null = null;
 /* ---------- the field adapts to the screen: pick a grid whose shape matches the box the layout gives the tube ---------- */
 export function targetGrid(){
-  const r = cv.parentElement.getBoundingClientRect();
+  const r = cv.parentElement!.getBoundingClientRect();
   if (r.width < 60 || r.height < 60) return [15, 10];
-  const ar = r.width / r.height, fit = w => Math.round((w * CELL / ar - HUD) / CELL);
+  const ar = r.width / r.height, fit = (w: number) => Math.round((w * CELL / ar - HUD) / CELL);
   if (ar >= 1) { const w = ar > 1.75 ? 17 : 15; return [w, Math.min(14, Math.max(7, fit(w)))]; }
   const w = r.width >= 520 ? 13 : r.width < 350 ? 10 : 11;   // upright: fewer, larger cells, more rows
   return [w, Math.min(22, Math.max(9, fit(w)))];
 }
-export function setGrid(w, h){
+export function setGrid(w: number, h: number){
   if (w === W && h === H) return false;
   W = w; H = h; LW = W * CELL; LH = H * CELL + HUD;
   lo.width = LW; lo.height = LH; acc.width = LW; acc.height = LH;
@@ -925,31 +932,31 @@ export function setGrid(w, h){
 export function fitGrid(){ const [w, h] = targetGrid(); setGrid(w, h); }
 export function fitCanvas(){
   // the picture fills the tube, letterboxed in glass if the current field doesn't quite match
-  const box = cv.parentElement.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
+  const box = cv.parentElement!.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
   if (box.width < 10 || box.height < 10) return;
   const sc = Math.min(box.width / LW, box.height / LH), cw = Math.floor(LW * sc), ch = Math.floor(LH * sc);
   cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
   cv.width = Math.max(LW, Math.round(cw * dpr)); cv.height = Math.round(cv.width * LH / LW);
   scan = document.createElement('canvas'); scan.width = cv.width; scan.height = cv.height;
-  const s = scan.getContext('2d'), rowH = cv.height / LH;
+  const s = scan.getContext('2d')!, rowH = cv.height / LH;
   s.fillStyle = `rgba(0,0,0,${rowH >= 2.5 ? 0.5 : 0.32})`;
   for (let y = 0; y < LH; y++) s.fillRect(0, Math.round(y * rowH + rowH * 0.55), cv.width, Math.max(1, Math.round(rowH * 0.45)));
   vig = document.createElement('canvas'); vig.width = cv.width; vig.height = cv.height;
-  const v = vig.getContext('2d'), gr = v.createRadialGradient(cv.width / 2, cv.height / 2, Math.min(cv.width, cv.height) * 0.35, cv.width / 2, cv.height / 2, Math.max(cv.width, cv.height) * 0.72);
+  const v = vig.getContext('2d')!, gr = v.createRadialGradient(cv.width / 2, cv.height / 2, Math.min(cv.width, cv.height) * 0.35, cv.width / 2, cv.height / 2, Math.max(cv.width, cv.height) * 0.72);
   gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.6)');
   v.fillStyle = gr; v.fillRect(0, 0, cv.width, cv.height);
   // colour-tube stripe mask: repeating red, green, blue columns
   mask = document.createElement('canvas'); mask.width = cv.width; mask.height = 1;
-  const mk = mask.getContext('2d'), mw = Math.max(1, Math.round(cv.width / (LW * 3))), stripes = ['#ff7a7a', '#7aff7a', '#7a7aff'];
+  const mk = mask.getContext('2d')!, mw = Math.max(1, Math.round(cv.width / (LW * 3))), stripes = ['#ff7a7a', '#7aff7a', '#7a7aff'];
   for (let x = 0, i = 0; x < cv.width; x += mw, i++) { mk.fillStyle = stripes[i % 3]; mk.fillRect(x, 0, mw, 1); }
 }
 /* upright layouts: the set fills the phone from just under the title to the bottom edge */
 export function sizeTv(){
   const root = document.documentElement;
   if (!/portrait/.test(root.getAttribute('data-layout') || '')) { root.style.removeProperty('--tv-h'); return; }
-  const vh = window.visualViewport ? visualViewport.height : innerHeight;
-  const top = document.querySelector('.tv').getBoundingClientRect().top + window.scrollY;
-  const below = getComputedStyle(document.querySelector('.feet')).display === 'none' ? 8 : 22;
+  const vh = window.visualViewport ? window.visualViewport.height : innerHeight;
+  const top = document.querySelector('.tv')!.getBoundingClientRect().top + window.scrollY;
+  const below = getComputedStyle(document.querySelector('.feet')!).display === 'none' ? 8 : 22;
   root.style.setProperty('--tv-h', Math.max(440, Math.floor(vh - top - below)) + 'px');
 }
 export function resize(){
@@ -958,7 +965,7 @@ export function resize(){
   if (['off', 'title', 'boot', 'menu', 'load'].includes(S.mode)) fitGrid();
   fitCanvas();
 }
-new ResizeObserver(() => resize()).observe(cv.parentElement);
+new ResizeObserver(() => resize()).observe(cv.parentElement!);
 addEventListener('resize', resize);
 
 export function present(){
@@ -1005,11 +1012,11 @@ export function present(){
 
 /* the P7 radar sweep: a bright beam writes down the tube; just behind it the picture flashes blue-white,
    and the further behind it falls, the more it fades into the long yellow-green afterglow */
-function drawSweep(w, h){
-  const k = (S.time / M.sweep) % 1, y = k * h;
+function drawSweep(w: number, h: number){
+  const k = (S.time / M.sweep!) % 1, y = k * h;
   // the afterglow: darker the longer since the beam passed (above the beam it's this sweep, below it the last one)
-  const fade = ctx.createLinearGradient(0, 0, 0, h), a = n => `rgba(0,0,0,${(0.5 * n).toFixed(3)})`;
-  const ageAt = yy => (yy <= y ? (y - yy) / h : (y + h - yy) / h);
+  const fade = ctx.createLinearGradient(0, 0, 0, h), a = (n: number) => `rgba(0,0,0,${(0.5 * n).toFixed(3)})`;
+  const ageAt = (yy: number) => (yy <= y ? (y - yy) / h : (y + h - yy) / h);
   for (let i = 0; i <= 8; i++) fade.addColorStop(i / 8, a(ageAt(i / 8 * h)));
   ctx.fillStyle = fade; ctx.fillRect(0, 0, w, h);
   if (y > 0) { const f2 = ctx.createLinearGradient(0, y - 1, 0, y + 1); f2.addColorStop(0, a(0)); f2.addColorStop(1, a(1)); ctx.fillStyle = f2; ctx.fillRect(0, y - 1, w, 2); }
@@ -1025,7 +1032,7 @@ function drawSweep(w, h){
 
 /* ---------- loop ---------- */
 export let last = performance.now();
-export function frame(now){
+export function frame(now: number){
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
   frameDt = Math.max(0.001, dt); warmT += dt; tickAge(dt);
   if (!tvOn) offT += dt;
@@ -1047,7 +1054,7 @@ if (document.fonts && document.fonts.load) document.fonts.load('16px Silkscreen'
 requestAnimationFrame(frame);
 
 /* setters for state the game modules change (an imported binding can't be assigned from outside its module) */
-export function setBest(v){ best = v; }
+export function setBest(v: number){ best = v; }
 export function clearFireQueued(){ Btn.clearQueued('fire'); }
 export function clearBoostQueued(){ Btn.clearQueued('boost'); }
 export function clearTap(){ tapQueued = false; }

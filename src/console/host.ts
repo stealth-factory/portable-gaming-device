@@ -1,7 +1,6 @@
 /* The loader's view of the console.
 
-   loader.ts must not import core.ts. A strict program follows imports, and core is still loose
-   (it is the last module to tighten, and it wants splitting first). core binds this object once,
+   loader.ts must not import core.ts: the loader only needs this surface, and core binds it once,
    at the end of its own module, before any screen runs. Values that change later (the tube size,
    the audio context, the loaded disk) are getters, so each read sees the current one. Read one of
    those after a call that may have changed it (ensureAudio creates the context); a local copy
