@@ -81,7 +81,7 @@ function update(dt: number){
   D.obs = D.obs.filter(o => o.x + o.w > -4);
   if ((D.gap -= step) <= 0) spawn();
   if (D.obs.some(hits)) {
-    D.dead = true; api.S.mode = 'dying'; api.S.modeT = 1.1;
+    D.dead = true; api.S.mode = 'dying'; api.S.modeT = 1.1; api.buzz('lose');
     api.tone(110, 0.18, 0.06, -40); [440, 392, 330, 262, 196].forEach((f, i) => api.tone(f, 0.16, 0.045, -20, 0.1 + i * 0.15));
   }
 }

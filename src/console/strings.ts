@@ -17,6 +17,10 @@ export const CONSOLE_STRINGS: Strings = {
     c3: 'Back to the games', c3v: kb('G'),
     k8v: 'POWER switch · RESET restarts',
     aboutH: 'About this disk',
+    setH: 'Settings',
+    setReset: 'Reset settings', setResetQ: 'Put the phosphor, the switches and the language back to how the set left the factory?', setResetYes: 'Reset', setResetDone: 'Settings reset.',
+    setScores: 'Clear high scores', setScoresQ: 'Wipe every game’s top-ten table, best score and saved name from this device? This can’t be undone.', setScoresYes: 'Clear them', setScoresDone: 'High scores cleared.',
+    setNo: 'Cancel',
   },
   'zh-hant': {
     menuSel: '選擇',
@@ -31,6 +35,10 @@ export const CONSOLE_STRINGS: Strings = {
     c3: '返回遊戲選單', c3v: kb('G'),
     k8v: 'POWER 開關 · RESET 重新啟動',
     aboutH: '關於這隻磁碟',
+    setH: '設定',
+    setReset: '重設設定', setResetQ: '把螢光粉、各個開關和語言還原為出廠設定？', setResetYes: '重設', setResetDone: '已重設設定。',
+    setScores: '清除最高分', setScoresQ: '從這部裝置刪除所有遊戲的十大排行榜、最高分和已儲存的名字？此操作無法復原。', setScoresYes: '確定清除', setScoresDone: '已清除最高分。',
+    setNo: '取消',
   },
   'zh-hans': {
     menuSel: '选择',
@@ -45,5 +53,9 @@ export const CONSOLE_STRINGS: Strings = {
     c3: '返回游戏菜单', c3v: kb('G'),
     k8v: 'POWER 开关 · RESET 重新启动',
     aboutH: '关于这张磁盘',
+    setH: '设置',
+    setReset: '重置设置', setResetQ: '把荧光粉、各个开关和语言恢复为出厂设置？', setResetYes: '重置', setResetDone: '已重置设置。',
+    setScores: '清除最高分', setScoresQ: '从这台设备删除所有游戏的十大排行榜、最高分和已保存的名字？此操作无法撤销。', setScoresYes: '确定清除', setScoresDone: '已清除最高分。',
+    setNo: '取消',
   },
 };

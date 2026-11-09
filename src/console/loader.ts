@@ -1,7 +1,7 @@
 /* The console's own screens: cold and warm boot, the disk menu, and loading a game off the floppy.
    Every load plays the drive (motor, recalibrate, head steps, park) for exactly as long as it takes. */
 import {
-  S, g, col, txt, LW, LH, HUD, ac, muted, tone, noise, headClick, ensureAudio, stickDir, held,
+  S, g, col, txt, LW, LH, HUD, ac, muted, tone, noise, headClick, out, ensureAudio, stickDir, held,
   overlay, $, tvOn, age, setAccReset, track, layoutName, startGame, setGame, game, readBest, setManual,
   clearInput, ordinal, api, fetchRuntime, runtimeReady,
 } from './core';
@@ -27,7 +27,7 @@ export function playDisk(start: number, dur: number){
   hum.type = 'sawtooth'; hum.frequency.setValueAtTime(40, t0); hum.frequency.linearRampToValueAtTime(75, t0 + Math.min(0.4, dur * 0.2));
   hg.gain.setValueAtTime(0.0001, t0); hg.gain.exponentialRampToValueAtTime(0.012, t0 + up);
   hg.gain.setValueAtTime(0.012, end - down); hg.gain.exponentialRampToValueAtTime(0.0001, end);
-  m.connect(lp).connect(mg).connect(ac.destination); hum.connect(hg).connect(ac.destination);
+  m.connect(lp).connect(mg).connect(out()); hum.connect(hg).connect(out());
   m.start(t0); m.stop(end + 0.05); hum.start(t0); hum.stop(end + 0.05);
   // recalibrate: the head rattles back to track 0
   const recal = Math.min(0.3, dur * 0.12);

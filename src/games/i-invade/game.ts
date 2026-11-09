@@ -286,7 +286,7 @@ function fireBay(bay: Bay, sp: NonNullable<ReturnType<typeof span>>){
   const c = sp.col[bay], at = bayAt(c);
   F.bombs.push({ x: at.x, y: at.y, v: (BOMB_SPEED + S.level * 4) * kH(), k: 'bomb', bay });
   F.bayCD[bay] = BOMB_CD; F.lastBay = c;
-  tone(bay === 'L' ? 360 : bay === 'R' ? 280 : 320, 0.08, 0.035, -160);
+  tone(bay === 'L' ? 360 : bay === 'R' ? 280 : 320, 0.08, 0.035, -160); api.buzz('fire');
 }
 
 function update(dt: number){
@@ -333,7 +333,7 @@ function update(dt: number){
   if (api.button('pad4').queued && F.clusterCD <= 0) {
     const at = bayAt(sp.col.M);
     F.bombs.push({ x: at.x, y: at.y, v: CLUSTER_SPEED * k, k: 'cluster' });
-    F.clusterCD = CLUSTER_CD; tone(220, 0.18, 0.045, -120); tone(110, 0.3, 0.03, -40, 0.05);
+    F.clusterCD = CLUSTER_CD; api.buzz('fire'); tone(220, 0.18, 0.045, -120); tone(110, 0.3, 0.03, -40, 0.05);
   }
   api.clearButton('pad4');
 

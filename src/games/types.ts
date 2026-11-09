@@ -7,6 +7,8 @@
 
    Neither may import from src/console: everything a game needs comes through the ConsoleAPI it is handed.
    The console finds games on its own (src/games/registry.ts); there is no list to edit. */
+import type { Haptic } from '../kit/platform/haptics';
+export type { Haptic, HapticName } from '../kit/platform/haptics';
 
 export type Lang = 'en' | 'zh-hant' | 'zh-hans';
 export type Strings = Record<Lang, Record<string, any>>;
@@ -85,6 +87,10 @@ export interface ConsoleAPI {
   /* ---- sound ---- */
   /** A synth beep: frequency (Hz), duration (s), volume, pitch slide (Hz), delay (s). Silent when SOUND is off. */
   tone(freq: number, dur: number, vol?: number, slide?: number, delay?: number): void;
+  /** A buzz on phones that can vibrate: a name ('fire' as a shot leaves, 'pickup' on a catch, 'lose' for a lost life;
+      the console buzzes 'over' itself when the game ends), a length in ms, or a pattern [buzz, pause, buzz …].
+      Nothing happens with SOUND off or where the browser can't vibrate, and a short buzz never cuts off a longer one. */
+  buzz(h: Haptic): void;
 
   /* ---- scores and the end of a game ---- */
   /** This game's best on this device; set it when the score passes it. */

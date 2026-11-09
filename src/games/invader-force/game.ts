@@ -130,12 +130,14 @@ function fire(){
   const v = volley(F.weapon, x, y);
   F.shots.push(...v);
   tone(v.length > 1 ? 760 : 880, 0.06, 0.03, -500);
+  api.buzz('fire');
 }
 /** The lightning laser: one bolt straight up the column, through walls, bombs, aliens and the saucer. */
 function lightning(x: number){
   const before = caps.list.slice();                  // a drop this bolt shakes loose isn't caught in it
   F.beam = { x, t: BEAM_TIME };
   tone(1900, 0.18, 0.035, -1600); tone(70, 0.26, 0.05, 140); tone(2600, 0.05, 0.02, -900, 0.06);
+  api.buzz('fire');
   if (F.ufo && x >= F.ufo.x - 1 && x < F.ufo.x + 17) hitSaucer();
   for (const a of F.aliens) if (a.alive && inBeam(x, F.ox + a.c * SX, AW)) killAlien(a);
   for (const b of F.bombs) if (Math.abs(b.x - x) <= 2) b.y = 9999;
@@ -178,6 +180,7 @@ function nuke(){
   F.nuke = false; api.setButtons({ boost: null });
   F.missile = { x: Math.round(F.px) + 6, y: cannonY() - 8 };
   tone(180, 0.6, 0.05, 700); tone(90, 0.6, 0.04, 300);
+  api.buzz('fire');
 }
 function flyMissile(dt: number){
   const m = F.missile!;

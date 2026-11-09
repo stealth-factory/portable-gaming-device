@@ -4,6 +4,8 @@ import type { GameDisk, GameRuntime, ConsoleAPI } from "../games/types";
 import { bus } from "./bus";
 import * as Btn from "./buttons";
 import { Stick } from "./stick";
+import { makeHaptics, type Haptic } from "../kit/platform/haptics";
+import { DEFAULTS, scoreKeys, SETTINGS_EVENT } from "./settings";
 import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame } from "./loader";
 export let W = 15, H = 10;
 export const C = 32, CELL = 24, HUD = 20, K = CELL / C;   // game units per cell, low-res pixels per cell
@@ -116,7 +118,7 @@ export const layoutName = () => document.documentElement.getAttribute('data-layo
 export function turnTo(i){
   i = Math.max(0, Math.min(MODE_ORDER.length - 1, i));
   if (MODE_ORDER[i] === modeKey) return;
-  ensureAudio(); tone(2400, 0.012, 0.05);   // detent click
+  ensureAudio(); tone(2400, 0.012, 0.05); buzz('tick');   // detent click
   setMode(MODE_ORDER[i]);
   track('theme', { theme: MODE_ORDER[i], via: 'dial' });
 }
@@ -223,14 +225,31 @@ export function ensureAudio(){
   if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
   if (ac && ac.state === 'suspended') ac.resume().catch(()=>{});
 }
+/* every sound goes out through one gain node, so hush() can cut whatever is still ringing or already scheduled
+   (the drive, a game's effects) by dropping it; the next sound makes a fresh one */
+let outNode = null;
+export function out(){ if (!outNode) { outNode = ac.createGain(); outNode.connect(ac.destination); } return outNode; }
+export function hush(){
+  if (!outNode) return;
+  const b = outNode; outNode = null;
+  try { b.gain.cancelScheduledValues(0); b.gain.value = 0; b.disconnect(); } catch (_) {}
+}
 export function tone(f, dur, vol=0.045, slide=0, delay=0){
   if (!ac || muted) return;
   const t0 = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
   o.type = 'square'; o.frequency.setValueAtTime(f, t0);
   if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), t0 + dur);
   g.gain.setValueAtTime(vol, t0); g.gain.setValueAtTime(vol, t0 + dur * 0.85); g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+  o.connect(g).connect(out()); o.start(t0); o.stop(t0 + dur + 0.02);
 }
+
+/* ---------- haptics: buzzes on phones that can vibrate, silent with SOUND off (rules in src/kit/platform/haptics.ts) ---------- */
+const haptics = makeHaptics({
+  vibrate: p => typeof navigator.vibrate === 'function' && navigator.vibrate(p.length === 1 ? p[0] : p),
+  enabled: () => !muted,
+  now: () => performance.now(),
+});
+export function buzz(h: Haptic){ haptics.buzz(h); }
 
 /* ---------- state ---------- */
 export const S: any = {
@@ -255,6 +274,7 @@ export const release = d => { const i = held.indexOf(d); if (i >= 0) held.splice
 export const wantDir = () => stickDir ? DIRS[stickDir] : held.length ? DIRS[held[held.length - 1]] : null;
 
 addEventListener('keydown', e => {
+  if ((e.target as Element)?.closest?.('.manual')) return;   // keys pressed on the leaflet's own buttons (Settings) are theirs, not the game's
   if (S.mode === 'entry' && !e.metaKey && !e.ctrlKey && !e.altKey) { if (entryKey(e)) e.preventDefault(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (S.mode === 'menu' && menuKey(e)) { e.preventDefault(); return; }
@@ -274,6 +294,16 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); const sl = Btn.slotForKey(e.code); if (sl) Btn.release(sl.id); });
 addEventListener('blur', () => { held.length = 0; for (const id of Btn.slotIds()) if (id !== 'boost') Btn.release(id); if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
+/* the tab or app goes into the background mid-game (another tab, the phone's home screen, an app switch): HOLD goes on
+   and stays on when the page comes back, so the player resumes deliberately, and any sound still ringing stops.
+   Boot, the menu, loading, name entry and game over carry on as they are. */
+export const GAME_MODES = ['ready', 'play', 'dying', 'clear'];
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  held.length = 0; for (const id of Btn.slotIds()) if (id !== 'boost') Btn.release(id);
+  if (!GAME_MODES.includes(S.mode) && S.mode !== 'paused') return;
+  togglePause(true); hush();
+});
 
 /* floating thumb-stick: the logic lives in stick.ts; this wires it to the pad. A dropped finger must never leave the
    stick held or deaf to the next touch, so it lets go on every sign the finger has gone, and a new touch takes over. */
@@ -285,7 +315,7 @@ addEventListener('blur', () => { held.length = 0; for (const id of Btn.slotIds()
     if (d === stickDir) return;
     stickDir = d;
     zone.querySelectorAll('.tick').forEach(t => t.classList.toggle('on', t.dataset.d === d));
-    if (d) { try { navigator.vibrate && navigator.vibrate(6); } catch (_) {} }
+    if (d) buzz(6);   // a tiny nudge on each new direction, silent with SOUND off like every buzz
   }
   function show(v){
     base.style.left = (v.ox - zr.left) + 'px'; base.style.top = (v.oy - zr.top) + 'px';
@@ -338,12 +368,12 @@ addEventListener('blur', () => { held.length = 0; for (const id of Btn.slotIds()
   Btn.defineSlot('fire', ['Space', 'KeyZ', 'KeyX'], 'spark', $('fireBtn'), null, true);
   Btn.defineSlot('boost', ['ShiftLeft', 'ShiftRight', 'KeyB'], 'boost', $('boostBtn'), $('boostBtn').querySelector('span'), true);
   const fire = $('fireBtn');
-  fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
+  fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
   const off = () => Btn.release('fire');
   fire.addEventListener('pointerup', off); fire.addEventListener('pointercancel', off); fire.addEventListener('lostpointercapture', off);
   fire.addEventListener('contextmenu', e => e.preventDefault());
   const boost = $('boostBtn');
-  boost.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.press('boost')) return; if (S.mode !== 'play') Btn.clearQueued('boost'); try { boost.setPointerCapture(e.pointerId); } catch (_) {} });
+  boost.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (!Btn.press('boost')) return; if (S.mode !== 'play') Btn.clearQueued('boost'); try { boost.setPointerCapture(e.pointerId); } catch (_) {} });
   const boff = () => Btn.release('boost');
   boost.addEventListener('pointerup', boff); boost.addEventListener('pointercancel', boff); boost.addEventListener('lostpointercapture', boff);
   boost.addEventListener('contextmenu', e => e.preventDefault());
@@ -351,7 +381,7 @@ addEventListener('blur', () => { held.length = 0; for (const id of Btn.slotIds()
   for (const [id, keys, elId] of [['fireL', ['KeyZ'], 'fireLBtn'], ['fireR', ['KeyV'], 'fireRBtn']] as const) {
     const el = $(elId);
     Btn.defineSlot(id, [...keys], 'spark', el, null, true, true);
-    el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
     const up = () => Btn.release(id);
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
     el.addEventListener('contextmenu', e => e.preventDefault());
@@ -362,7 +392,7 @@ addEventListener('blur', () => { held.length = 0; for (const id of Btn.slotIds()
   PAD_KEYS.forEach((keys, i) => {
     const id = 'pad' + (i + 1), el = $(id + 'Btn');
     Btn.defineSlot(id, keys, 'spark', el, null, true, true);
-    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); buzz('tick'); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
     const up = () => Btn.release(id);
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
     el.addEventListener('contextmenu', e => e.preventDefault());
@@ -473,7 +503,7 @@ export function setFull(v){
   } catch (_) {}
 }
 $('fullBtn').addEventListener('click', () => setFull(!full));
-document.querySelectorAll('.rocker').forEach(b => b.addEventListener('pointerdown', () => { ensureAudio(); if (ac) tone(1700, 0.012, 0.05); }));   // switch clack
+document.querySelectorAll('.rocker').forEach(b => b.addEventListener('pointerdown', () => { ensureAudio(); if (ac) tone(1700, 0.012, 0.05); buzz('tick'); }));   // switch clack
 $('exitFull').addEventListener('click', () => setFull(false));
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && full) setFull(false); });
 $('ovBtn').addEventListener('click', () => { ensureAudio(); if (S.mode === 'paused') togglePause(); else startGame(); });
@@ -482,10 +512,32 @@ $('muteBtn').addEventListener('click', () => toggleMute());
 $('fxBtn').addEventListener('click', () => setFx(!fx));
 document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 export function toggleMute(){ muted = !muted; $('muteBtn').setAttribute('aria-pressed', String(!muted)); }
+/* ---------- the leaflet's reset buttons: the set back to factory settings, and (separately) this device's scores wiped ---------- */
+export function resetSettings(){
+  if (modeKey !== DEFAULTS.mode) setMode(DEFAULTS.mode);
+  setFx(DEFAULTS.fx);
+  if (muted !== !DEFAULTS.sound) toggleMute();
+  if (S.mode === 'paused' && !DEFAULTS.hold) togglePause();
+  setFull(DEFAULTS.full);
+  applyLang(DEFAULTS.lang, true);
+  track('settings_reset', { layout: layoutName() });
+}
+export function clearScores(){
+  try { for (const k of scoreKeys(Object.keys(localStorage))) localStorage.removeItem(k); } catch (_) {}
+  for (const id of Object.keys(bestCache)) delete bestCache[id];
+  lastName = ''; S.bestAtStart = 0;
+  loadScores(game.id);
+  if (S.mode === 'over' && S.showBoard) { S.showBoard = false; S.boardHi = -1; overlay.hidden = false; }   // the attract loop only swaps views while there is a table
+  track('scores_cleared', { game: game.id });
+}
+addEventListener(SETTINGS_EVENT, (e: Event) => {
+  const what = (e as CustomEvent).detail;
+  if (what === 'reset') resetSettings(); else if (what === 'scores') clearScores();
+});
 export function togglePause(forceOn?){
   if (typeof tvOn !== 'undefined' && !tvOn) return;
   if (S.mode === 'paused') { if (forceOn) return; S.mode = S.prevMode; overlay.hidden = true; $('pauseBtn').setAttribute('aria-pressed', 'false'); return; }
-  if (!['ready', 'play', 'dying', 'clear'].includes(S.mode)) return;
+  if (!GAME_MODES.includes(S.mode)) return;
   S.prevMode = S.mode; S.mode = 'paused'; held.length = 0;
   $('pauseBtn').setAttribute('aria-pressed', 'true');
   showOverlay('paused');
@@ -503,7 +555,7 @@ export function startGame(){
 }
 /* the end of a game: save the best, then name entry if it made the table, otherwise the attract loop */
 export function finishGame(){
-  saveBest();
+  saveBest(); buzz('over');
   track('game_over', { game: game.id, score: S.score });
   if (S.score > 0 && S.score > (S.bestAtStart || 0)) track('new_best', { game: game.id, score: S.score });
   if (qualifies(S.score)) startEntry(); else enterOver(false);
@@ -529,7 +581,7 @@ export function powerOn(){
   track('power_on', { theme: modeKey, layout: layoutName() });
   startConsole('cold');
 }
-export function flipPower(){ ensureAudio(); if (ac) { tone(700, 0.03, 0.06, -200); tone(1400, 0.015, 0.05, 0, 0.06); } if (tvOn) powerOff(); else powerOn(); }
+export function flipPower(){ ensureAudio(); buzz('tick'); if (ac) { tone(700, 0.03, 0.06, -200); tone(1400, 0.015, 0.05, 0, 0.06); } if (tvOn) powerOff(); else powerOn(); }
 // tap to toggle, or flick the knob: right for on, left for off
 { let sx = null, flicked = false;
   $('powerBtn').addEventListener('pointerdown', e => { sx = e.clientX; flicked = false; });
@@ -547,13 +599,13 @@ document.addEventListener('click', e => {
   if (b && e.detail > 0 && b.closest('.tv')) setTimeout(() => b.blur(), 0);
 });
 $('resetBtn').addEventListener('pointerdown', e => {
-  e.preventDefault(); ensureAudio(); if (ac) tone(1300, 0.015, 0.06);
+  e.preventDefault(); ensureAudio(); if (ac) tone(1300, 0.015, 0.06); buzz('tick');
   const b = $('resetBtn'); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 140);
   if (!tvOn) return;
   track('reset', { game: game.id, mode: S.mode });
   startConsole('cold');
 });
-$('selectBtn').addEventListener('pointerdown', e => { e.preventDefault(); pressSelect(); });
+$('selectBtn').addEventListener('pointerdown', e => { e.preventDefault(); buzz('tick'); pressSelect(); });
 $('selectBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressSelect(); } });
 $('resetBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); $('resetBtn').dispatchEvent(new PointerEvent('pointerdown')); } });
 
@@ -567,7 +619,7 @@ export function headClick(t, vol = 0.22, freq = 2600){
   const s = noise(), f = ac.createBiquadFilter(), g = ac.createGain();
   f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 2.5;
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
-  s.connect(f).connect(g).connect(ac.destination); s.start(t, Math.random()); s.stop(t + 0.03);
+  s.connect(f).connect(g).connect(out()); s.start(t, Math.random()); s.stop(t + 0.03);
 }
 /* ---------- main update ---------- */
 export function update(dt){
@@ -987,7 +1039,7 @@ export function clearTap(){ tapQueued = false; }
 export function setAccReset(){ accReset = true; }
 
 /* test hook for the Playwright checks; only with ?test in the address */
-if (/[?&]test\b/.test(location.search)) (window as any).__gg = { S, get board(){ return board; }, get keyRects(){ return keyRects; }, NKEYS, cv, get LW(){ return LW; }, get LH(){ return LH; }, overlay, killPlayer: (c?: string) => runtime?.debug?.kill?.(c), loadGame, DISKS, get game(){ return game; }, get runtime(){ return runtime; }, finishGame };
+if (/[?&]test\b/.test(location.search)) (window as any).__gg = { S, get board(){ return board; }, get keyRects(){ return keyRects; }, NKEYS, cv, get LW(){ return LW; }, get LH(){ return LH; }, overlay, killPlayer: (c?: string) => runtime?.debug?.kill?.(c), loadGame, DISKS, get game(){ return game; }, get runtime(){ return runtime; }, finishGame, get audioOut(){ return outNode; }, tone };
 
 /* ---------- the API games get (see src/games/types.ts): live getters over the console's state ---------- */
 export const api: ConsoleAPI = {
@@ -1002,7 +1054,7 @@ export const api: ConsoleAPI = {
   get boostQueued(){ return Btn.button('boost').queued; }, get boostHeld(){ return Btn.button('boost').held; },
   get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; }, get tapX(){ return tapX; },
   clearFire: clearFireQueued, clearBoost: clearBoostQueued, clearTap, setBoostLabel,
-  tone,
+  tone, buzz,
   get best(){ return best; }, set best(v: number){ best = v; },
   saveBest, finishGame, track, mulberry32,
   diskInfo: (y, p, t, d) => diskInfo(y, p, t, d),

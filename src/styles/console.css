@@ -460,6 +460,19 @@ kbd{font-family:var(--body);font-size:11px;font-weight:600;line-height:1.5;color
 .leaders i{flex:1 1 18px;min-width:18px;align-self:flex-end;margin-bottom:6px;border-bottom:2px dotted var(--paper-rule)}
 .leaders b{flex:none;font-family:var(--body);font-weight:600;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--paper-ink)}
 .leaders .kv{flex:0 1 auto;max-width:62%;text-align:right;font-size:13.5px;line-height:1.9}
+/* the leaflet's settings: two printed buttons, each with a confirm step; clearing scores is the wine-red one, like RESET */
+.man-settings{margin:2px 0 16px;padding-top:12px;border-top:1px solid var(--paper-rule)}
+.man-settings h3{margin:0 0 9px;font-family:var(--print);font-weight:700;font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--paper-ink)}
+.set-row{display:flex;flex-wrap:wrap;gap:8px 12px}
+.set-ask p{margin:0 0 9px;font-family:var(--book);font-size:15px;line-height:1.5;color:#352e23;max-width:58ch}
+.set-btn{min-height:40px;padding:8px 14px;font-family:var(--print);font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-ink);background:transparent;border:2px solid var(--paper-ink);border-radius:2px;cursor:pointer}
+.set-btn:hover{background:color-mix(in srgb, var(--paper-ink) 8%, transparent)}
+.set-btn:focus-visible{outline:2px solid var(--paper-ink);outline-offset:3px}
+.set-btn.danger{color:#7a2b3b;border-color:#7a2b3b}
+.set-btn.yes{color:var(--paper);background:var(--paper-ink)}
+.set-ask.danger .set-btn.yes{background:#7a2b3b;border-color:#7a2b3b}
+.set-done{min-height:1.2em;margin:8px 0 0;font-family:var(--body);font-size:13px;color:var(--paper-mute)}
+.set-done:empty{min-height:0;margin:0}
 .man-foot{margin-top:4px;padding-top:12px;border-top:1px solid var(--paper-rule)}
 .man-foot a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 9px;font-family:var(--print);font-weight:700;font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--paper-ink);text-decoration:none}
 .man-foot a svg{width:16px;height:16px}
