@@ -46,6 +46,32 @@ describe('action button slots', () => {
     expect(Btn.button('gamepadY').enabled).toBe(false);
   });
 
+  it('shows an optional slot, and gives it its keys, only while the app maps it', () => {
+    const el = () => ({ hidden: true, dataset: {}, innerHTML: '', classList: { toggle(){}, add(){}, remove(){} }, setAttribute(){} }) as unknown as HTMLElement;
+    Btn.defineSlot('fire', ['Space', 'KeyZ', 'KeyX'], 'spark');
+    const left = el(), right = el();
+    Btn.defineSlot('fireL', ['KeyZ'], 'spark', left, null, true, true);
+    Btn.defineSlot('fireR', ['KeyQ'], 'spark', right, null, true, true);
+    Btn.useButtons({ fire: { label: 'spark' } });
+    expect([left.hidden, right.hidden]).toEqual([true, true]);
+    expect(Btn.slotForKey('KeyZ')?.id).toBe('fire');            // Z is plain FIRE for everyone else
+    expect(Btn.slotForKey('KeyQ')).toBeUndefined();
+    expect(Btn.press('fireL')).toBe(false);
+    Btn.useButtons({ fireL: { label: 'bayL' }, fire: { label: 'bayM' }, fireR: { label: 'bayR' } });
+    expect([left.hidden, right.hidden]).toEqual([false, false]);
+    expect(Btn.slotForKey('KeyZ')?.id).toBe('fireL');           // and the left bay where an app maps it
+    expect(Btn.slotForKey('Space')?.id).toBe('fire');
+    expect(Btn.slotForKey('KeyQ')?.id).toBe('fireR');
+    expect(Btn.press('fireL')).toBe(true);
+    expect(Btn.button('fireL')).toMatchObject({ label: 'bayL', queued: true });
+    Btn.useButtons({ fire: { label: 'spark' } });                // the next app doesn't use it: hidden again, press dropped
+    expect([left.hidden, Btn.button('fireL').queued, Btn.button('fireL').label]).toEqual([true, false, 'spark']);
+    Btn.setButtons({ fireR: { label: 'warp' } });               // a patch can bring one out for now
+    expect(right.hidden).toBe(false);
+    Btn.setButtons({ fireR: null });
+    expect(right.hidden).toBe(true);
+  });
+
   it('every app\'s button labels have text in every language', () => {
     const apps = [['menu', MENU_BUTTONS], ['boot', BOOT_BUTTONS], ...DISKS.map(d => [d.id, d.buttons] as const)] as const;
     for (const [app, map] of apps) {

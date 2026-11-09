@@ -331,6 +331,15 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); if (S.mod
   const boff = () => Btn.release('boost');
   boost.addEventListener('pointerup', boff); boost.addEventListener('pointercancel', boff); boost.addEventListener('lostpointercapture', boff);
   boost.addEventListener('contextmenu', e => e.preventDefault());
+  // extra fire keys either side of FIRE, shown only while an app maps them (I Invade's left and right bomb bays)
+  for (const [id, keys, elId] of [['fireL', ['KeyZ'], 'fireLBtn'], ['fireR', ['KeyC'], 'fireRBtn']] as const) {
+    const el = $(elId);
+    Btn.defineSlot(id, [...keys], 'spark', el, null, true, true);
+    el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
+    const up = () => Btn.release(id);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  }
 })();
 
 /* ---------- UI ---------- */
