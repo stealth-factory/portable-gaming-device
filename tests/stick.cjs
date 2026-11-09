@@ -49,6 +49,12 @@ await check('touchend with nothing left', null);
 await synth('pointerdown', 11, zone.cx, zone.cy); await synth('pointermove', 11, zone.cx + 40, zone.cy);
 await p.evaluate(() => window.dispatchEvent(new Event('blur'))); await check('blur', null);
 
+// 7. a mouse or pen on the stick ignores another finger lifting elsewhere
+await p.evaluate(([x, y]) => { const z = document.querySelector('#stickzone'); for (const [t, dx] of [['pointerdown', 0], ['pointermove', 40]]) z.dispatchEvent(new PointerEvent(t, { pointerId: 12, pointerType: 'mouse', clientX: x + dx, clientY: y, bubbles: true, cancelable: true })); }, [zone.cx, zone.cy]);
+await p.evaluate(() => window.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true })));
+await check('mouse held through an unrelated touchend', 'right');
+await synth('pointerup', 12, zone.cx + 40, zone.cy); await check('mouse up', null);
+
 await b.close();
 if (errs.length) { console.log('FAIL\n' + errs.join('\n')); process.exit(1); }
 console.log('stick ok');

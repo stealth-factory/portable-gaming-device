@@ -279,7 +279,7 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); if (S.mod
 (() => {
   const zone = $('stickzone'), base = $('stickbase'), knob = $('knob');
   const stick = new Stick();
-  let zr = null;
+  let zr = null, touchFinger = false;   // touchGone only applies to a finger: a mouse or pen never shows in e.touches
   function setDir(d){
     if (d === stickDir) return;
     stickDir = d;
@@ -307,6 +307,7 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); if (S.mod
     const old = stick.id;
     if (old !== null && old !== e.pointerId) { try { zone.releasePointerCapture(old); } catch (_) {} }
     zr = zone.getBoundingClientRect();
+    touchFinger = e.pointerType === 'touch';
     show(stick.down(e.pointerId, e.clientX, e.clientY));
     try { zone.setPointerCapture(e.pointerId); } catch (_) {}
     zone.classList.add('active');
@@ -321,7 +322,7 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); if (S.mod
   // older iOS can drop the pointer events of a finger it hands to a system gesture, but still ends the touch:
   // once no touch that started on the pad is left, the stick's finger has gone
   const touchGone = e => {
-    if (stick.id === null) return;
+    if (stick.id === null || !touchFinger) return;
     for (const t of e.touches) if (t.target instanceof Node && zone.contains(t.target)) return;
     centre();
   };
