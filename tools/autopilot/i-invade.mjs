@@ -28,7 +28,7 @@ function play(bot, layout){
   let finished = false;
   const noop = () => {}, g = new Proxy({}, { get: () => noop, set: () => true });
   const api = {
-    g, LW, LH, HUD, S, best: 0, col: r => r, txt: noop, banner: noop, tone: noop, fitGrid: noop, track: noop, saveBest: noop,
+    g, LW, LH, HUD, S, best: 0, col: r => r, txt: noop, banner: noop, tone: noop, buzz: noop, fitGrid: noop, track: noop, saveBest: noop,
     finishGame: () => { finished = true; }, held: [], stickDir: null, tapQueued: false, tapHeld: false, tapX: 0, clearTap: noop,
     button: B, clearButton: id => { B(id).queued = false; },
     setButtons: p => { for (const k in p) if (p[k]) Object.assign(B(k), p[k]); },
