@@ -26,7 +26,8 @@ The images are non-commercial too (CC BY-NC-SA), and need the same permission fo
 
 ## Earlier versions
 
-Versions published between 9 November 2026 (PR #6) and this change were released under the GNU AGPL-3.0. Anyone who received one of those versions keeps the AGPL's permissions for that copy. Everything published after this change is under the terms above.
+- **Before 9 November 2026 (PR #6):** the repository had no licence, so those versions were all rights reserved. From this change, they are available under the terms above too.
+- **9 November 2026, from PR #6 up to this change (releases v0.1.0 to v0.5.0):** these were released under the GNU AGPL-3.0. Anyone who already received a copy of one of those versions keeps the AGPL's permissions for that copy. From this change on, the copyright holder offers every version of Game Guy, including those earlier commits and release tags, only under the terms above, whatever licence file an old commit contains.
 
 ## Names and tributes
 
