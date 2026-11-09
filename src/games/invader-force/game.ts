@@ -160,12 +160,13 @@ function fire(){
 }
 /** The lightning laser: one bolt straight up the column, through walls, bombs, aliens and the saucer. */
 function lightning(x: number){
+  const before = F.capsules.slice();                  // a drop this bolt shakes loose isn't caught in it
   F.beam = { x, t: BEAM_TIME };
   tone(1900, 0.18, 0.035, -1600); tone(70, 0.26, 0.05, 140); tone(2600, 0.05, 0.02, -900, 0.06);
   if (F.ufo && x >= F.ufo.x - 1 && x < F.ufo.x + 17) hitSaucer();
   for (const a of F.aliens) if (a.alive && inBeam(x, F.ox + a.c * SX, AW)) killAlien(a);
   for (const b of F.bombs) if (Math.abs(b.x - x) <= 2) b.y = 9999;
-  for (const c of F.capsules) if (c.y < 9999 && !reachable(c) && inBeam(x, c.x, CAPSULE_W)) explode(c, false);
+  for (const c of before) if (c.y < 9999 && !reachable(c) && inBeam(x, c.x, CAPSULE_W)) explode(c, false);
   for (let y = cannonY() - 2; y > api.HUD; y -= 2) bunkerHit(x, y, 1);
 }
 function arm(w: Drop){
@@ -501,8 +502,9 @@ const create: CreateGame = a => {
     /** Set off a capsule at (x, y) (tests). */
     blast: (x: number, y: number) => explode({ x, y, w: 'twin' }),
     clash: (x: number, y: number) => clash(x, y),
-    /** Drop a capsule straight above the barrel, low enough that a shot sets it off right over you (tests). */
-    target: (w: Drop = 'twin') => { F.capsules.push({ x: Math.round(F.px) + 2, y: cannonY() - 24, w }); },
+    cannonY: () => cannonY(),
+    /** Drop a capsule straight above the barrel, low enough that its blast reaches you, but not yet catchable (tests). */
+    target: (w: Drop = 'twin') => { F.capsules.push({ x: Math.round(F.px) + 2, y: cannonY() - 17, w }); },
   } };
 };
 export default create;

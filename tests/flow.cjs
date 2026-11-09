@@ -63,11 +63,11 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 });
   await p.keyboard.down('Space'); await p.waitForTimeout(300);
   const rapid = await dbg(); await p.keyboard.up('Space');
-  // shoot a capsule right over the cannon: it goes off in a wide blast that spares you, even with the shield down
+  // shoot a capsule right over the cannon: its wide blast reaches the cannon but spares you, even with the shield down
   await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 });
   const livesBefore = await p.evaluate(() => { const F = __gg.runtime.debug.state(); F.bombs = []; F.capsules = []; __gg.S.boostT = 0; __gg.runtime.debug.target('spread'); return __gg.S.lives; });
   await p.keyboard.press('Space'); await p.waitForTimeout(250);
-  const shotCap = await p.evaluate(() => { const F = __gg.runtime.debug.state(); return { capsules: F.capsules.length, blasts: F.blasts.filter(b => b.r >= 16).length, weapon: F.weapon, lives: __gg.S.lives, mode: __gg.S.mode }; });
+  const shotCap = await p.evaluate(() => { const F = __gg.runtime.debug.state(); const near = F.blasts.filter(b => b.r >= 16 && Math.hypot(Math.max(F.px, Math.min(b.x, F.px + 13)) - b.x, Math.max(__gg.runtime.debug.cannonY(), Math.min(b.y, __gg.runtime.debug.cannonY() + 7)) - b.y) <= b.r).length; return { capsules: F.capsules.length, blasts: near, weapon: F.weapon, lives: __gg.S.lives, mode: __gg.S.mode }; });
   await p.screenshot({ path: `${out}/${tag}-invader-shotcap.png` });
   const capOk = shotCap.capsules === 0 && shotCap.blasts >= 1 && shotCap.weapon === 'rapid' && shotCap.lives === livesBefore && shotCap.mode === 'play';
   await p.evaluate(() => { const F = __gg.runtime.debug.state(), a = F.aliens.filter(q => q.alive).sort((p, q) => q.r - p.r)[0]; F.px = F.ox + a.c * 16 - 1; __gg.runtime.debug.arm('nuke'); }); await p.waitForTimeout(200);   // under a live alien
