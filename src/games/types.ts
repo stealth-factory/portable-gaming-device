@@ -19,7 +19,7 @@ export type ManualItem = { k: string; v: string; lit?: boolean };
 /** A section of a game's Operating Instructions.
     A paragraph (`p`), a dotted-leader list (scores, or `keys` for controls), or the same list
     set in `notes` (the name on its own line, the text wrapping under it) when a row is a sentence.
-    `wrap` keeps the dotted leaders but lets a long value break, so the name is not crushed. */
+    `wrap` keeps the dotted leaders but lets a long value break, and on a narrow column puts the value under the name. */
 export type ManualSection =
   | { h: string; p: string }
   | { h: string; list: ManualItem[]; keys?: boolean; notes?: boolean; wrap?: boolean };

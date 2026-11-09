@@ -34,7 +34,7 @@ function Section({ sec, n, T }: { sec: ManualSection; n: number; T: Record<strin
   return (
     <section className="man-sec">
       {head}
-      <ul className={'leaders' + (sec.keys ? ' keys' : '') + (sec.wrap ? ' wrap' : '')}>
+      <ul className={'leaders' + (sec.keys ? ' keys' : '') + (sec.wrap ? ' leaders-wrap' : '')}>
         {sec.list.map(it => {
           const v = it.lit ? it.v : T[it.v];
           return (
