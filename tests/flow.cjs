@@ -1,7 +1,7 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
 // plus Invader Force's weapon capsules, speed boost and blasts, and I Invade's three bomb bays.
 // Then every disk on the menu (future games included): choose it with the menu's keys or a tap,
-// play, game over, name entry or the table, G back to the menu.
+// play, HOLD when the tab is hidden, game over, name entry or the table, G back to the menu.
 const { chromium, devices } = require('playwright');
 (async () => {
 const BASE = process.env.BASE || 'http://localhost:4173/', out = process.env.OUT || '/tmp/shots';
@@ -38,6 +38,27 @@ async function chooseDisk(p, tag, i){
   await p.mouse.click(box.x + pt.x * box.width, box.y + pt.y * box.height);
   return true;
 }
+// pretend the tab went into the background and came back (headless Chromium never hides a page by itself)
+const setHidden = (p, v) => p.evaluate(v => {
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => v });
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v ? 'hidden' : 'visible' });
+  document.dispatchEvent(new Event('visibilitychange'));
+}, v);
+async function holdOnHide(p){
+  const was = await mode(p);
+  const look = () => p.evaluate(() => ({ mode: __gg.S.mode, led: document.querySelector('#pauseBtn').getAttribute('aria-pressed'), overlay: !__gg.overlay.hidden }));
+  // a sound scheduled for later is still waiting on the shared output when the page hides: hiding must cut that output
+  const ringing = await p.evaluate(() => { __gg.tone(440, 0.5, 0.01, 0, 1); globalThis.__ggOut = __gg.audioOut; return !!__gg.audioOut; });
+  await setHidden(p, true); const hidden = await look();
+  const cut = await p.evaluate(() => !globalThis.__ggOut || (__gg.audioOut !== globalThis.__ggOut && globalThis.__ggOut.gain.value === 0));
+  await setHidden(p, false); await p.waitForTimeout(300); const back = await look();
+  await p.keyboard.press('p'); const resumed = await look();
+  // and the next sound goes out through a fresh, open output
+  const fresh = await p.evaluate(() => { __gg.tone(440, 0.02, 0.01); const o = __gg.audioOut; return !!o && o !== globalThis.__ggOut && o.gain.value === 1; });
+  const sound = { ringing, cut, fresh: fresh || !ringing };
+  const held = s => s.mode === 'paused' && s.led === 'true' && s.overlay;
+  return { ok: held(hidden) && held(back) && resumed.mode === was && resumed.led === 'false' && sound.cut && sound.fresh, was, hidden, back, resumed, sound };
+}
 // one pass per disk: boot is already done; choose it on the menu, play, qualify for the table, then G home
 async function playEveryDisk(p, tag){
   await backToMenu(p);
@@ -49,6 +70,9 @@ async function playEveryDisk(p, tag){
     await p.waitForFunction(id => (__gg.S.mode === 'load' || __gg.S.mode === 'ready' || __gg.S.mode === 'play') && __gg.game && __gg.game.id === id, id, { timeout: 4000 });
     await p.waitForFunction(id => __gg.S.mode === 'play' && __gg.game && __gg.game.id === id && globalThis.__ggBus.get().manual === id && (document.querySelector('#manH')?.textContent || '') !== 'Operating Instructions', id, { timeout: 12000 });
     await p.keyboard.press('Space'); await p.waitForTimeout(200);
+    // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
+    const hold = await holdOnHide(p);
+    if (!hold.ok) errs.push(tag + ' disk ' + id + ' hold on hide: ' + JSON.stringify(hold));
     await p.screenshot({ path: `${out}/${tag}-every-${id}.png` });
     const live = await p.evaluate(() => ({ mode: __gg.S.mode, heading: document.querySelector('#manH')?.textContent || '', fireKey: document.querySelector('#fireBtn')?.dataset.i18n || '', runtime: !!__gg.runtime }));
     const ended = await p.evaluate(sc => { if (['ready', 'play', 'dying', 'clear'].includes(__gg.S.mode)) { __gg.S.score = sc; __gg.finishGame(); } return __gg.S.mode; }, 8000 + i);
