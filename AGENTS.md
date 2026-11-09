@@ -113,7 +113,7 @@ Requirements 1 to 10 below are built: the console boots into a disk menu with fo
 | `src/games/registry.ts` | Finds `*/disk.ts` (eager) and `*/game.ts` (lazy) |
 | `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/` | The four games (`disk.ts`, `game.ts`, plus helpers) |
 | `public/` | Icons, favicon, share images (`og-image.png`, `og-<slug>.png` per game) |
-| `docs/game-kit.md` | Spec for the shared game kit at `src/games/kit/` (WII-44); not built yet |
+| `docs/game-kit.md` | Spec for the shared game kit at `src/kit/` (play helpers for games, platform modules for the core; WII-44); not built yet |
 | `tools/share-images/` | `make.cjs` captures the console and renders the share images and `docs/screens/`; `share.css` is their layout |
 
 Useful places:

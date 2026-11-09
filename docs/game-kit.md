@@ -1,10 +1,17 @@
 # The shared game kit
 
-A spec for `src/games/kit/`: a library of gameplay building blocks that any
-Game Guy game can import. Tracked as
+A spec for `src/kit/`: the long-term home for everything Game Guy games
+share. It starts as a library of gameplay building blocks that games import
+(`src/kit/play/`), and grows a platform layer (`src/kit/platform/`) that the
+console core itself is built on: button slots, gamepads, haptics and the
+pause-on-hide lifecycle, moved out of `src/console/` in stages. Tracked as
 [WII-44](https://linear.app/stealth-company/issue/WII-44). This document
 describes what to build and how it fits the console; nothing in it is
 implemented yet.
+
+The owner's direction (9 Nov 2026): the console features now being added to
+the core, button controls from PR #9 included, should move into the kit
+eventually, following the shape PR #9 lands in rather than a fresh design.
 
 ## Why
 
@@ -28,17 +35,24 @@ rewrites them. Invader Force and I Invade carry near-identical copies of:
 Dino Run and Tunnel Raider share the top bar, the scoring rule and the round
 sequence too, in their own words. A fifth game would copy all of this again.
 
-The kit gives these one home. Games import what they need; the console core is
-untouched. Weapon drops from Invader Force (PR #3) become the first pickup
-system built on it.
+The kit gives these one home. Games import what they need. Weapon drops from
+Invader Force (PR #3) become the first pickup system built on it. In the first
+phases the console core is untouched; the platform layer (below) comes after.
 
 ## Rules
 
-1. **It lives in `src/games/kit/`**, beside the game folders, and games import
-   it with a relative path (`import { makeFx } from '../kit'`).
-2. **It is not part of the console.** The kit never imports from
-   `src/console`; it is handed the `ConsoleAPI` like a game is. The plug-in
-   rule test in `tests/unit/disks.test.ts` is extended to cover the kit folder.
+1. **It lives in `src/kit/`**, a sibling of `src/console/` and `src/games/`,
+   in two layers: `src/kit/play/` (gameplay helpers games import) and
+   `src/kit/platform/` (console services the core is built on). Games import
+   the play layer with a relative path (`import { makeFx } from '../../kit/play'`).
+   The earlier proposal said `src/games/kit/`; it moved out of `src/games/`
+   once the kit was also to hold what the console uses, and because the disks
+   test counts every folder under `src/games/` as a game.
+2. **It never imports from `src/console`.** The play layer is handed the
+   `ConsoleAPI` like a game is. The platform layer knows nothing of the DOM,
+   Canvas, Web Audio or storage: it holds state and rules, and the core wires
+   it to the page. The plug-in rule test in `tests/unit/disks.test.ts` is
+   extended to cover `src/kit/`.
 3. **No side effects on load.** Every module exports types, constants, pure
    functions and factories. Nothing touches the DOM, timers, storage or the
    API at import time, and there is no module-level mutable state: a factory
@@ -51,13 +65,15 @@ system built on it.
    `any` on `ConsoleAPI` today; the kit reads only the fields it owns
    (`score`, `level`, `lives`, `nextLife`, `mode`, `modeT`, `time`) through a
    small `SharedState` type of its own until WII-42 types `S` properly.
-5. **Buttons belong to the console core.** PR #9 puts button mapping in the
-   core: which slots exist, their keys, labels, enabled state, press and held
-   state, and later gamepad buttons. The kit owns none of that and adds no
-   parallel mechanism. It only reads what `api.button(id)` already exposes,
-   never assumes a fixed number of buttons, and anything a game needs that
-   isn't there goes into `ConsoleAPI` (the plug-in rule: add to the API, not
-   the import list).
+5. **One button mechanism, PR #9's.** PR #9 puts button mapping in the core
+   (`src/console/buttons.ts`): slots with keys, labels, enabled state, press
+   and held state, and room for gamepad buttons. The play layer adds no
+   parallel mechanism; it only reads what `api.button(id)` exposes and never
+   assumes a fixed number of buttons. When buttons move into the kit's
+   platform layer, the module moves as it is, keeping its exports; the kit
+   does not redesign it. Anything a game needs that isn't on `ConsoleAPI`
+   goes into `ConsoleAPI` (the plug-in rule: add to the API, not the import
+   list).
 6. **No change in behaviour when a game migrates.** Same constants, same
    timings, same drawing. Behaviour changes are separate PRs.
 7. **Small.** Every game page downloads the kit while the drive "reads" the
@@ -69,23 +85,25 @@ system built on it.
 ### A note on `tests/unit/disks.test.ts`
 
 The test counts every directory under `src/games/` as a game and expects a
-disk for each. Adding `src/games/kit/` would fail it, so the first kit PR
-changes the test to treat a folder as a game only when it holds `disk.ts`, and
-asserts that `kit/` has none. The registry's `import.meta.glob('./*/disk.ts')`
-is unaffected.
+disk for each. With the kit at `src/kit/` that test needs no change; its
+plug-in rule check gains a second file list for `src/kit/**` with the same
+assertion (no `src/console` imports). If the owner prefers `src/kit/`
+after all, the first kit PR changes the test to treat a folder as a game only
+when it holds `disk.ts`.
 
 ### Bundling
 
 Vite splits a module imported by several lazy game chunks into one shared
 chunk, which the PWA precaches by hash like everything else, so the kit works
 offline with no config change. Disks (`disk.ts`, loaded eagerly for the menu)
-may import `kit/sprite` for their loading screens; that pulls only the sprite
-module into the eager bundle, which is fine. Disks should not import the rest
-of the kit.
+may import `kit/play/sprite` for their loading screens; that pulls only the
+sprite module into the eager bundle, which is fine. Disks should not import
+the rest of the play layer. Platform modules are imported by the core, so they
+are in the main bundle by definition.
 
-## Modules
+## The play layer: `src/kit/play/`
 
-One file per module, all re-exported from `src/games/kit/index.ts`. Signatures
+One file per module, all re-exported from `src/kit/play/index.ts`. Signatures
 below are the intent, not a contract; the implementation PR may tidy names.
 
 Common types used throughout:
@@ -330,20 +348,75 @@ export function play(api: ConsoleAPI, j: Jingle): void;
 Tunes stay in each game as data (they are part of the game's character); the
 kit only plays them. Silent when SOUND is off, as `tone()` already is.
 
+## The platform layer: `src/kit/platform/`
+
+The long-run part. Console services that are really rules and state, not
+hardware, move out of `src/console/` into the kit, so they are tested on their
+own, typed strictly, and reusable by anything the console runs (the boot
+screen and the disk menu are "apps" too, as PR #9 puts it). The console core
+keeps the hardware: it binds the DOM, Canvas, Web Audio, storage and the
+browser's events to these modules, and it still hands games one `ConsoleAPI`.
+
+The rule for what moves: **a module may move into `platform/` when it can be
+written without `document`, `window`, `navigator`, a canvas or an audio
+context.** Everything it needs from the browser comes in as arguments or
+callbacks from the core. Games keep reaching all of it through `ConsoleAPI`;
+they may import platform *types* (`ButtonMap`, `ButtonState`) but never hold
+platform instances, which live in the core.
+
+### How buttons move (following PR #9)
+
+PR #9's `src/console/buttons.ts` is already most of the way there. It keeps a
+`Map` of slots, each with an id, its `KeyboardEvent.code` list, a label key
+and `enabled`/`queued`/`held` state; apps declare a `ButtonMap`
+(`useButtons`), patch it at runtime (`setButtons`), and the console drives
+presses with `press`, `release`, `clearQueued` and `releaseAll`. Its only
+browser contact is `render()` (writing the label and the `idle` class to the
+slot's element) and the `on` class toggles in `press`/`release`.
+
+Moving it means lifting the file to `src/kit/platform/buttons.ts` with the
+same exports, and replacing the element fields with one callback the core
+supplies, `onRender(slot)`, which does the DOM work the module does today.
+`defineSlot(id, keys, fallback)` loses its element arguments; the core defines
+the slots as now and attaches the elements on its side. The games' view,
+`ConsoleAPI.button`/`clearButton`/`setButtons` and `GameDisk.buttons`, does
+not change at all. This is the template for every later move: same exports,
+browser work handed back to the core through a callback.
+
+### Candidates, in order
+
+| Module | From | What moves | What the core keeps |
+| --- | --- | --- | --- |
+| `platform/buttons.ts` | PR #9 `src/console/buttons.ts` | slots, maps, patches, press state, translation hook | the elements, `onRender`, key and pointer events |
+| `platform/gamepad.ts` | new, for WII-40 | mapping a `Gamepad` snapshot (axes, buttons, dead zone) to slot presses, stick directions and HOLD/SELECT, with edge detection so a held button queues once | `navigator.getGamepads()` polling in the frame loop, and feeding the result in |
+| `platform/haptics.ts` | new, for WII-43 | named buzz patterns (fire, life lost, game over, pickup, set controls), the SOUND-off rule, and a `buzz(name)` that returns the pattern to play | `navigator.vibrate()` and the SOUND switch's state |
+| `platform/lifecycle.ts` | new, for WII-39 | the pause state machine (`play`/`ready` → HOLD on hide, stays held on return) | the `visibilitychange` and `blur` listeners, the HOLD rocker |
+| `platform/input.ts` | `core.ts` stick and key handling | the `held` list, `stickDir`, `wantDir()` | the stick element and pointer maths |
+
+Each is its own PR and its own Linear issue, after the play layer has landed
+and the two shooters are on it. Gamepads, haptics and the pause can be built
+in the kit from the start, which is cheaper than moving them later; whether to
+do that depends on which lands first, this kit or WII-39/40/43.
+
+### What stays console-only
+
+The CRT picture pipeline and palette, the set's hardware (POWER, RESET, the
+switches and dial, the layouts), boot, the disk menu, the loader and drive
+sounds, name entry and the high-score tables, storage keys, i18n and the
+leaflet, the PWA and analytics. These are the console, not shared rules, and
+there is no second consumer for them.
+
 ## What stays out
 
-- **The console core.** Pausing on tab hide
-  ([WII-39](https://linear.app/stealth-company/issue/WII-39)), gamepads
-  ([WII-40](https://linear.app/stealth-company/issue/WII-40)), haptics and the
-  settings reset (WII-43) are console work; the kit only calls what the core
-  exposes.
 - **Grids and tile games.** Tunnel Raider's cell grid, digging and particle
   system are its own. It can adopt `score`, `fx.pop` and `round` if a later
   pass finds it worthwhile; this spec does not require it.
 - **An engine.** No entity system, no scene graph, no physics. Each module is
   a few dozen lines a game could have written itself.
 - **Behaviour changes** to any game, including the formation sizes and drop
-  rates in Invader Force.
+  rates in Invader Force. Moving a platform module changes nothing a player
+  can see either.
+- **Changes to PR #9.** The kit follows the shape it lands in.
 
 ## Migration
 
@@ -365,15 +438,25 @@ and babysat to mergeable. No phase changes a game's behaviour.
    shooters and Dino Run take `horizontal()`, `pressed()` and `consume()`.
 5. **Dino Run** takes `hud`, `round` and `jingles`. Tunnel Raider is left as it
    is unless the owner wants it moved.
+6. **Platform: buttons.** `src/console/buttons.ts` moves to
+   `src/kit/platform/buttons.ts` as described above, with its unit test; the
+   core supplies `onRender`. No visible change.
+7. **Platform: the rest**, one PR each as WII-39, WII-40 and WII-43 are taken
+   up: `gamepad`, `haptics`, `lifecycle`, then `input` when the stick code is
+   next touched.
 
 Phases 2 and 3 can be skipped by a new game, which starts on the kit from its
-first commit.
+first commit. Phases 6 and 7 wait for PR #9 to merge and for the play layer to
+have proved the pattern.
 
 ## Acceptance
 
-- `src/games/kit/` exists, exports the modules above, imports nothing from
+- `src/kit/play/` exists, exports the modules above, imports nothing from
   `src/console`, and has no side effects on import (a unit test imports every
   kit module in a bare Node process and asserts no DOM or API calls were made).
+- Platform modules, when they land, pass the same test: no `document`,
+  `window`, `navigator`, canvas or audio context, and the core reaches them
+  only through their exports and callbacks.
 - Every kit module has unit tests; kit coverage is not below the games'.
 - `npm test`, `npm run build`, `tests/flow.cjs` and `tests/pages.cjs` pass
   after each phase, and the flow test's Invader Force and I Invade runs reach
@@ -383,28 +466,34 @@ first commit.
   `addScore`, `hud` or their own burst arrays.
 - The kit's shared chunk is under 8 KB gzipped (checked by hand on the build
   output for now; a size test can follow).
-- `AGENTS.md` gains a row for `src/games/kit/` and a line in the plug-in rule
-  saying games may import the kit.
+- `AGENTS.md` gains rows for `src/kit/play/` and `src/kit/platform/`, and the
+  plug-in rule says games may import the play layer and platform types.
 
 ## Fit with the backlog
 
 | Issue | Relation |
 | --- | --- |
 | [WII-44](https://linear.app/stealth-company/issue/WII-44) | This spec. |
+| [WII-39](https://linear.app/stealth-company/issue/WII-39) pause on hide | Built in or moved to `platform/lifecycle.ts`; the core keeps the listeners. |
+| [WII-40](https://linear.app/stealth-company/issue/WII-40) gamepads | Built in or moved to `platform/gamepad.ts`; the core polls and feeds it. Maps onto PR #9's slots. |
 | [WII-41](https://linear.app/stealth-company/issue/WII-41) browser check | Kit-based games expose the same `debug.state()`; a generic every-disk check can rely on `round.phase` and `score` being in the same place for every game. |
 | [WII-42](https://linear.app/stealth-company/issue/WII-42) strict TypeScript | The kit is strict from day one and is the first entry in the strict list. |
-| [WII-43](https://linear.app/stealth-company/issue/WII-43) haptics | `round.lose()`, `score.add()` on an extra life and `pickups.update()` on a catch are the three places to call `api.buzz()` once it exists. |
-| [WII-39](https://linear.app/stealth-company/issue/WII-39), [WII-40](https://linear.app/stealth-company/issue/WII-40) | Console only; no kit interaction. |
+| [WII-43](https://linear.app/stealth-company/issue/WII-43) haptics | Patterns in `platform/haptics.ts`; `round.lose()`, `score.add()` on an extra life and `pickups.update()` on a catch are the three play-layer places to call `api.buzz()`. |
 | PR #3 weapon drops | Becomes the first `pickups` client (phase 3). |
-| PR #9 button slots | Buttons stay in the core; the kit only reads `api.button()` (phase 4). |
+| PR #9 button slots | The play layer only reads `api.button()` (phase 4); the module itself moves to `platform/buttons.ts` unchanged in shape (phase 6). |
 
 ## Open questions for the owner
 
-1. **Location.** `src/games/kit/` as agreed, with the disks test adjusted, or
-   `src/kit/` to keep `src/games/` as games only? This spec assumes
-   `src/games/kit/`.
+1. **Location.** This spec now assumes `src/kit/` with `play/` and
+   `platform/` under it, since the console core will import the platform
+   layer and a folder under `src/games/` would be an odd place for that. Say
+   if you'd rather keep `src/kit/`.
 2. **Tunnel Raider.** Leave it alone (recommended), or move its scoring and
    pop-ups onto the kit in a later phase?
 3. **Walls as art.** Turning the castle and pillbox shapes into string art
    changes nothing on screen but puts the shapes in `art.ts` where the sprites
    are. Any objection?
+4. **Build new console features in the kit from the start?** If WII-39, 40 or
+   43 are picked up before the play layer lands, should they be written as
+   `src/kit/platform/` modules straight away (recommended: it saves a move)
+   or in `src/console/` and moved later like buttons?
