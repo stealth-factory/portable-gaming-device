@@ -223,13 +223,22 @@ export function ensureAudio(){
   if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
   if (ac && ac.state === 'suspended') ac.resume().catch(()=>{});
 }
+/* every sound goes out through one gain node, so hush() can cut whatever is still ringing or already scheduled
+   (the drive, a game's effects) by dropping it; the next sound makes a fresh one */
+let outNode = null;
+export function out(){ if (!outNode) { outNode = ac.createGain(); outNode.connect(ac.destination); } return outNode; }
+export function hush(){
+  if (!outNode) return;
+  const b = outNode; outNode = null;
+  try { b.gain.cancelScheduledValues(0); b.gain.value = 0; b.disconnect(); } catch (_) {}
+}
 export function tone(f, dur, vol=0.045, slide=0, delay=0){
   if (!ac || muted) return;
   const t0 = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
   o.type = 'square'; o.frequency.setValueAtTime(f, t0);
   if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), t0 + dur);
   g.gain.setValueAtTime(vol, t0); g.gain.setValueAtTime(vol, t0 + dur * 0.85); g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+  o.connect(g).connect(out()); o.start(t0); o.stop(t0 + dur + 0.02);
 }
 
 /* ---------- state ---------- */
@@ -274,6 +283,16 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); const sl = Btn.slotForKey(e.code); if (sl) Btn.release(sl.id); });
 addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.release('fireL'); Btn.release('fireR'); if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
+/* the tab or app goes into the background mid-game (another tab, the phone's home screen, an app switch): HOLD goes on
+   and stays on when the page comes back, so the player resumes deliberately, and any sound still ringing stops.
+   Boot, the menu, loading, name entry and game over carry on as they are. */
+export const GAME_MODES = ['ready', 'play', 'dying', 'clear'];
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  held.length = 0; Btn.release('fire'); Btn.release('fireL'); Btn.release('fireR');
+  if (!GAME_MODES.includes(S.mode) && S.mode !== 'paused') return;
+  togglePause(true); hush();
+});
 
 /* floating thumb-stick: the logic lives in stick.ts; this wires it to the pad. A dropped finger must never leave the
    stick held or deaf to the next touch, so it lets go on every sign the finger has gone, and a new touch takes over. */
@@ -461,7 +480,7 @@ export function toggleMute(){ muted = !muted; $('muteBtn').setAttribute('aria-pr
 export function togglePause(forceOn?){
   if (typeof tvOn !== 'undefined' && !tvOn) return;
   if (S.mode === 'paused') { if (forceOn) return; S.mode = S.prevMode; overlay.hidden = true; $('pauseBtn').setAttribute('aria-pressed', 'false'); return; }
-  if (!['ready', 'play', 'dying', 'clear'].includes(S.mode)) return;
+  if (!GAME_MODES.includes(S.mode)) return;
   S.prevMode = S.mode; S.mode = 'paused'; held.length = 0;
   $('pauseBtn').setAttribute('aria-pressed', 'true');
   showOverlay('paused');
@@ -543,7 +562,7 @@ export function headClick(t, vol = 0.22, freq = 2600){
   const s = noise(), f = ac.createBiquadFilter(), g = ac.createGain();
   f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 2.5;
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
-  s.connect(f).connect(g).connect(ac.destination); s.start(t, Math.random()); s.stop(t + 0.03);
+  s.connect(f).connect(g).connect(out()); s.start(t, Math.random()); s.stop(t + 0.03);
 }
 /* ---------- main update ---------- */
 export function update(dt){
