@@ -2,8 +2,14 @@
 
 Notes for anyone (human or agent) working in this repo. Read this before changing anything.
 
-Linear team: <https://linear.app/stealth-company/team/WII/overview>
-Linear project: <https://linear.app/stealth-company/project/game-guy-c4e01570fc18/overview>
+## Linear
+
+- **Project:** Game Guy, <https://linear.app/stealth-company/project/game-guy-c4e01570fc18>
+- **Team:** wiiiimm (key `WII`), <https://linear.app/stealth-company/team/WII/overview>
+- **Issue IDs:** `WII-<n>`, for example [WII-44](https://linear.app/stealth-company/issue/WII-44). Use that form in branches, PR titles and commits.
+- **Statuses:** Triage, Backlog, Todo, Paused, In Progress, In Review, Ready to Merge, Released, Canceled, Duplicate.
+- **Specs and plans** are Linear project documents or issue descriptions, never files in this repo.
+- The Linear GitHub integration is on: it links a PR to the issue named in its branch or title and comments the link back on the PR.
 
 **Everything is tracked there:** planned features, bugs, specs and the decisions waiting on the owner. Before starting anything, look for the issue; before proposing something, check it is not already filed, and not already decided against. How work moves between Linear and GitHub is under [Linear and pull requests](#linear-and-pull-requests).
 
