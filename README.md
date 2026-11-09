@@ -40,6 +40,8 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
   - **Switches:** SOUND, GLOW (all the tube effects), HOLD (pause) and FULL (full screen).
 - **FIRE and BOOST** change with the game: FIRE and BOOST in Tunnel Raider, JUMP and DUCK in Dino Run, FIRE and SHIELD in Invader Force (SHIELD turns into NUKE while you hold an atomic bomb), ◀ ▲ ▶ and UFO in I Invade, which brings out a fire key either side of FIRE for its left, middle and right bomb bays (<kbd>Z</kbd>, <kbd>Space</kbd> and <kbd>V</kbd>). In Dino Run, Invader Force and I Invade a tap on the screen works as JUMP, FIRE or the middle bomb bay.
 - **Instructions:** the printed leaflet under the set shows the console's instructions while the menu is up and the loaded game's while you play.
+- **Settings:** the foot of the leaflet has **Reset settings** (green P1, SOUND and GLOW on, HOLD and FULL off, English) and, kept apart in wine red, **Clear high scores** (every game's table and best, and the saved name, on this device). Each asks before it acts.
+- **Haptics:** on phones whose browser can vibrate (Chrome on Android, for one; Safari on iPhone and iPad can't), the set's controls tick when pressed (POWER, RESET, the four switches, each click of the dial, FIRE, BOOST and the extra fire keys), a shot gives a short buzz, a catch in Invader Force a quick double buzz, and a lost life or the game's end a longer one. SOUND off keeps the phone still. Games call `api.buzz('fire' | 'pickup' | 'lose' | ms | pattern)`; the rules are in `src/kit/platform/haptics.ts`.
 
 ### High scores
 
@@ -86,6 +88,7 @@ npm run preview &
 NODE_PATH=$(npm root -g) node tests/flow.cjs    # boot → menu → every disk (play, game over, name entry, back) plus Invader Force weapons, at three sizes
 NODE_PATH=$(npm root -g) node tests/pages.cjs   # the leaflet follows game and language; game pages; offline play
 NODE_PATH=$(npm root -g) node tests/stick.cjs   # the phone joystick steers, lets go, and never sticks when a release is lost
+NODE_PATH=$(npm root -g) node tests/haptics.cjs # the set's controls and games buzz, SOUND off is silent, and the leaflet's reset and clear-scores work
 ```
 
 Both scripts load pages with `?test`, which exposes a small `window.__gg` hook for driving the console.
@@ -197,6 +200,8 @@ It switches the set on, captures the menu, each game's loading screen and some p
 | `touchdown` | `level`, `aliens` | I Invade: the fleet lands; `aliens` is how many made it |
 | `nuke` | `wave`, `rows` | Invader Force: an atomic bomb goes off (`rows` it wiped out) |
 | `theme` | `theme`, `via` | The phosphor changes by `dial` or `key` |
+| `settings_reset` | `layout` | The leaflet's Reset settings is confirmed |
+| `scores_cleared` | `game` | The leaflet's Clear high scores is confirmed (`game` is the disk loaded at the time) |
 | `language` | `lang` | The leaflet's language changes |
 | `instructions_open` | `layout` | The instructions are opened |
 | `fullscreen` | `on`, `layout` | Full screen is toggled |

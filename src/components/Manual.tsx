@@ -5,6 +5,7 @@ import { CONSOLE_MANUAL } from '../console/manual';
 import { DISKS } from '../games/registry';
 import type { ManualSection } from '../games/types';
 import { GitHubIcon } from './Icons';
+import { Settings } from './Settings';
 import { REPO_URL, REPO_LABEL } from './site';
 
 const SERVER: ConsoleState = { lang: 'en', manual: 'console' };
@@ -48,6 +49,7 @@ export default function Manual(){
       <div className="man-cols" id="manBody">
         {secs.map((sec, i) => <Section key={disk ? disk.id + i : 'c' + i} sec={sec} n={i + 1} T={T} />)}
       </div>
+      <Settings T={T} />
       <footer className="man-foot">
         <a href={REPO_URL} target="_blank" rel="noopener">
           <GitHubIcon /><span>{T.src}</span><span className="url">{REPO_LABEL}</span>

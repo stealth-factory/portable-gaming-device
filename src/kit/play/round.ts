@@ -19,7 +19,7 @@ export interface RoundHooks {
 export interface Round {
   /** Run the mode timers. True when the game should run its play logic this step. */
   tick(dt: number): boolean;
-  /** A life lost. `fatal` ends the game whatever the count (the line has fallen); `secs` overrides the dying time. */
+  /** A life lost (with a long buzz on phones). `fatal` ends the game whatever the count (the line has fallen); `secs` overrides the dying time. */
   lose(opts?: { fatal?: boolean; secs?: number }): void;
   /** The level is won; `secs` overrides the clear time. */
   clear(opts?: { secs?: number }): void;
@@ -54,6 +54,7 @@ export function makeRound(api: ConsoleAPI, hooks: RoundHooks): Round {
       const S = shared(api);
       S.lives = o.fatal ? 0 : S.lives - 1;
       S.mode = 'dying'; S.modeT = o.secs ?? t.dying;
+      api.buzz('lose');
     },
     clear(o = {}){
       const S = shared(api);

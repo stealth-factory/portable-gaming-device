@@ -18,7 +18,8 @@ export interface Pickups<K> {
   /** Drop one with its top-left at (x, y), if fewer than `max` are falling (or always, with `force`:
       Invader Force's saucer always drops one). Returns whether it dropped. */
   drop(x: number, y: number, kind: K, force?: boolean): boolean;
-  /** Fall, catch against the catcher's box (touching from above counts), drop off the floor. Returns what was caught. */
+  /** Fall, catch against the catcher's box (touching from above counts), drop off the floor. Returns what was caught,
+      and buzzes the phone ('pickup') when anything was. */
   update(dt: number, catcher: Box | null): K[];
   /** Remove and return every pickup overlapping a box (a bomb set one off). */
   take(box: Box): Pickup<K>[];
@@ -51,6 +52,7 @@ export function makePickups<K>(api: ConsoleAPI, o: PickupOpts<K>): Pickups<K> {
         }
         return p.y <= floor();
       });
+      if (caught.length) api.buzz('pickup');   // a quick double buzz on a catch
       return caught;
     },
     take(b){

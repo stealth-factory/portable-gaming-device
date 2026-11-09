@@ -194,7 +194,7 @@ export function updatePlayer(dt){
     if (api.S.charge >= 1 && api.S.sparks.length === 0) {
       const f = { right:[1,0], left:[-1,0], up:[0,-1], down:[0,1] }[p.face];
       api.S.sparks.push({ x: pp.x, y: pp.y, dx: f[0], dy: f[1], trail: [], age: 0 });
-      api.S.charge = 0; sfx.zap();
+      api.S.charge = 0; sfx.zap(); api.buzz('fire');
     }
   }
 }
@@ -388,7 +388,7 @@ export function updateSparks(dt){
 export function killPlayer(cause){
   if (api.S.mode !== 'play') return;
   api.track('life_lost', { level: api.S.level, cause: cause || 'grub' });
-  api.S.mode = 'dying'; api.S.modeT = 1.7; sfx.die();
+  api.S.mode = 'dying'; api.S.modeT = 1.7; sfx.die(); api.buzz('lose');
   const pp = ppos(api.S.player); burst(pp.x, pp.y, ['cart', 'drill', 'window'], 20);
 }
 export function afterDeath(){

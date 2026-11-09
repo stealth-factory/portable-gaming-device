@@ -127,7 +127,7 @@ function update(dt: number){
   if (which && !F.bomb) {
     const b = sp.bays[which];
     F.bomb = { x: Math.round(b.x), y: b.y - 4 };          // y is the bomb's nose
-    tone(330, 0.12, 0.035, -200);
+    tone(330, 0.12, 0.035, -200); api.buzz('fire');
     const chance = Math.min(0.75, 0.2 + 0.1 * S.level);   // the defenders get better at spotting bombs
     for (const t of F.tanks) t.dodge = Math.random() < chance;
   }

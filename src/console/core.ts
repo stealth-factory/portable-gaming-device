@@ -4,6 +4,8 @@ import type { GameDisk, GameRuntime, ConsoleAPI } from "../games/types";
 import { bus } from "./bus";
 import * as Btn from "./buttons";
 import { Stick } from "./stick";
+import { makeHaptics, type Haptic } from "../kit/platform/haptics";
+import { DEFAULTS, scoreKeys, SETTINGS_EVENT } from "./settings";
 import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame } from "./loader";
 export let W = 15, H = 10;
 export const C = 32, CELL = 24, HUD = 20, K = CELL / C;   // game units per cell, low-res pixels per cell
@@ -116,7 +118,7 @@ export const layoutName = () => document.documentElement.getAttribute('data-layo
 export function turnTo(i){
   i = Math.max(0, Math.min(MODE_ORDER.length - 1, i));
   if (MODE_ORDER[i] === modeKey) return;
-  ensureAudio(); tone(2400, 0.012, 0.05);   // detent click
+  ensureAudio(); tone(2400, 0.012, 0.05); buzz('tick');   // detent click
   setMode(MODE_ORDER[i]);
   track('theme', { theme: MODE_ORDER[i], via: 'dial' });
 }
@@ -232,6 +234,14 @@ export function tone(f, dur, vol=0.045, slide=0, delay=0){
   o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.02);
 }
 
+/* ---------- haptics: buzzes on phones that can vibrate, silent with SOUND off (rules in src/kit/platform/haptics.ts) ---------- */
+const haptics = makeHaptics({
+  vibrate: p => typeof navigator.vibrate === 'function' && navigator.vibrate(p.length === 1 ? p[0] : p),
+  enabled: () => !muted,
+  now: () => performance.now(),
+});
+export function buzz(h: Haptic){ haptics.buzz(h); }
+
 /* ---------- state ---------- */
 export const S: any = {
   mode: 'title', prevMode: null, modeT: 0, time: 0,
@@ -337,12 +347,12 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.relea
   Btn.defineSlot('fire', ['Space', 'KeyZ', 'KeyX'], 'spark', $('fireBtn'), null, true);
   Btn.defineSlot('boost', ['ShiftLeft', 'ShiftRight', 'KeyB'], 'boost', $('boostBtn'), $('boostBtn').querySelector('span'), true);
   const fire = $('fireBtn');
-  fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
+  fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
   const off = () => Btn.release('fire');
   fire.addEventListener('pointerup', off); fire.addEventListener('pointercancel', off); fire.addEventListener('lostpointercapture', off);
   fire.addEventListener('contextmenu', e => e.preventDefault());
   const boost = $('boostBtn');
-  boost.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.press('boost')) return; if (S.mode !== 'play') Btn.clearQueued('boost'); try { boost.setPointerCapture(e.pointerId); } catch (_) {} });
+  boost.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (!Btn.press('boost')) return; if (S.mode !== 'play') Btn.clearQueued('boost'); try { boost.setPointerCapture(e.pointerId); } catch (_) {} });
   const boff = () => Btn.release('boost');
   boost.addEventListener('pointerup', boff); boost.addEventListener('pointercancel', boff); boost.addEventListener('lostpointercapture', boff);
   boost.addEventListener('contextmenu', e => e.preventDefault());
@@ -350,7 +360,7 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.relea
   for (const [id, keys, elId] of [['fireL', ['KeyZ'], 'fireLBtn'], ['fireR', ['KeyV'], 'fireRBtn']] as const) {
     const el = $(elId);
     Btn.defineSlot(id, [...keys], 'spark', el, null, true, true);
-    el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
     const up = () => Btn.release(id);
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
     el.addEventListener('contextmenu', e => e.preventDefault());
@@ -449,7 +459,7 @@ export function setFull(v){
   } catch (_) {}
 }
 $('fullBtn').addEventListener('click', () => setFull(!full));
-document.querySelectorAll('.rocker').forEach(b => b.addEventListener('pointerdown', () => { ensureAudio(); if (ac) tone(1700, 0.012, 0.05); }));   // switch clack
+document.querySelectorAll('.rocker').forEach(b => b.addEventListener('pointerdown', () => { ensureAudio(); if (ac) tone(1700, 0.012, 0.05); buzz('tick'); }));   // switch clack
 $('exitFull').addEventListener('click', () => setFull(false));
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && full) setFull(false); });
 $('ovBtn').addEventListener('click', () => { ensureAudio(); if (S.mode === 'paused') togglePause(); else startGame(); });
@@ -458,6 +468,27 @@ $('muteBtn').addEventListener('click', () => toggleMute());
 $('fxBtn').addEventListener('click', () => setFx(!fx));
 document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 export function toggleMute(){ muted = !muted; $('muteBtn').setAttribute('aria-pressed', String(!muted)); }
+/* ---------- the leaflet's reset buttons: the set back to factory settings, and (separately) this device's scores wiped ---------- */
+export function resetSettings(){
+  if (modeKey !== DEFAULTS.mode) setMode(DEFAULTS.mode);
+  setFx(DEFAULTS.fx);
+  if (muted !== !DEFAULTS.sound) toggleMute();
+  if (S.mode === 'paused' && !DEFAULTS.hold) togglePause();
+  setFull(DEFAULTS.full);
+  applyLang(DEFAULTS.lang, true);
+  track('settings_reset', { layout: layoutName() });
+}
+export function clearScores(){
+  try { for (const k of scoreKeys(Object.keys(localStorage))) localStorage.removeItem(k); } catch (_) {}
+  for (const id of Object.keys(bestCache)) delete bestCache[id];
+  lastName = ''; S.bestAtStart = 0;
+  loadScores(game.id);
+  track('scores_cleared', { game: game.id });
+}
+addEventListener(SETTINGS_EVENT, (e: Event) => {
+  const what = (e as CustomEvent).detail;
+  if (what === 'reset') resetSettings(); else if (what === 'scores') clearScores();
+});
 export function togglePause(forceOn?){
   if (typeof tvOn !== 'undefined' && !tvOn) return;
   if (S.mode === 'paused') { if (forceOn) return; S.mode = S.prevMode; overlay.hidden = true; $('pauseBtn').setAttribute('aria-pressed', 'false'); return; }
@@ -479,7 +510,7 @@ export function startGame(){
 }
 /* the end of a game: save the best, then name entry if it made the table, otherwise the attract loop */
 export function finishGame(){
-  saveBest();
+  saveBest(); buzz('over');
   track('game_over', { game: game.id, score: S.score });
   if (S.score > 0 && S.score > (S.bestAtStart || 0)) track('new_best', { game: game.id, score: S.score });
   if (qualifies(S.score)) startEntry(); else enterOver(false);
@@ -505,7 +536,7 @@ export function powerOn(){
   track('power_on', { theme: modeKey, layout: layoutName() });
   startConsole('cold');
 }
-export function flipPower(){ ensureAudio(); if (ac) { tone(700, 0.03, 0.06, -200); tone(1400, 0.015, 0.05, 0, 0.06); } if (tvOn) powerOff(); else powerOn(); }
+export function flipPower(){ ensureAudio(); buzz('tick'); if (ac) { tone(700, 0.03, 0.06, -200); tone(1400, 0.015, 0.05, 0, 0.06); } if (tvOn) powerOff(); else powerOn(); }
 // tap to toggle, or flick the knob: right for on, left for off
 { let sx = null, flicked = false;
   $('powerBtn').addEventListener('pointerdown', e => { sx = e.clientX; flicked = false; });
@@ -523,13 +554,13 @@ document.addEventListener('click', e => {
   if (b && e.detail > 0 && b.closest('.tv')) setTimeout(() => b.blur(), 0);
 });
 $('resetBtn').addEventListener('pointerdown', e => {
-  e.preventDefault(); ensureAudio(); if (ac) tone(1300, 0.015, 0.06);
+  e.preventDefault(); ensureAudio(); if (ac) tone(1300, 0.015, 0.06); buzz('tick');
   const b = $('resetBtn'); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 140);
   if (!tvOn) return;
   track('reset', { game: game.id, mode: S.mode });
   startConsole('cold');
 });
-$('selectBtn').addEventListener('pointerdown', e => { e.preventDefault(); pressSelect(); });
+$('selectBtn').addEventListener('pointerdown', e => { e.preventDefault(); buzz('tick'); pressSelect(); });
 $('selectBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressSelect(); } });
 $('resetBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); $('resetBtn').dispatchEvent(new PointerEvent('pointerdown')); } });
 
@@ -977,7 +1008,7 @@ export const api: ConsoleAPI = {
   get boostQueued(){ return Btn.button('boost').queued; }, get boostHeld(){ return Btn.button('boost').held; },
   get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; },
   clearFire: clearFireQueued, clearBoost: clearBoostQueued, clearTap, setBoostLabel,
-  tone,
+  tone, buzz,
   get best(){ return best; }, set best(v: number){ best = v; },
   saveBest, finishGame, track, mulberry32,
   diskInfo: (y, p, t, d) => diskInfo(y, p, t, d),
