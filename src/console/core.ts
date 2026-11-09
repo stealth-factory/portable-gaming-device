@@ -258,6 +258,7 @@ addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (S.mode === 'menu' && menuKey(e)) { e.preventDefault(); return; }
   if (e.code === 'KeyG') { pressSelect(); e.preventDefault(); return; }
+  { const sl = Btn.slotForKey(e.code); if (sl?.optional) { if (Btn.press(sl.id) && S.mode !== 'play') Btn.clearQueued(sl.id); e.preventDefault(); return; } }   // an extra button the app maps takes its keys first (Z and V in I Invade)
   const d = KEYMAP[e.code];
   if (d) { press(d); e.preventDefault(); return; }
   if (e.code === 'Space' || e.code === 'KeyZ' || e.code === 'KeyX') { if (!Btn.button('fire').enabled || menuFire()) e.preventDefault(); else if (S.mode !== 'title' && S.mode !== 'over') { Btn.press('fire'); e.preventDefault(); } return; }   // held like the FIRE button
@@ -271,7 +272,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Enter' && (S.mode === 'title' || S.mode === 'over')) { startGame(); e.preventDefault(); }
 });
 addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); const sl = Btn.slotForKey(e.code); if (sl) Btn.release(sl.id); });
-addEventListener('blur', () => { held.length = 0; Btn.release('fire'); if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
+addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.release('fireL'); Btn.release('fireR'); if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
 
 /* floating thumb-stick: the stick centres wherever the thumb lands, follows it past the rim,
    snaps to four directions with a dead zone and hysteresis so diagonal wobble doesn't flicker */
@@ -332,7 +333,7 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); if (S.mod
   boost.addEventListener('pointerup', boff); boost.addEventListener('pointercancel', boff); boost.addEventListener('lostpointercapture', boff);
   boost.addEventListener('contextmenu', e => e.preventDefault());
   // extra fire keys either side of FIRE, shown only while an app maps them (I Invade's left and right bomb bays)
-  for (const [id, keys, elId] of [['fireL', ['KeyZ'], 'fireLBtn'], ['fireR', ['KeyC'], 'fireRBtn']] as const) {
+  for (const [id, keys, elId] of [['fireL', ['KeyZ'], 'fireLBtn'], ['fireR', ['KeyV'], 'fireRBtn']] as const) {
     const el = $(elId);
     Btn.defineSlot(id, [...keys], 'spark', el, null, true, true);
     el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.press(id)) return; if (S.mode !== 'play') Btn.clearQueued(id); try { el.setPointerCapture(e.pointerId); } catch (_) {} });
