@@ -3,6 +3,7 @@ import { DISKS, loadGameCode } from "../games/registry";
 import type { GameDisk, GameRuntime, ConsoleAPI } from "../games/types";
 import { bus } from "./bus";
 import * as Btn from "./buttons";
+import { Stick } from "./stick";
 import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame } from "./loader";
 export let W = 15, H = 10;
 export const C = 32, CELL = 24, HUD = 20, K = CELL / C;   // game units per cell, low-res pixels per cell
@@ -274,49 +275,62 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); const sl = Btn.slotForKey(e.code); if (sl) Btn.release(sl.id); });
 addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.release('fireL'); Btn.release('fireR'); if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
 
-/* floating thumb-stick: the stick centres wherever the thumb lands, follows it past the rim,
-   snaps to four directions with a dead zone and hysteresis so diagonal wobble doesn't flicker */
+/* floating thumb-stick: the logic lives in stick.ts; this wires it to the pad. A dropped finger must never leave the
+   stick held or deaf to the next touch, so it lets go on every sign the finger has gone, and a new touch takes over. */
 (() => {
   const zone = $('stickzone'), base = $('stickbase'), knob = $('knob');
-  const RIM = 46, DEAD = 12, BIAS = 1.35;
-  let id = null, ox = 0, oy = 0, zr = null, axis = null;
+  const stick = new Stick();
+  let zr = null, touchFinger = false;   // touchGone only applies to a finger: a mouse or pen never shows in e.touches
   function setDir(d){
     if (d === stickDir) return;
     stickDir = d;
     zone.querySelectorAll('.tick').forEach(t => t.classList.toggle('on', t.dataset.d === d));
     if (d) { try { navigator.vibrate && navigator.vibrate(6); } catch (_) {} }
   }
-  function placeBase(){ base.style.left = (ox - zr.left) + 'px'; base.style.top = (oy - zr.top) + 'px'; }
-  function move(e){
-    if (e.pointerId !== id) return;
-    let dx = e.clientX - ox, dy = e.clientY - oy;
-    const dist = Math.hypot(dx, dy);
-    if (dist > RIM) { const k = (dist - RIM) / dist; ox += dx * k; oy += dy * k; dx -= dx * k; dy -= dy * k; placeBase(); }
-    knob.style.transform = `translate(${dx}px,${dy}px)`;
-    if (dist < DEAD) { axis = null; setDir(null); return; }
-    const ax = Math.abs(dx), ay = Math.abs(dy);
-    if (axis === 'h' && ay > ax * BIAS) axis = 'v';
-    else if (axis === 'v' && ax > ay * BIAS) axis = 'h';
-    else if (!axis) axis = ax >= ay ? 'h' : 'v';
-    setDir(axis === 'h' ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  function show(v){
+    base.style.left = (v.ox - zr.left) + 'px'; base.style.top = (v.oy - zr.top) + 'px';
+    knob.style.transform = `translate(${v.dx}px,${v.dy}px)`;
+    setDir(v.dir);
   }
-  function end(e){
-    if (e.pointerId !== id) return;
-    id = null; axis = null; setDir(null);
+  function centre(){
+    stick.reset(); setDir(null);
     zone.classList.remove('active');
     base.style.left = '50%'; base.style.top = '50%'; knob.style.transform = '';
   }
+  function end(e){
+    if (stick.id === null || e.pointerId !== stick.id) return;
+    const id = stick.id;
+    centre();
+    try { if (zone.hasPointerCapture(id)) zone.releasePointerCapture(id); } catch (_) {}
+  }
   zone.addEventListener('pointerdown', e => {
-    if (id !== null) return;
     e.preventDefault(); ensureAudio();
-    id = e.pointerId; try { zone.setPointerCapture(id); } catch (_) {}
+    const old = stick.id;
+    if (old !== null && old !== e.pointerId) { try { zone.releasePointerCapture(old); } catch (_) {} }
     zr = zone.getBoundingClientRect();
-    ox = e.clientX; oy = e.clientY;
-    placeBase(); zone.classList.add('active'); move(e);
+    touchFinger = e.pointerType === 'touch';
+    show(stick.down(e.pointerId, e.clientX, e.clientY));
+    try { zone.setPointerCapture(e.pointerId); } catch (_) {}
+    zone.classList.add('active');
   });
-  zone.addEventListener('pointermove', move);
+  zone.addEventListener('pointermove', e => { if (e.pointerId === stick.id) show(stick.move(e.pointerId, e.clientX, e.clientY)); });
   zone.addEventListener('pointerup', end);
   zone.addEventListener('pointercancel', end);
+  zone.addEventListener('lostpointercapture', end);
+  // the release went somewhere other than the pad (capture failed or was taken away)
+  addEventListener('pointerup', end, true);
+  addEventListener('pointercancel', end, true);
+  // older iOS can drop the pointer events of a finger it hands to a system gesture, but still ends the touch:
+  // once no touch that started on the pad is left, the stick's finger has gone
+  const touchGone = e => {
+    if (stick.id === null || !touchFinger) return;
+    for (const t of e.touches) if (t.target instanceof Node && zone.contains(t.target)) return;
+    centre();
+  };
+  addEventListener('touchend', touchGone, true);
+  addEventListener('touchcancel', touchGone, true);
+  addEventListener('blur', centre);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) centre(); });
   zone.addEventListener('contextmenu', e => e.preventDefault());
 
   // the set's action buttons, as slots any app can map (src/console/buttons.ts); a third button is one more line here
