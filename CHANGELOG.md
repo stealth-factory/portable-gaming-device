@@ -3,6 +3,12 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.2.0] - 2026-11-09
+
+### Features
+
+- **invader-force**: Weapon capsules, lightning laser, speed boost, blasts and an atomic bomb (#3)
+
 ## [0.1.0] - 2026-11-09
 
 The baseline: everything built before releases were cut, written by hand
