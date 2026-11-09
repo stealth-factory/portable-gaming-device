@@ -85,10 +85,10 @@ const IMAGES = [
     const tgt = al.reduce((a, b) => (b.r > a.r ? b : a)), tx = F.ox + tgt.c * 16 - 1;
     k('keyup', 'ArrowLeft'); k('keyup', 'ArrowRight');
     if (tx < F.px - 2) k('keydown', 'ArrowLeft'); else if (tx > F.px + 2) k('keydown', 'ArrowRight');
-    if (!F.shot) { k('keydown', 'Space'); k('keyup', 'Space'); }
+    if (!F.shots.length) { k('keydown', 'Space'); k('keyup', 'Space'); }
   }, 30); });
   await p.waitForTimeout(7000);
-  await until(() => { const F = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && F.shot && F.shot.y < __gg.LH - 60 && F.bombs.length > 0; }, 20000).catch(() => {});
+  await until(() => { const F = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && F.shots.length && F.shots[0].y < __gg.LH - 60 && F.bombs.length > 0; }, 20000).catch(() => {});
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await shot('play-invader.png');
   // I Invade: its loading screen, then an autopilot steering the bomb bay over a tank, caught mid-UFO run
   await p.keyboard.press('KeyG'); await until(() => __gg.S.mode === 'menu');

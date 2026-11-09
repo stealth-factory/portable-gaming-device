@@ -259,7 +259,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyG') { pressSelect(); e.preventDefault(); return; }
   const d = KEYMAP[e.code];
   if (d) { press(d); e.preventDefault(); return; }
-  if (e.code === 'Space' || e.code === 'KeyZ' || e.code === 'KeyX') { if (menuFire()) e.preventDefault(); else if (S.mode !== 'title' && S.mode !== 'over') { fireQueued = true; e.preventDefault(); } return; }
+  if (e.code === 'Space' || e.code === 'KeyZ' || e.code === 'KeyX') { if (menuFire()) e.preventDefault(); else if (S.mode !== 'title' && S.mode !== 'over') { fireQueued = true; fireHeld = true; e.preventDefault(); } return; }   // held like the FIRE button
   if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
   if (e.code === 'KeyF') { setFull(!full); return; }
@@ -268,8 +268,8 @@ addEventListener('keydown', e => {
   if (e.code === 'Enter' && !tvOn) { ensureAudio(); powerOn(); e.preventDefault(); return; }
   if (e.code === 'Enter' && (S.mode === 'title' || S.mode === 'over')) { startGame(); e.preventDefault(); }
 });
-addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyB') boostHeld = false; });
-addEventListener('blur', () => { held.length = 0; if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
+addEventListener('keyup', e => { const d = KEYMAP[e.code]; if (d) release(d); if (e.code === 'Space' || e.code === 'KeyZ' || e.code === 'KeyX') fireHeld = false; if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyB') boostHeld = false; });
+addEventListener('blur', () => { held.length = 0; fireHeld = false; if (S.mode === 'play' || S.mode === 'ready') togglePause(true); });
 
 /* floating thumb-stick: the stick centres wherever the thumb lands, follows it past the rim,
    snaps to four directions with a dead zone and hysteresis so diagonal wobble doesn't flicker */

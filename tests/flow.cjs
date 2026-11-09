@@ -50,7 +50,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const caught = await dbg();
   await p.keyboard.press('Space'); await p.waitForTimeout(120);
   const twin = await dbg();
-  await p.evaluate(() => __gg.runtime.debug.arm('spread')); await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 }); await p.keyboard.press('Space'); await p.waitForTimeout(40);
+  await p.evaluate(() => __gg.runtime.debug.arm('spread')); await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 }); await p.keyboard.press('Space'); await p.waitForFunction(() => __gg.runtime.debug.state().shots.length > 0, null, { timeout: 2000 });
   const spread = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-spread.png` });
   await p.evaluate(() => { __gg.runtime.debug.arm('speed'); __gg.runtime.debug.arm('speed'); __gg.runtime.debug.arm('pierce'); }); await p.waitForTimeout(500);
   await p.keyboard.press('Space'); await p.waitForTimeout(60);
@@ -58,6 +58,11 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.evaluate(() => { const F = __gg.runtime.debug.state(); __gg.S.boostT = 1; __gg.runtime.debug.clash(F.ox + 20, F.oy + 50); __gg.runtime.debug.blast(F.ox + 40, F.oy + 40); }); await p.waitForTimeout(100);
   const blasts = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-blast.png` });
   await p.waitForTimeout(600);
+  // Rapid keeps firing while Space is held down (no key repeat needed)
+  await p.evaluate(() => { __gg.runtime.debug.state().bunkers = []; __gg.S.boostT = 5; __gg.runtime.debug.arm('rapid'); });   // shield up: no walls to hide behind
+  await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 });
+  await p.keyboard.down('Space'); await p.waitForTimeout(300);
+  const rapid = await dbg(); await p.keyboard.up('Space');
   await p.evaluate(() => { const F = __gg.runtime.debug.state(), a = F.aliens.filter(q => q.alive).sort((p, q) => q.r - p.r)[0]; F.px = F.ox + a.c * 16 - 1; __gg.runtime.debug.arm('nuke'); }); await p.waitForTimeout(200);   // under a live alien
   const label = await p.evaluate(() => document.querySelector('#boostBtn span').textContent);
   await p.keyboard.press('Shift'); await p.waitForTimeout(200);
@@ -70,8 +75,8 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.waitForFunction(() => __gg.S.mode === 'ready' && __gg.S.level === 2, null, { timeout: 8000 });
   const flashLeft = await p.evaluate(() => __gg.runtime.debug.state().flash);
   await p.evaluate(() => { if (__gg.S.mode === 'play' || __gg.S.mode === 'ready') { __gg.S.score = 0; __gg.finishGame(); } }); await p.waitForTimeout(300);
-  const ok = flashLeft <= 0 && basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
-  if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked, flashLeft }));
+  const ok = flashLeft <= 0 && rapid.shots >= 2 && basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
+  if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked, flashLeft, rapid }));
   console.log(tag, { invader: { basic: basic.shots, caught: caught.weapon, twin: twin.shots, spread: spread.shots, pierce: pierce.beam, speed: pierce.speed, alive: [pierce.alive, blasts.alive, nuked.alive], label: [label, label2], end: await mode(p) } });
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();

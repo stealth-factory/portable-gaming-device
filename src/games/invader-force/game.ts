@@ -335,8 +335,9 @@ function update(dt: number){
 
   /* bombs */
   for (const b of F.bombs) {
+    if (b.y >= 9999) continue;                         // already used up this step (a blast took it)
     b.y += b.v * dt;
-    const hitCap = F.capsules.find(c => bombHitsCapsule(b.x, b.y, c));
+    const hitCap = F.capsules.find(c => c.y < 9999 && bombHitsCapsule(b.x, b.y, c));
     if (hitCap) { b.y = 9999; if (explode(hitCap)) return; continue; }
     if (bunkerHit(b.x, b.y + 3, 2)) { b.y = 9999; continue; }
     const cy = cannonY();
@@ -391,15 +392,19 @@ function hud(){
   const { g, LW, HUD, S, txt } = api;
   g.fillStyle = api.col('bg'); g.fillRect(0, 0, LW, HUD);
   txt(String(S.score).padStart(6, '0'), 6, 6, 'text');
-  if (LW >= 300) txt('HI ' + String(api.best).padStart(6, '0'), 80, 6, 'hud');
   const wave = 'WAVE ' + S.level;
   txt(wave, LW - 6, 6, 'hud', 'right');
   const lives = Math.max(0, Math.min(5, S.lives - (S.mode === 'dying' ? 0 : 1)));
-  let x = LW - 12 - wave.length * 6 - lives * 10;
+  const livesX = LW - 12 - wave.length * 6 - lives * 10;
+  let x = livesX;
   for (let i = 0; i < lives; i++, x += 10) sprite(MINI, x, 6, 'cart');
   g.fillStyle = api.col('hud'); for (let i = 0; i < LW; i += 4) g.fillRect(i, HUD - 2, 2, 1);
-  // the weapon you hold and the speed boost, each with a draining timer bar
-  let wx = LW >= 300 ? 142 : 48;
+  // the weapon you hold, a NUKE and the speed boost go after HI when they fit before the spare cannons,
+  // otherwise in HI's place, so they never run into the cannons
+  const need = (F.weapon !== 'basic' ? WEAPON_NAME[F.weapon].length * 6 + 6 : 0) + (F.nuke ? 30 : 0) + (F.speed ? 12 : 0);
+  const afterHi = LW >= 300 && 142 + need <= livesX - 4;
+  if (LW >= 300 && (afterHi || !need)) txt('HI ' + String(api.best).padStart(6, '0'), 80, 6, 'hud');
+  let wx = afterHi ? 142 : 48;
   if (F.weapon !== 'basic') {
     const name = WEAPON_NAME[F.weapon];
     if (F.weaponT > 3 || Math.floor(S.time * 6) % 2) txt(name, wx, 6, 'gold');
