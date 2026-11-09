@@ -7,7 +7,7 @@ import type { ConsoleAPI, CreateGame } from '../types';
 import { makeFx, makeWalls, makeScore, makeRound, drawHud, drawSprite, play, rnd } from '../../kit/play';
 import type { Fx, Walls, Score, Round, Jingle, Role, Sprite } from '../../kit/play';
 import { CROWN, PUFFER, POD, TANK, UFO, BLAST, PILLBOX, MINI } from './art';
-import { advanceSweep, earthFacing } from './cluster';
+import { earthFacing, nextSweep } from './cluster';
 import type { SweepDir } from './cluster';
 
 let api: ConsoleAPI, fx: Fx, walls: Walls, score: Score, round: Round;
@@ -54,7 +54,7 @@ type Shell = { x: number; y: number; v: number; tank: Tank };
 const F = {
   aliens: [] as Alien[], cols: 9, total: 0, ox: 0, oy: 0, dir: 1, step: 6, frame: 0, note: 0, marchT: 0,
   bayCD: { L: 0, M: 0, R: 0 } as Record<Bay, number>, clusterCD: 0, lastBay: -1,
-  attack: 0, sweepI: 0, sweepDir: 1 as SweepDir, stepT: 0, sweepC: -1,
+  attack: 0, sweepDir: 1 as SweepDir, stepT: 0, sweepC: -1,
   bombs: [] as Bomb[], meteors: [] as Meteor[], shells: [] as Shell[],
   tanks: [] as Tank[],
   ufo: null as null | { x: number; dir: number; dropT: number; humT: number },
@@ -115,7 +115,7 @@ function newWave(){
   F.oy = homeOy() - Math.min(3, S.level - 1) * F.step;   // later waves start a little closer
   F.dir = Math.random() < 0.5 ? 1 : -1; F.marchT = 0.5; F.frame = 0;
   F.bayCD = { L: 0, M: 0, R: 0 }; F.clusterCD = CLUSTER_ARM; F.lastBay = -1;
-  F.attack = 0; F.sweepI = 0; F.sweepDir = 1; F.stepT = 0; F.sweepC = -1;
+  F.attack = 0; F.sweepDir = 1; F.stepT = 0; F.sweepC = -1;
   F.bombs = []; F.meteors = []; F.shells = []; F.ufo = null; F.end = ''; F.landed = false; F.stormMsgT = 0;
   fx.clear();
   // the team: spread along the top, never parked over a bay
@@ -300,7 +300,7 @@ function tickCluster(dt: number, k: number){
   if (api.button('pad4').queued && F.clusterCD <= 0 && F.attack <= 0) {
     F.attack = CLUSTER_ATTACK;
     F.clusterCD = CLUSTER_ATTACK + CLUSTER_CD;
-    F.sweepI = 0; F.sweepDir = 1; F.stepT = 0; F.sweepC = -1;
+    F.sweepDir = 1; F.stepT = 0; F.sweepC = -1;
     api.buzz('fire');
   }
   api.clearButton('pad4');
@@ -309,15 +309,13 @@ function tickCluster(dt: number, k: number){
   for (let n = 0; F.stepT <= 0 && n < 3; n++) {
     const fronts = earthFacing(F.aliens);
     if (!fronts.length) { F.attack = 0; return; }
-    const count = fronts.length;
-    if (F.sweepI > count - 1) F.sweepI = count - 1;
-    if (F.sweepI < 0) F.sweepI = 0;
-    const a = fronts[F.sweepI];
+    const step = nextSweep(fronts.map(a => a.c), F.sweepC, F.sweepDir);
+    const a = fronts.find(f => f.c === step.c);
+    if (!a) { F.attack = 0; return; }
     const at = bayAt(a.c);
     F.bombs.push({ x: at.x, y: at.y, v: CLUSTER_SPEED * k, k: 'cluster' });
-    F.sweepC = a.c;
-    const step = advanceSweep(F.sweepI, F.sweepDir, count);
-    F.sweepI = step.i; F.sweepDir = step.dir;
+    F.sweepC = step.c;
+    F.sweepDir = step.dir;
     F.stepT += CLUSTER_STEP;
     tone(200 + a.c * 28, 0.045, 0.025, -50);
   }
