@@ -6,7 +6,7 @@ import { useApi, sprite, JELLY, BEETLE, DRONE, CANNON, SAUCER, BURST, CAPSULE, C
 import {
   type Weapon, type Shot, type Capsule, WEAPON_NAME, WEAPON_TIME, CAPSULE_W, CAPSULE_H, CAPSULE_SPEED, BEAM_TIME, BLAST_R, CLASH_R,
   SPEED_TIME, stackSpeed, SAUCER_NUKE, NUKE_BLAST_R, rollNuke, nukeRows, nukeDepth, NUKE_SPEED, waveRows, rowType, shotSpeedFactor, tickSpeed, type Drop,
-  volley, canFire, fireGap, rollDrop, pickDrop, catches, tickWeapon, inBeam, bombHitsCapsule, inBlast,
+  volley, canFire, fireGap, rollDrop, pickDrop, catches, tickWeapon, inBeam, bombHitsCapsule, shotHitsCapsule, inBlast,
 } from './weapons';
 
 let api: ConsoleAPI;
@@ -136,6 +136,8 @@ function dropCapsule(x: number, y: number, w?: Drop){
   F.capsules.push({ x: Math.round(x), y, w: w ?? pickDrop(Math.random(), F.weapon) });
   tone(1568, 0.05, 0.025, 400);
 }
+/** A capsule right on top of the barrel is yours to catch, not to shoot. */
+const reachable = (c: Capsule) => c.y + CAPSULE_H > cannonY() - 4;
 /** A shot at (x, y): does it hit something (and is it used up)? */
 function shotHits(x: number, y: number){
   if (F.ufo && y < api.HUD + 12 && x >= F.ufo.x && x < F.ufo.x + 16) { hitSaucer(); return true; }
@@ -145,6 +147,7 @@ function shotHits(x: number, y: number){
     if (x >= ax && x < ax + AW && y + 3 >= ay && y < ay + AH) { killAlien(a); return true; }
   }
   for (const b of F.bombs) if (Math.abs(b.x - x) <= 1 && Math.abs(b.y - y) < 4) { b.y = 9999; clash(x, y); return true; }   // shots meet and go off
+  for (const c of F.capsules) if (c.y < 9999 && !reachable(c) && shotHitsCapsule(x, y, c)) { explode(c, false); return true; }   // shoot one and it goes off
   return bunkerHit(x, y, 1);
 }
 function fire(){
@@ -157,11 +160,13 @@ function fire(){
 }
 /** The lightning laser: one bolt straight up the column, through walls, bombs, aliens and the saucer. */
 function lightning(x: number){
+  const before = F.capsules.slice();                  // a drop this bolt shakes loose isn't caught in it
   F.beam = { x, t: BEAM_TIME };
   tone(1900, 0.18, 0.035, -1600); tone(70, 0.26, 0.05, 140); tone(2600, 0.05, 0.02, -900, 0.06);
   if (F.ufo && x >= F.ufo.x - 1 && x < F.ufo.x + 17) hitSaucer();
   for (const a of F.aliens) if (a.alive && inBeam(x, F.ox + a.c * SX, AW)) killAlien(a);
   for (const b of F.bombs) if (Math.abs(b.x - x) <= 2) b.y = 9999;
+  for (const c of before) if (c.y < 9999 && !reachable(c) && inBeam(x, c.x, CAPSULE_W)) explode(c, false);
   for (let y = cannonY() - 2; y > api.HUD; y -= 2) bunkerHit(x, y, 1);
 }
 function arm(w: Drop){
@@ -184,13 +189,14 @@ function arm(w: Drop){
 }
 /** Where a pickup's label goes: above the cannon, stacked over any label still showing. */
 function labelY(){ return cannonY() - 14 - 9 * F.bursts.filter(b => b.text && b.y > cannonY() - 60).length; }
-/** A bomb sets a capsule off: a wide blast that bites the walls, takes out aliens and bombs, and your
-    cannon too unless the shield is up. Returns true if it cost you a life. */
-function explode(c: Capsule){
+/** A capsule goes off: a wide blast that bites the walls and takes out aliens, bombs and other capsules.
+    Set off by a bomb it takes your cannon too unless the shield is up; set off by your own shot or the
+    laser (`hurtsYou` false) it spares you. Returns true if it cost you a life. */
+function explode(c: Capsule, hurtsYou = true){
   const cx = c.x + CAPSULE_W / 2, cy = c.y + CAPSULE_H / 2;
   c.y = 9999;
   tone(55, 0.5, 0.07, -30); tone(160, 0.3, 0.05, -120); tone(900, 0.12, 0.03, -800);
-  return blast(cx, cy, c.w === 'nuke' ? NUKE_BLAST_R : BLAST_R, true);
+  return blast(cx, cy, c.w === 'nuke' ? NUKE_BLAST_R : BLAST_R, hurtsYou, true);
 }
 /** Launch the atomic bomb: a missile that flies up until it hits something. */
 function nuke(){
@@ -226,10 +232,10 @@ function detonate(x: number, y: number, hitRow: number){
 /** Your shot and a bomb meet: a smaller blast where they collide, which can take out aliens around it. */
 function clash(x: number, y: number){
   tone(120, 0.22, 0.05, -60); tone(1400, 0.06, 0.025, -1000);
-  blast(x, y, CLASH_R, false);
+  blast(x, y, CLASH_R, false, false);
 }
 /** A blast of radius r at (cx, cy). Returns true if it cost you a life. */
-function blast(cx: number, cy: number, r: number, hurtsYou: boolean){
+function blast(cx: number, cy: number, r: number, hurtsYou: boolean, hitsCapsules: boolean){
   F.blasts.push({ x: cx, y: cy, t: 0.5, r });
   for (const b of F.bunkers) for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {
     const dx = b.x + x - cx, dy = b.y + y - cy;
@@ -238,7 +244,7 @@ function blast(cx: number, cy: number, r: number, hurtsYou: boolean){
   for (const a of F.aliens) if (a.alive && inBlast(cx, cy, F.ox + a.c * SX, F.oy + a.r * SY, AW, AH, r)) killAlien(a, false);
   if (F.ufo && inBlast(cx, cy, F.ufo.x, api.HUD + 4, 16, 6, r)) hitSaucer();
   for (const b of F.bombs) if (inBlast(cx, cy, b.x - 1, b.y, 3, 4, r)) b.y = 9999;
-  if (hurtsYou) for (const o of F.capsules) if (o.y < 9999 && inBlast(cx, cy, o.x, o.y, CAPSULE_W, CAPSULE_H, r)) o.y = 9999;
+  if (hitsCapsules) for (const o of F.capsules) if (o.y < 9999 && inBlast(cx, cy, o.x, o.y, CAPSULE_W, CAPSULE_H, r)) o.y = 9999;
   if (hurtsYou && inBlast(cx, cy, F.px, cannonY(), 13, 7, r)) {
     if (api.S.boostT > 0) tone(1500, 0.05, 0.03);       // the shield takes it
     else { loseLife(); return true; }
@@ -496,6 +502,9 @@ const create: CreateGame = a => {
     /** Set off a capsule at (x, y) (tests). */
     blast: (x: number, y: number) => explode({ x, y, w: 'twin' }),
     clash: (x: number, y: number) => clash(x, y),
+    cannonY: () => cannonY(),
+    /** Drop a capsule straight above the barrel, low enough that its blast reaches you, but not yet catchable (tests). */
+    target: (w: Drop = 'twin') => { F.capsules.push({ x: Math.round(F.px) + 2, y: cannonY() - 17, w }); },
   } };
 };
 export default create;

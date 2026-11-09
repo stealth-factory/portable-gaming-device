@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DROPS, WEAPON_TIME, MAX_CAPSULES, DROP_CHANCE, RAPID_SHOTS, SPEED_TIME, SPEED_MAX, BLAST_R, CLASH_R,
-  volley, canFire, fireGap, rollDrop, pickDrop, catches, tickWeapon, inBeam, bombHitsCapsule, inBlast,
+  volley, canFire, fireGap, rollDrop, pickDrop, catches, tickWeapon, inBeam, bombHitsCapsule, shotHitsCapsule, inBlast,
   stackSpeed, tickSpeed, shotSpeedFactor, rollNuke, nukeRows, nukeDepth, NUKE_CHANCE, NUKE_MIN, NUKE_MAX, waveRows, rowType, ROWS_MIN, ROWS_MAX,
 } from '../../src/games/invader-force/weapons';
 
@@ -64,10 +64,13 @@ describe('Invader Force weapons', () => {
     expect(shotSpeedFactor(2)).toBeGreaterThan(shotSpeedFactor(1));
     expect(tickSpeed(s.level, s.t, SPEED_TIME + 1)).toEqual({ level: 0, t: 0 });
   });
-  it('sets off a capsule when a bomb hits it, with a wider blast than a shot clash', () => {
+  it('sets off a capsule when a bomb or your shot hits it, with a wider blast than a shot clash', () => {
     const c = { x: 40, y: 60, w: 'rapid' as const };
     expect(bombHitsCapsule(44, 58, c)).toBe(true);
     expect(bombHitsCapsule(60, 58, c)).toBe(false);
+    expect(shotHitsCapsule(44, 64, c)).toBe(true);          // your shot sets it off too
+    expect(shotHitsCapsule(44, 70, c)).toBe(false);
+    expect(shotHitsCapsule(39, 62, c)).toBe(false);
     expect(BLAST_R).toBeGreaterThan(CLASH_R);
     expect(inBlast(50, 50, 50 + BLAST_R - 1, 45, 11, 8)).toBe(true);
     expect(inBlast(50, 50, 50 + BLAST_R + 2, 45, 11, 8)).toBe(false);

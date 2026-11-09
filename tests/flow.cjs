@@ -69,6 +69,13 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 });
   await p.keyboard.down('Space'); await p.waitForTimeout(300);
   const rapid = await dbg(); await p.keyboard.up('Space');
+  // shoot a capsule right over the cannon: its wide blast reaches the cannon but spares you, even with the shield down
+  await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 });
+  const livesBefore = await p.evaluate(() => { const F = __gg.runtime.debug.state(); F.bombs = []; F.capsules = []; __gg.S.boostT = 0; __gg.runtime.debug.target('spread'); return __gg.S.lives; });
+  await p.keyboard.press('Space'); await p.waitForTimeout(250);
+  const shotCap = await p.evaluate(() => { const F = __gg.runtime.debug.state(); const near = F.blasts.filter(b => b.r >= 16 && Math.hypot(Math.max(F.px, Math.min(b.x, F.px + 13)) - b.x, Math.max(__gg.runtime.debug.cannonY(), Math.min(b.y, __gg.runtime.debug.cannonY() + 7)) - b.y) <= b.r).length; return { capsules: F.capsules.length, blasts: near, weapon: F.weapon, lives: __gg.S.lives, mode: __gg.S.mode }; });
+  await p.screenshot({ path: `${out}/${tag}-invader-shotcap.png` });
+  const capOk = shotCap.capsules === 0 && shotCap.blasts >= 1 && shotCap.weapon === 'rapid' && shotCap.lives === livesBefore && shotCap.mode === 'play';
   await p.evaluate(() => { const F = __gg.runtime.debug.state(), a = F.aliens.filter(q => q.alive).sort((p, q) => q.r - p.r)[0]; F.px = F.ox + a.c * 16 - 1; __gg.runtime.debug.arm('nuke'); }); await p.waitForTimeout(200);   // under a live alien
   const label = await p.evaluate(() => document.querySelector('#boostBtn span').textContent);
   await p.keyboard.press('Shift'); await p.waitForTimeout(200);
@@ -81,8 +88,8 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.waitForFunction(() => __gg.S.mode === 'ready' && __gg.S.level === 2, null, { timeout: 8000 });
   const flashLeft = await p.evaluate(() => __gg.runtime.debug.state().flash);
   await p.evaluate(() => { if (__gg.S.mode === 'play' || __gg.S.mode === 'ready') { __gg.S.score = 0; __gg.finishGame(); } }); await p.waitForTimeout(300);
-  const ok = flashLeft <= 0 && rapid.shots >= 2 && basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
-  if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked, flashLeft, rapid }));
+  const ok = capOk && flashLeft <= 0 && rapid.shots >= 2 && basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
+  if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked, flashLeft, rapid, shotCap, livesBefore }));
   console.log(tag, { invader: { basic: basic.shots, caught: caught.weapon, twin: twin.shots, spread: spread.shots, pierce: pierce.beam, speed: pierce.speed, alive: [pierce.alive, blasts.alive, nuked.alive], label: [label, label2], end: await mode(p) } });
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();

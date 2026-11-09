@@ -9,6 +9,7 @@ import { DISKS as GAMES } from '../games/registry';
 import type { GameDisk } from '../games/types';
 import { useButtons } from './buttons';
 import { BOOT_BUTTONS, MENU_BUTTONS } from './console-buttons';
+import { bootScript, PROMPT } from './boot';
 
 export const BOOT_LEN = 4.0, WARM_LEN = 2.3, MAX_LOAD = 5;
 
@@ -89,25 +90,17 @@ export function startConsole(kind: 'cold' | 'warm'){
   playBoot(kind);
 }
 export function drawBoot(){
-  const t = S.bootT, warm = S.bootKind === 'warm', lines: string[] = [];
-  const t0 = warm ? 0.7 : 2.1, t1 = S.bootLen - 0.4;
-  if (warm) {
-    if (t > 0.05) lines.push('GAME GUY 3000 DELUXE   BIOS 1.0');
-    if (t > 0.15) lines.push('WARM BOOT');
-    if (t > 0.3) lines.push('');
-    if (t > 0.45) lines.push('A>MENU');
-  } else {
-    if (t > 0.05) lines.push('GAME GUY 3000 DELUXE   BIOS 1.0');
-    if (t > 0.2) { const k = Math.min(640, Math.floor((t - 0.2) / 0.6 * 40) * 16); lines.push(`MEMORY TEST  ${String(k).padStart(3, ' ')}K${t > 0.82 ? '  OK' : ''}`); }
-    if (t > 1.0) lines.push('DRIVE A:  360K FLOPPY');
-    if (t > 1.15) lines.push('');
-    if (t > 1.2) lines.push('BOOTING FROM DRIVE A:');
-    if (t > 1.9) lines.push('A>MENU');
-  }
+  const t = S.bootT, warm = S.bootKind === 'warm', t1 = S.bootLen - 0.4;
+  if (t < 0.05) return;
+  const { lines, enterAt } = bootScript(t, warm), t0 = Math.max(enterAt, warm ? 0.7 : 2.1);
   lines.forEach((s, i) => txt(s, 12, 14 + i * 14, 'text'));
-  let y = 14 + lines.length * 14;
-  if (t > t0) y = sectorBar(12, y, Math.min(1, (t - t0) / (t1 - t0)), t, 'MENU.COM', 6144);
-  if (Math.floor(t * 3) % 2 === 0) { g.fillStyle = col('text'); g.fillRect(12, y + 6, 7, 2); }
+  let y = 14 + lines.length * 14, cx = 12, cy = y + 6;
+  if (t <= enterAt && lines[lines.length - 1].startsWith(PROMPT)) {
+    // the cursor waits at the end of the command being typed
+    g.font = '8px Silkscreen, "Courier New", monospace';
+    cx = 12 + Math.ceil(g.measureText(lines[lines.length - 1]).width) + 1; cy = y - 14 + 7;
+  } else if (t > t0) { y = sectorBar(12, y, Math.min(1, (t - t0) / (t1 - t0)), t, 'MENU.COM', 6144); cy = y + 6; }
+  if (Math.floor(t * 3) % 2 === 0) { g.fillStyle = col('text'); g.fillRect(cx, cy, 7, 2); }
 }
 
 /* ---------- the disk menu ---------- */
