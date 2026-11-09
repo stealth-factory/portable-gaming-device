@@ -4,9 +4,10 @@ Notes for anyone (human or agent) working in this repo. Read this before changin
 
 ## Linear
 
-- **Project:** Game Guy, <https://linear.app/stealth-company/project/game-guy-c4e01570fc18>
-- **Team:** wiiiimm (key `WII`), <https://linear.app/stealth-company/team/WII/overview>
-- **Issue IDs:** `WII-<n>`, for example [WII-44](https://linear.app/stealth-company/issue/WII-44). Use that form in branches, PR titles and commits.
+- **Project:** Game Guy, <https://linear.app/stealth-company/project/game-guy-c4e01570fc18/overview>
+- **Team:** Game Guy (key `GAM`, under Stealth Factory), <https://linear.app/stealth-company/team/GAM/overview>
+- **Issue IDs:** `GAM-<n>`, for example [GAM-11](https://linear.app/stealth-company/issue/GAM-11). Use that form in branches, PR titles and commits.
+- **Old `WII-<n>` IDs:** until 2026-11-09 the issues lived in the wiiiimm team as `WII-<n>`. They were moved and renumbered (WII-45 is now GAM-1, for example), and the old IDs in past PR titles, commits and `CHANGELOG.md` still redirect to the new issues. Leave them as they are; use `GAM` for anything new.
 - **Statuses:** Triage, Backlog, Todo, Paused, In Progress, In Review, Ready to Merge, Released, Canceled, Duplicate.
 - **Specs and plans** are Linear project documents or issue descriptions, never files in this repo.
 - The Linear GitHub integration is on: it links a PR to the issue named in its branch or title and comments the link back on the PR.
@@ -163,7 +164,7 @@ Useful places:
 ## Working conventions
 
 - **Spelling:** Australian / British English in copy, docs and commit messages.
-- **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:` …) on a branch, never on `main` (see the top of this file). Each commit body ends with `Refs WII-<n>` for the issue it works on.
+- **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:` …) on a branch, never on `main` (see the top of this file). Each commit body ends with `Refs GAM-<n>` for the issue it works on.
 - **PR titles decide releases.** PRs squash-merge with the title as the commit subject, and `git-cliff` reads those subjects for the version and changelog: `feat:` is a minor release, `fix:`/`perf:` a patch, `docs:`/`chore:`/`ci:` start no release. Subjects start lowercase with no full stop (`pr-title.yml` checks). A push to `main` no longer reaches the live site by itself; production moves only when the release PR is merged.
 - **Test before pushing:** `npm run build` and `npm test`, then `tests/flow.cjs` and `tests/pages.cjs` against `npm run preview`, checking for errors and looking at screenshots of anything visual.
 - **Keep the README current** with controls, games and the analytics event list.
@@ -173,12 +174,12 @@ Useful places:
 
 Every pull request belongs to a Linear issue in the Game Guy project, and the issue says where the work stands.
 
-1. **Find or file the issue first.** Search the project; if nothing covers the work, file one (team `WII`, project Game Guy) before opening the pull request. Small fixes too: an issue is how the next person finds out it was done and why. Plans and specs go in the issue or a Linear project document, not in the repo.
-2. **Branch from the issue.** Use the branch name Linear gives the issue (`feature/wii-41-add-a-browser-check-that-plays-every-disk`; `fix/wii-<n>-…` for a bug), so the integration links the branch, commits and PR to it. Branches with no issue (`release`, bots) are the only exceptions.
+1. **Find or file the issue first.** Search the project; if nothing covers the work, file one (team `GAM`, project Game Guy) before opening the pull request. Small fixes too: an issue is how the next person finds out it was done and why. Plans and specs go in the issue or a Linear project document, not in the repo.
+2. **Branch from the issue.** Use the branch name Linear gives the issue (`feature/gam-10-add-a-browser-check-that-plays-every-disk`; `fix/gam-<n>-…` for a bug), so the integration links the branch, commits and PR to it. Branches with no issue (`release`, bots) are the only exceptions.
 3. **Name the issue everywhere.**
-   - PR title: a Conventional Commit subject with the issue at the end, `feat(invader-force): weapon capsules (WII-41)`. The ID survives the squash merge into the commit subject on `main`.
-   - Commit bodies: `Refs WII-<n>` (several are fine: `Refs WII-40, WII-44`).
-   - PR body: `Fixes WII-<n>` when merging it finishes the issue, `Refs WII-<n>` when it is one step of it. Use `Fixes` only in the PR body, never in a commit message: a commit that reaches `main` some other way would close the issue with nobody having reviewed it.
+   - PR title: a Conventional Commit subject with the issue at the end, `feat(invader-force): weapon capsules (GAM-17)`. The ID survives the squash merge into the commit subject on `main`.
+   - Commit bodies: `Refs GAM-<n>` (several are fine: `Refs GAM-11, GAM-16`).
+   - PR body: `Fixes GAM-<n>` when merging it finishes the issue, `Refs GAM-<n>` when it is one step of it. Use `Fixes` only in the PR body, never in a commit message: a commit that reaches `main` some other way would close the issue with nobody having reviewed it.
 4. **Move the status with the pull request.**
 
    | When | Linear status |
