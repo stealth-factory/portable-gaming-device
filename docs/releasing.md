@@ -97,14 +97,33 @@ version, `release-pr.yml` sees an untagged version and does nothing, so it
 never counts a release's commits twice. The next merge opens the next
 release PR.
 
-**`RELEASE_TOKEN` is optional.** Without it the release PR is opened with
-`GITHUB_TOKEN`, as `github-actions[bot]`, and GitHub does not run `ci` or
-`pr-title` on it (Vercel's preview still builds). That needs the repository
-setting **Settings → Actions → General → Allow GitHub Actions to create and
-approve pull requests**. With a `RELEASE_TOKEN` secret (a fine-grained PAT
-with Contents and Pull requests read/write on this repository) the PR is an
-ordinary one and the checks run. Editing an existing bot PR does not change
-its author: close it so the next run opens a new one.
+**The release PR's author decides whether CI runs on it.** `release-pr.yml`
+picks the first token it has:
+
+1. **The release GitHub App** (recommended, as opscope does): a
+   `RELEASE_APP_CLIENT_ID` repository *variable* and a
+   `RELEASE_APP_PRIVATE_KEY` repository *secret*. The workflow mints a
+   one-hour token scoped to this repository, and the PR and its commit are
+   the App's bot.
+2. **`RELEASE_TOKEN`**: a fine-grained PAT with Contents and Pull requests
+   read/write on this repository.
+3. **`GITHUB_TOKEN`**: the PR is `github-actions[bot]`, and GitHub does not
+   run `ci` or `pr-title` on it (Vercel's preview still builds). This needs
+   **Settings → Actions → General → Allow GitHub Actions to create and
+   approve pull requests**.
+
+Editing an existing PR does not change its author: after switching tokens,
+close the open release PR so the next run opens a new one.
+
+To set up the App: **GitHub → Settings → Developer settings → GitHub Apps →
+New GitHub App**. Any name and homepage URL; untick *Webhook → Active*;
+repository permissions **Contents: Read and write** and **Pull requests:
+Read and write** (Metadata read-only comes with them); *Only on this
+account*. Create it, note its **Client ID**, generate a **private key**
+(a `.pem` download), then **Install App** on this repository only. In the
+repository: **Settings → Secrets and variables → Actions**, add the variable
+`RELEASE_APP_CLIENT_ID` (the Client ID) and the secret
+`RELEASE_APP_PRIVATE_KEY` (the whole `.pem` file).
 
 **Previews are untouched.** Every branch and PR, `main` included, still gets
 a Vercel preview. Only the production domain waits for a release.

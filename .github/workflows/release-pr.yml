@@ -34,17 +34,32 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
+      # The release GitHub App, when configured (RELEASE_APP_CLIENT_ID
+      # variable + RELEASE_APP_PRIVATE_KEY secret). Contents write pushes the
+      # release branch; Pull requests write opens or updates the PR. The
+      # token is scoped to this repository, lasts one hour and is revoked
+      # when the job ends.
+      - name: Mint the release app token
+        id: app
+        if: vars.RELEASE_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           # The whole history and every tag: the version is computed from
           # the commits since the last one.
           fetch-depth: 0
-          # A user token (RELEASE_TOKEN, optional) makes the release PR an
+          # An app token (or a RELEASE_TOKEN PAT) makes the release PR an
           # ordinary pull request, so ci and pr-title run on it. Opened with
           # GITHUB_TOKEN it is github-actions[bot], and GitHub does not
           # start pull_request workflows for it. Vercel's preview builds
           # either way, because that comes from Vercel's GitHub app.
-          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          token: ${{ steps.app.outputs.token || secrets.RELEASE_TOKEN || github.token }}
 
       - name: Install git-cliff
         run: |
@@ -133,16 +148,40 @@ jobs:
             echo "package-lock.json did not take the bump" >&2; exit 1; }
           echo "package.json and lock agree at ${NEXT}"
 
+      - name: Resolve the app bot identity
+        id: bot
+        if: steps.next.outputs.release == 'yes' && steps.app.outputs.app-slug != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          app_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          if ! printf '%s\n' "$app_id" | grep -qxE '[0-9]+'; then
+            echo "app bot id was not a number" >&2
+            exit 1
+          fi
+          echo "id=${app_id}" >> "$GITHUB_OUTPUT"
+
       - name: Open or update the release PR
         if: steps.next.outputs.release == 'yes'
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_TOKEN || github.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          APP_ID: ${{ steps.bot.outputs.id }}
           NEXT: ${{ steps.next.outputs.next }}
         run: |
           set -euo pipefail
           branch="release"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The commit is authored as the app's bot when the app is in use,
+          # otherwise as github-actions[bot].
+          if [ -n "$APP_ID" ]; then
+            git config user.name "${APP_SLUG}[bot]"
+            git config user.email "${APP_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          fi
           git checkout -B "$branch"
           git add CHANGELOG.md package.json package-lock.json
           if git diff --cached --quiet; then
