@@ -47,11 +47,17 @@ const setHidden = (p, v) => p.evaluate(v => {
 async function holdOnHide(p){
   const was = await mode(p);
   const look = () => p.evaluate(() => ({ mode: __gg.S.mode, led: document.querySelector('#pauseBtn').getAttribute('aria-pressed'), overlay: !__gg.overlay.hidden }));
+  // a sound scheduled for later is still waiting on the shared output when the page hides: hiding must cut that output
+  const ringing = await p.evaluate(() => { __gg.tone(440, 0.5, 0.01, 0, 1); globalThis.__ggOut = __gg.audioOut; return !!__gg.audioOut; });
   await setHidden(p, true); const hidden = await look();
+  const cut = await p.evaluate(() => !globalThis.__ggOut || (__gg.audioOut !== globalThis.__ggOut && globalThis.__ggOut.gain.value === 0));
   await setHidden(p, false); await p.waitForTimeout(300); const back = await look();
   await p.keyboard.press('p'); const resumed = await look();
+  // and the next sound goes out through a fresh, open output
+  const fresh = await p.evaluate(() => { __gg.tone(440, 0.02, 0.01); const o = __gg.audioOut; return !!o && o !== globalThis.__ggOut && o.gain.value === 1; });
+  const sound = { ringing, cut, fresh: fresh || !ringing };
   const held = s => s.mode === 'paused' && s.led === 'true' && s.overlay;
-  return { ok: held(hidden) && held(back) && resumed.mode === was && resumed.led === 'false', was, hidden, back, resumed };
+  return { ok: held(hidden) && held(back) && resumed.mode === was && resumed.led === 'false' && sound.cut && sound.fresh, was, hidden, back, resumed, sound };
 }
 // one pass per disk: boot is already done; choose it on the menu, play, qualify for the table, then G home
 async function playEveryDisk(p, tag){
