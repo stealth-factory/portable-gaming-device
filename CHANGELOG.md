@@ -3,6 +3,17 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.3.0] - 2026-11-09
+
+### Bug Fixes
+
+- Show a real DOS prompt (A:\>) on the boot screen (#8)
+
+### Features
+
+- **invader-force**: Shooting a capsule sets it off (#10)
+- Per-app button mapping, with SELECT on the disk menu (#9)
+
 ## [0.2.0] - 2026-11-09
 
 ### Features
