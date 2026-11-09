@@ -296,7 +296,7 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); Btn.relea
     if (d === stickDir) return;
     stickDir = d;
     zone.querySelectorAll('.tick').forEach(t => t.classList.toggle('on', t.dataset.d === d));
-    if (d) { try { navigator.vibrate && navigator.vibrate(6); } catch (_) {} }
+    if (d) buzz(6);   // a tiny nudge on each new direction, silent with SOUND off like every buzz
   }
   function show(v){
     base.style.left = (v.ox - zr.left) + 'px'; base.style.top = (v.oy - zr.top) + 'px';

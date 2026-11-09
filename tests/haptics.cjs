@@ -36,8 +36,16 @@ await p.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 8000 });
 // 2. SOUND off: nothing buzzes (the press that switches it off still ticks, like its clack)
 await expectBuzz('SOUND off', () => tap('#muteBtn'), [8]);
 await expectBuzz('GLOW with SOUND off', () => tap('#fxBtn'), []);
+// the stick's nudge on a new direction follows SOUND too
+const stick = (dx) => p.evaluate(dx => {
+  const z = document.querySelector('#stickzone'), r = z.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const ev = (t, cx) => z.dispatchEvent(new PointerEvent(t, { pointerId: 31, pointerType: 'touch', clientX: cx, clientY: y, bubbles: true, cancelable: true, isPrimary: true }));
+  ev('pointerdown', x); ev('pointermove', x + dx); ev('pointerup', x + dx);
+}, dx);
+await expectBuzz('stick with SOUND off', () => stick(40), []);
 await tap('#fxBtn'); await tap('#muteBtn');
 if (await pressed('#muteBtn') !== 'true') errs.push('SOUND did not come back on');
+await expectBuzz('stick with SOUND on', () => stick(40), [6]);
 
 // 3. in a game: a shot, a lost life, the game over
 const ix = await p.evaluate(() => __gg.DISKS.findIndex(d => d.id === 'invader'));
