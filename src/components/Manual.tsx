@@ -11,14 +11,30 @@ import { REPO_URL, REPO_LABEL } from './site';
 const SERVER: ConsoleState = { lang: 'en', manual: 'console' };
 const html = (s: string) => ({ __html: s });
 
-/** One numbered section: a paragraph, or a dotted-leader list (scores, or keys with their controls). */
+/** One numbered section: a paragraph, a note (name, then wrapping text), or a dotted-leader list. */
 function Section({ sec, n, T }: { sec: ManualSection; n: number; T: Record<string, any> }){
   const head = <h3><span className="num">{n}</span><span dangerouslySetInnerHTML={html(T[sec.h])} /></h3>;
   if ('p' in sec) return <section className="man-sec">{head}<p dangerouslySetInnerHTML={html(T[sec.p])} /></section>;
+  if (sec.notes) return (
+    <section className="man-sec">
+      {head}
+      <dl className="man-notes">
+        {sec.list.map(it => {
+          const v = it.lit ? it.v : T[it.v];
+          return (
+            <div key={it.k}>
+              <dt dangerouslySetInnerHTML={html(T[it.k])} />
+              <dd className={sec.keys ? 'keys' : undefined} dangerouslySetInnerHTML={html(v)} />
+            </div>
+          );
+        })}
+      </dl>
+    </section>
+  );
   return (
     <section className="man-sec">
       {head}
-      <ul className={'leaders' + (sec.keys ? ' keys' : '')}>
+      <ul className={'leaders' + (sec.keys ? ' keys' : '') + (sec.wrap ? ' wrap' : '')}>
         {sec.list.map(it => {
           const v = it.lit ? it.v : T[it.v];
           return (
