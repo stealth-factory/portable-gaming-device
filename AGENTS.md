@@ -92,7 +92,7 @@ Requirements 1 to 10 below are built: the console boots into a disk menu with fo
 
 ### 10. I Invade
 
-- The fourth disk: the fixed-screen alien shooter played from the other side. You steer the alien fleet left and right while it sinks a step every few seconds (sooner each wave); three fire buttons (`fireL`, `fire`, `fireR`: ◀, BOMB and ▶, or <kbd>Z</kbd>, <kbd>Space</kbd> and <kbd>V</kbd>) drop a bomb from the left, middle or right bomb bay (the outermost columns and the one nearest the fleet's middle, lit along its underside), one in the air at a time (owner's design).
+- The fourth disk: the fixed-screen alien shooter played from the other side. You steer the alien fleet left and right while it sinks a step every few seconds (sooner each wave); three fire buttons (`fireL`, `fire`, `fireR`: ◀, ▼ and ▶, or <kbd>Z</kbd>, <kbd>Space</kbd> and <kbd>V</kbd>) drop a bomb from the left, middle or right bomb bay (the outermost columns and the one nearest the fleet's middle, lit along its underside), one in the air at a time (owner's design).
 - The defenders' tanks (two on wave 1, up to five) patrol behind pillboxes, shoot up at the fleet (each hit costs an alien) and, more often each wave, dodge falling bombs.
 - Win a wave by destroying every tank, or by touching down on the tanks' row (20 per alien landed). Losing every alien loses a fleet; three fleets, plus one every 2,000.
 - BOOST calls in the UFO: it crosses the sky and drops a heavy bomb, which goes through walls, on the first tank it passes over, then recharges (about 14 s). Taps on the screen drop bombs (`tap: true`).

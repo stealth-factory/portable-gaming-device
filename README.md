@@ -37,7 +37,7 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
 - **The phosphor dial and switches:**
   - **Dial:** green P1, long-afterglow green P39, radar P7 (a visible beam sweeping down the tube), amber P3, paper white P4 and the two CGA palettes.
   - **Switches:** SOUND, GLOW (all the tube effects), HOLD (pause) and FULL (full screen).
-- **FIRE and BOOST** change with the game: FIRE and BOOST in Tunnel Raider, JUMP and DUCK in Dino Run, FIRE and SHIELD in Invader Force (SHIELD turns into NUKE while you hold an atomic bomb), BOMB and UFO in I Invade, which also brings out a fire key either side of FIRE (◀ and ▶, or <kbd>Z</kbd> and <kbd>V</kbd>) for its left and right bomb bays. In Dino Run, Invader Force and I Invade a tap on the screen works as JUMP, FIRE or BOMB.
+- **FIRE and BOOST** change with the game: FIRE and BOOST in Tunnel Raider, JUMP and DUCK in Dino Run, FIRE and SHIELD in Invader Force (SHIELD turns into NUKE while you hold an atomic bomb), ◀ ▼ ▶ and UFO in I Invade, which brings out a fire key either side of FIRE for its left, middle and right bomb bays (<kbd>Z</kbd>, <kbd>Space</kbd> and <kbd>V</kbd>). In Dino Run, Invader Force and I Invade a tap on the screen works as JUMP, FIRE or the middle bomb bay.
 - **Instructions:** the printed leaflet under the set shows the console's instructions while the menu is up and the loaded game's while you play.
 
 ### High scores
