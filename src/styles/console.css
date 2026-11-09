@@ -299,7 +299,7 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 [data-layout="console"] .rockers{gap:6px}
 [data-layout="console"] .pad{display:contents}
 [data-layout="console"] .stickzone{grid-area:stick;height:100%;align-self:stretch}
-[data-layout="console"] .keyrow{grid-area:fire;align-self:end;margin-bottom:6px;gap:10px}
+[data-layout="console"] .keyrow{grid-area:fire;align-self:end;margin-bottom:6px;gap:16px}
 [data-layout="console"] .fire{height:48px}
 [data-layout="console"] .boost{height:40px}
 /* upright phones and tablets: the set fills the screen height and the tube takes every spare pixel */
@@ -506,6 +506,10 @@ h1 .h-dx{color:#cfc3a3}
 /* SELECT is hidden for now (it does what RESET does until there's more to choose from) */
 .sel-grp[hidden]{display:none!important}
 [data-layout="phone-portrait"] .nameplate b .np-rest{display:inline}
+/* upright phones: the badge sits on the power row, centred on the rocker, and drops "3000 DELUXE" when the
+   full name would run into RESET (narrow fronts such as a folding phone's cover screen) */
+[data-layout="phone-portrait"] .nameplate{bottom:21px}
+@media (max-width:399px){[data-layout="phone-portrait"] .nameplate b .np-rest{display:none}}
 /* the button pad: stands in for the stick while a game with no stick plays (`controls: 'pad'`, set as data-pad on <html>).
    It fills the stick's zone in every layout: the bomb keys (red, like FIRE) along the top, the specials (amber, like
    BOOST) underneath; with the sixth slot unused the bottom two share the row. The FIRE row beside it steps aside. */
