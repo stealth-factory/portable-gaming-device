@@ -64,6 +64,14 @@ await click('#setReset');
 if (!(await p.$('#setYes'))) errs.push('reset: no confirm step');
 await click('#setNo');
 if (await p.evaluate(() => localStorage.getItem('eb-mode')) !== 'amberP3') errs.push('cancel still reset the phosphor');
+// keyboard: Enter on a focused settings button acts on it, not on the console behind (the disk menu would load a game)
+await p.evaluate(() => document.activeElement?.blur()); await p.keyboard.press('g');
+await p.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 8000 });
+await p.focus('#setReset'); await p.keyboard.press('Enter'); await p.waitForTimeout(100);
+if (!(await p.$('#setNo'))) errs.push('Enter on Reset settings did not open its confirm');
+await p.keyboard.press('Enter'); await p.waitForTimeout(100);   // Cancel has focus
+if (await p.$('#setNo')) errs.push('Enter on Cancel did not close the confirm');
+if (await p.evaluate(() => __gg.S.mode) !== 'menu') errs.push('Enter on a settings button reached the disk menu: ' + await p.evaluate(() => __gg.S.mode));
 await click('#setReset'); await p.locator('#setYes').scrollIntoViewIfNeeded(); await p.screenshot({ path: `${out}/haptics-confirm.png` });
 await click('#setYes'); await p.waitForTimeout(300);
 const after = await p.evaluate(() => ({ mode: localStorage.getItem('eb-mode'), fx: document.querySelector('#fxBtn').getAttribute('aria-pressed'),

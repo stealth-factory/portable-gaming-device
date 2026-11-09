@@ -265,6 +265,7 @@ export const release = d => { const i = held.indexOf(d); if (i >= 0) held.splice
 export const wantDir = () => stickDir ? DIRS[stickDir] : held.length ? DIRS[held[held.length - 1]] : null;
 
 addEventListener('keydown', e => {
+  if ((e.target as Element)?.closest?.('.manual')) return;   // keys pressed on the leaflet's own buttons (Settings) are theirs, not the game's
   if (S.mode === 'entry' && !e.metaKey && !e.ctrlKey && !e.altKey) { if (entryKey(e)) e.preventDefault(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (S.mode === 'menu' && menuKey(e)) { e.preventDefault(); return; }
