@@ -5,14 +5,12 @@ import { clamp, consume, drawHud, horizontal, makeFx, makePickups, makeRound, ma
 import { CAP_H, CAP_W, drawBat, drawBrick, drawDrop, drawEmber, BAT_MINI } from './art';
 import {
   BAT_BOTTOM, BAT_H, EMBER, SLOT_H, SLOT_W,
-  applyCatch, applySear, approachSide, bandX, baseSpeed, batSigned, batT, batTopAt, batWidth, batWidthWith,
+  applyCatch, applySear, approachSide, bandX, baseSpeed, batSigned, batSlideSpeed, batT, batTopAt, batWidth, batWidthWith,
   bendIntent, bendRise, breakableCount, brickReleasesDrop, buildWall, clampTravel, columnCount, easeBend,
   fittedRows, isBreakable, loseEmberMods, pacedSpeed, pickDrop, resolveBat, resolveBrick, velocityFromSigned,
   wallCleared, waveSpeed, DROP_LABEL, MAX_FALLING,
 } from './rules';
 import type { Brick, Cell, DropKind, PaceMod, Side, SizeMod } from './rules';
-
-const BAT_SPEED = 210;
 
 let api: ConsoleAPI;
 let fx: Fx;
@@ -106,7 +104,7 @@ function moveBat(dt: number) {
   const dir = horizontal(api);
   batDir = dir;
   if (dir !== 0) lastDir = dir;
-  batX += dir * BAT_SPEED * dt;
+  batX += dir * batSlideSpeed(api.stickDir) * dt;
   bend = easeBend(bend, bendIntent(api.stickDir, api.held), dt);
   clampBat();
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   BEND_PX, DROP_CHANCE, EMBER, FAST_MUL, NARROW_MUL, SEAR_HITS, SLOW_MUL, WIDE_MUL,
-  applyCatch, applySear, baseSpeed, batSigned, batTopAt, batWidth, batWidthWith, bendIntent,
+  applyCatch, applySear, baseSpeed, batSigned, batSlideSpeed, batTopAt, batWidth, batWidthWith, bendIntent,
   breakableCount, brickReleasesDrop, buildWall, clampTravel, columnCount, easeBend, emptyFraction,
   fittedRows, loseEmberMods, pacedSpeed, pickDrop, quotas, resolveBat, resolveBrick, rowCountForHeight,
   travelDegrees, velocityFromSigned, wallCleared, waveSpeed,
@@ -252,6 +252,14 @@ describe('the bow', () => {
     expect(batTopAt(200, 1, BEND_PX)).toBe(200);
     expect(batTopAt(200, -1, -BEND_PX)).toBe(200);
     expect(batTopAt(200, 0, -BEND_PX)).toBe(200 + BEND_PX);
+  });
+
+  it('slides quicker on a sideways stick, and leaves the keys and the bow at the old speed', () => {
+    expect(batSlideSpeed(null)).toBe(210);
+    expect(batSlideSpeed('up')).toBe(210);
+    expect(batSlideSpeed('down')).toBe(210);
+    expect(batSlideSpeed('left')).toBe(320);
+    expect(batSlideSpeed('right')).toBe(320);
   });
 
   it('reads up and down from the stick or the keys, and eases back instead of snapping', () => {

@@ -59,6 +59,16 @@ export function clampTravel(vx: number, vy: number): { vx: number; vy: number } 
 /** How far, in pixels, a full bow lifts the middle of the bat. The ends stay where they are. */
 export const BEND_PX = 4;
 
+/** px/s the keys slide the bat. A sideways stick is quicker, but not so much that the keys need to catch up. */
+export const BAT_KEY_SPEED = 210;
+/** px/s a left or right stick slides the bat. It used to share the keys' 210. Up and down do not use this. */
+export const BAT_STICK_SPEED = 320;
+
+/** Slide speed this frame. A sideways stick is quicker. Up, down, or no stick, stays at the key speed. */
+export function batSlideSpeed(stick: 'up' | 'down' | 'left' | 'right' | null): number {
+  return stick === 'left' || stick === 'right' ? BAT_STICK_SPEED : BAT_KEY_SPEED;
+}
+
 /** Pixels the middle has risen. Positive is up the screen. `bend` runs from −1 to 1. */
 export function bendRise(bend: number): number {
   return clamp(bend, -1, 1) * BEND_PX;
