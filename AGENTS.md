@@ -19,7 +19,7 @@ Every change goes through a pull request, unless the owner explicitly says to pu
 
 - create branches with `--no-track` (`git switch --no-track -c <branch> origin/main`, or `git worktree add --no-track -b <branch> <path> origin/main`), or point the upstream at the branch itself;
 - push only with an explicit refspec: `git push -u origin HEAD:refs/heads/<branch>`. Never `git push origin main`, never a bare `git push` from a branch tracking `main`, never `--force` to `main`;
-- after every push, run `git ls-remote origin refs/heads/main` and check `main` did not move. If it did, stop and tell the owner. Do not "fix" it with another push to `main`; revert through a pull request.
+- note `main`'s SHA (`git ls-remote origin refs/heads/main`) just before every push, run the same command after it, and check `main` did not move. If it did, stop and tell the owner. Do not "fix" it with another push to `main`; revert through a pull request.
 
 ## What this is
 
@@ -186,8 +186,9 @@ Every pull request belongs to a Linear issue in the Game Guy project, and the is
    | Work starts (branch made) | In Progress |
    | PR marked ready for review | In Review |
    | CI green and review comments dealt with | Ready to Merge |
-   | PR merged into `main` | Released (Linear's name for merged: the change reaches players with the next `release: vX.Y.Z` PR, which lists it) |
-   | Not doing it, or the PR is closed unmerged | Canceled (say why in a comment) |
+   | PR that `Fixes` the issue merged into `main` | Released (Linear's name for merged: the change reaches players with the next `release: vX.Y.Z` PR, which lists it) |
+   | PR that only `Refs` the issue merged, or a PR closed while work remains | Back to In Progress or Todo, with a comment on what is left |
+   | Not doing the issue at all | Canceled (say why in a comment) |
    | Waiting on a decision or another issue | Paused |
 
    The GitHub integration moves some of these on its own; check the issue after each step and set it by hand when it didn't.
