@@ -150,6 +150,7 @@ Useful places:
   - **Add to the API, not the import list:** if a game needs something new from the console, add it to `ConsoleAPI` and to `api` in `core.ts`.
   - **The kit is the exception:** games may import `src/kit/play/` (`import { makeFx } from '../../kit/play'`) and types from `src/kit/platform/`. The kit follows the same rules as a game: no `src/console` imports, nothing on load, no module-level state (factories hold it), and anything new from the console goes through `ConsoleAPI`. `tests/unit/kit/rules.test.ts` checks.
   - **Disks stay light:** a `disk.ts` may import `kit/play/sprite` for its loading screen, but not the rest of the kit.
+  - **Browser check:** a new game must be covered by the generic every-disk play-through in `tests/flow.cjs` (boot, load, play, game over, name entry or the table, G back to the menu, at the same three sizes). Any game-specific behaviour (weapons, scoring quirks) needs its own check in that file too.
 
 ## How the console should keep behaving
 

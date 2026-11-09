@@ -82,7 +82,7 @@ Browser checks use Playwright against `npm run preview`. They need Chromium and 
 
 ```sh
 npm run preview &
-NODE_PATH=$(npm root -g) node tests/flow.cjs    # boot → menu → both games → back to the menu → high scores, at three sizes
+NODE_PATH=$(npm root -g) node tests/flow.cjs    # boot → menu → every disk (play, game over, name entry, back) plus Invader Force weapons, at three sizes
 NODE_PATH=$(npm root -g) node tests/pages.cjs   # the leaflet follows game and language; game pages; offline play
 ```
 
