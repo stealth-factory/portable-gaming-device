@@ -93,11 +93,13 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
   background:var(--grain),linear-gradient(180deg,color-mix(in srgb, var(--plastic-lo) 55%, #000),color-mix(in srgb, var(--plastic-lo) 75%, #000));background-size:160px 160px,auto;background-blend-mode:soft-light,normal;
   box-shadow:inset 0 8px 16px rgba(0,0,0,.8),inset 0 -2px 0 rgba(255,255,255,.07),0 1px 0 rgba(255,255,255,.14),0 -1px 0 rgba(0,0,0,.3)}
 .controls{grid-area:ctl;display:flex;flex-direction:column;align-items:center;gap:14px;min-width:0}
-.nameplate{width:100%;display:grid;gap:2px;justify-items:center;padding:7px 6px;border-radius:4px;color:#1f1d19;
+.nameplate{width:100%;display:grid;gap:4px;justify-items:center}
+.np-badge{width:100%;display:grid;gap:2px;justify-items:center;padding:7px 6px;border-radius:4px;color:#1f1d19;
   background:repeating-linear-gradient(90deg,rgba(255,255,255,.08) 0 1px,transparent 1px 3px),linear-gradient(180deg,#e2dfd5,#a3a094 48%,#bdb9ae 52%,#8a867d);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 1px 2px rgba(0,0,0,.55)}
 .nameplate b{font-family:var(--display);font-size:11px;letter-spacing:.08em;font-weight:700}
-.nameplate span{font-family:var(--body);font-size:9px;letter-spacing:.04em;white-space:nowrap}
+.np-badge span{font-family:var(--body);font-size:9px;letter-spacing:.04em;white-space:nowrap}
+.np-ver{margin:0;font-family:var(--display);font-size:8px;letter-spacing:.18em;line-height:1;color:var(--plastic-lo);text-shadow:0 1px 0 rgba(255,255,255,.22),0 -1px 0 rgba(0,0,0,.25)}
 .dial-block{display:grid;justify-items:center;gap:2px}
 .dial-wrap{position:relative;width:148px;height:148px}
 .dial-labels{position:absolute;inset:0}
@@ -130,7 +132,7 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 [data-layout="console"] .power{position:static;flex-wrap:wrap;justify-content:center;gap:8px}
 [data-layout="console"] .power > .ctl-label,[data-layout="console"] .reset-grp .ctl-label{display:none}
 [data-layout="console"] .reset-grp{margin:0;padding:0;border:0;box-shadow:none}
-/* sideways gamepad: switches and power top left over the joystick; dial top right over FIRE and BOOST */
+/* sideways gamepad: switches and power top left over the joystick; dial top right, the plate mid-right, FIRE and BOOST below it */
 [data-layout="console"] .controls{display:contents}
 [data-layout="console"] .rockers{grid-area:rock;align-self:end;justify-self:center}
 [data-layout="console"] .power{grid-area:pwr;align-self:start;justify-self:center;flex-wrap:nowrap}
@@ -143,9 +145,11 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
   :root[data-layout="console"] .tv-face{grid-template-columns:minmax(176px,1fr) auto minmax(176px,1fr);grid-template-rows:auto minmax(0,1fr) auto auto minmax(0,1fr) auto;
     grid-template-areas:"pwr screen plate" "stick screen ." "stick screen dial" "stick screen rock" "stick screen ." "stick screen fire"}
   /* the badge returns to the top right; the dial, full size, sits mid-right over the switches */
-  :root[data-layout="console"] .nameplate{display:grid;grid-area:plate;align-self:start;justify-self:center;width:calc(100% - 12px);box-sizing:border-box;padding:6px 8px}
-  :root[data-layout="console"] .nameplate b{font-size:10px}
-  :root[data-layout="console"] .nameplate span{font-size:8px}
+  :root[data-layout="console"] .nameplate{display:grid;grid-area:plate;align-self:start;justify-self:center;width:calc(100% - 12px);box-sizing:border-box;gap:3px;padding:0}
+  :root[data-layout="console"] .np-badge{padding:6px 8px}
+  :root[data-layout="console"] .nameplate b{font-size:10px;letter-spacing:.08em}
+  :root[data-layout="console"] .np-badge span{font-size:8px}
+  :root[data-layout="console"] .np-ver{font-size:8px;letter-spacing:.16em}
   :root[data-layout="console"] .dial-block{align-self:end}
   :root[data-layout="console"] .dial-wrap{width:148px;height:148px}
   :root[data-layout="console"] .dial{transform:none}
@@ -276,13 +280,18 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 [data-layout="console"] .tv{filter:none}
 [data-layout="console"] .tv-face{box-sizing:border-box;--fp:10px;--sp:8px;--avail-h:calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 12px);
   height:var(--avail-h);padding:var(--fp);border-radius:18px;gap:10px;align-items:center;
-  grid-template-columns:minmax(140px,1fr) auto minmax(140px,1fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"rock screen dial" "pwr screen dial" "stick screen fire"}
+  grid-template-columns:minmax(140px,1fr) auto minmax(140px,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:"rock screen dial" "pwr screen dial" "stick screen plate" "stick screen fire"}
 @supports (height:100dvh){[data-layout="console"] .tv-face{--avail-h:calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 12px)}}
 [data-layout="console"] .tube-surround{grid-area:screen;padding:var(--sp);border-radius:18px;
   align-self:stretch;width:min(calc((var(--avail-h) - 2 * var(--fp) - 2 * var(--sp)) * 1.75 + 2 * var(--sp)), calc(100vw - 2 * max(16px, env(safe-area-inset-left, 0px)) - 2 * var(--fp) - 320px))}
 [data-layout="console"] .screen{aspect-ratio:auto;width:100%;height:100%}
 [data-layout="console"] .controls{grid-area:ctl;flex-direction:column;flex-wrap:nowrap;gap:8px;align-self:start}
-[data-layout="console"] .nameplate,[data-layout="console"] .grille,[data-layout="console"] .tk,[data-layout="console"] .dial-block .ctl-label{display:none}
+[data-layout="console"] .grille,[data-layout="console"] .tk,[data-layout="console"] .dial-block .ctl-label{display:none}
+[data-layout="console"] .nameplate{display:grid;grid-area:plate;align-self:center;justify-self:center;width:calc(100% - 8px);box-sizing:border-box;gap:3px;padding:0}
+[data-layout="console"] .np-badge{padding:4px 5px}
+[data-layout="console"] .nameplate b{font-size:8px;letter-spacing:.04em}
+[data-layout="console"] .np-badge span{font-size:7px}
+[data-layout="console"] .np-ver{font-size:7px;letter-spacing:.12em}
 [data-layout="console"] .dial-wrap{width:104px;height:104px}
 [data-layout="console"] .dial{transform:scale(.78)}
 [data-layout="console"] .rockers{gap:8px}
@@ -306,8 +315,10 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 [data-layout$="portrait"] .dial{transform:scale(.72)}
 [data-layout$="portrait"] .rockers{gap:8px}
 [data-layout$="portrait"] .rocker{height:38px}
-[data-layout$="portrait"] .nameplate{position:absolute;right:14px;bottom:13px;width:auto;flex-basis:auto;padding:4px 8px;display:flex;gap:6px;align-items:baseline}
-[data-layout$="portrait"] .nameplate b,[data-layout$="portrait"] .nameplate span{font-size:8px}
+[data-layout$="portrait"] .nameplate{position:absolute;right:14px;bottom:13px;width:auto;flex-basis:auto;padding:0;display:grid;justify-items:center;gap:3px}
+[data-layout$="portrait"] .np-badge{width:auto;display:flex;gap:6px;align-items:baseline;padding:4px 8px}
+[data-layout$="portrait"] .nameplate b,[data-layout$="portrait"] .np-badge span{font-size:8px}
+[data-layout$="portrait"] .np-ver{font-size:7px;letter-spacing:.12em}
 [data-layout$="portrait"] .stickzone{height:136px}
 [data-layout$="portrait"] .fire{height:48px}
 [data-layout$="portrait"] .keyrow{flex-direction:row}
@@ -330,7 +341,7 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 [data-layout="phone-portrait"] .boost{height:44px}
 [data-layout="phone-portrait"] .power{bottom:9px}
 [data-layout="phone-portrait"] .nameplate{bottom:18px}
-[data-layout="phone-portrait"] .nameplate span{display:none}
+[data-layout="phone-portrait"] #plate{display:none}
 /* upright = handheld: joystick on the left, the two keys stacked on the right */
 [data-layout$="portrait"] .pad{flex-direction:row;align-items:stretch;gap:14px}
 [data-layout$="portrait"] .stickzone{flex:1.25 1 0;width:auto;height:156px}
@@ -476,7 +487,7 @@ h1 .h-dx{color:#cfc3a3}
 [data-layout="console"] .power{gap:6px}
 [data-layout="console"] .resetbtn{width:24px;height:18px}
 [data-layout="console"] .powerrock{width:72px}
-/* the nameplate: centred over two lines on the set; just GAME GUY on an upright phone, where SELECT needs the room */
+/* the nameplate: badge over the release version. Upright phones keep the full name while SELECT is hidden */
 .nameplate b{text-align:center}
 .nameplate b .np-rest{font:inherit;letter-spacing:inherit;white-space:normal}
 /* SELECT is hidden for now (it does what RESET does until there's more to choose from) */

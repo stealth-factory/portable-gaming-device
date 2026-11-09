@@ -77,7 +77,7 @@ Requirements 1 to 10 below are built: the console boots into a disk menu with fo
 - It needs a place in every layout (`desk`, `console`, tall console, `phone-portrait`, `tablet-portrait`), sitting with RESET beside POWER.
 - **RESET vs SELECT:** RESET reboots the whole console (BIOS, then the loader); SELECT just swaps the game, through the loader.
 - Add a keyboard shortcut for it, and an analytics event (for example `select` with the game left and its level).
-- **Status:** hidden. `PowerPanel` in `src/components/PowerPanel.tsx` takes `showSelect`; pass it from `ConsoleSet` to bring the button back (and add SELECT back to the console strings). The nameplate on an upright phone shows the full name while SELECT is hidden; with SELECT back it may need shortening to GAME GUY again (`.np-rest`).
+- **Status:** hidden. `PowerPanel` in `src/components/PowerPanel.tsx` takes `showSelect`; pass it from `ConsoleSet` to bring the button back (and add SELECT back to the console strings). The nameplate on an upright phone shows the full name while SELECT is hidden; with SELECT back it may need shortening to GAME GUY again (`.np-rest`). Every layout stamps the release version (`VERSION` in `src/components/site.ts`, read from `package.json`) on its own line under the plate, including phone landscape, where the plate sits on the right in the middle.
 
 ### 8. Dino Run, with its own high-score table
 

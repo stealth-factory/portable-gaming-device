@@ -1,11 +1,14 @@
-import { MODEL } from './site';
+import { MODEL, VERSION } from './site';
 
-/** The badge on the set. The console rewrites the second line with the phosphor in use. */
+/** The badge on the set. The console rewrites the phosphor line; the version follows package.json. */
 export function Nameplate(){
   return (
     <div className="nameplate">
-      <b>GAME GUY<span className="np-rest"> 3000 DELUXE</span></b>
-      <span id="plate">{MODEL} · GREEN P1</span>
+      <div className="np-badge">
+        <b>GAME GUY<span className="np-rest"> 3000 DELUXE</span></b>
+        <span id="plate">{MODEL} · GREEN P1</span>
+      </div>
+      <small className="np-ver">{`v${VERSION}`}</small>
     </div>
   );
 }
