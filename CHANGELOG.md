@@ -3,6 +3,17 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.5.0] - 2026-11-09
+
+### Bug Fixes
+
+- **console**: Keep the power knob inside its slot on sideways phones (GAM-26) (#34)
+
+### Features
+
+- Haptics on phones and a settings reset (GAM-5) (#30)
+- **i-invade**: Auto-marching fleet, button pad, tank teams with three lives and more weapons (GAM-24) (#31)
+
 ## [0.4.0] - 2026-11-09
 
 ### Bug Fixes
