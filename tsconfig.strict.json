@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true
+  },
+  "include": [
+    "src/games/types.ts",
+    "src/games/registry.ts",
+    "src/console/bus.ts",
+    "src/console/i18n.ts",
+    "src/console/strings.ts",
+    "src/console/loader.ts",
+    "src/console/host.ts",
+    "src/console/boot.ts",
+    "src/console/menu-layout.ts",
+    "src/console/buttons.ts",
+    "src/console/console-buttons.ts",
+    "tests/unit/host.test.ts"
+  ]
+}

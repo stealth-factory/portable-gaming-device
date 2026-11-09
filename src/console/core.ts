@@ -8,6 +8,7 @@ import { makeHaptics, type Haptic } from "../kit/platform/haptics";
 import { DEFAULTS, scoreKeys, SETTINGS_EVENT } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
 import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame, launcherTargets } from "./loader";
+import { bindHost } from "./host";
 export let W = 15, H = 10;
 export const C = 32, CELL = 24, HUD = 20, K = CELL / C;   // game units per cell, low-res pixels per cell
 export let LW = W * CELL, LH = H * CELL + HUD;              // low-res frame buffer, like a 1980s graphics mode; resized to fit the screen
@@ -1090,3 +1091,19 @@ export const api: ConsoleAPI = {
   saveBest, finishGame, track, mulberry32,
   diskInfo: (y, p, t, d) => diskInfo(y, p, t, d),
 };
+
+/* The loader reads the console through this seam (see host.ts). It has to be bound before the first
+   frame, and the requestAnimationFrame above does not run until this module has finished. */
+bindHost({
+  S, g, col, txt, overlay, $, age, api,
+  tone, noise, headClick, out, ensureAudio,
+  setAccReset, track, layoutName, startGame, setGame, readBest, readBoard, setManual, clearInput,
+  fetchRuntime, runtimeReady, reduceMotion,
+  get LW(){ return LW; },
+  get LH(){ return LH; },
+  get ac(){ return ac; },
+  get muted(){ return muted; },
+  get stickDir(){ return stickDir; },
+  get tvOn(){ return tvOn; },
+  get game(){ return game; },
+});

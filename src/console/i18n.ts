@@ -1,10 +1,11 @@
 /* Every string the page uses, in English, Traditional Chinese and Simplified Chinese.
    The base table is the console's and Tunnel Raider's; the console's extras (strings.ts) and each disk's own strings
    are merged over it. No side effects beyond building the table, so React islands can import it too. */
+import type { Lang } from '../games/types';
 import { CONSOLE_STRINGS } from './strings';
 import { DISKS } from '../games/registry';
 
-export const kb = k => `<kbd>${k}</kbd>`;
+export const kb = (k: string) => `<kbd>${k}</kbd>`;
 export const I18N: Record<string, any> = {
   en: {
     tag: 'Tunnel through the mine, scoop up emeralds and drop sacks of gold on the grubs.',
@@ -23,7 +24,7 @@ export const I18N: Record<string, any> = {
     ctlNote: "Monochrome monitors glowed in one phosphor colour, and each phosphor faded at its own rate: long-afterglow green leaves smears behind anything that moves, and the P7 radar tube shows its beam sweeping down, flashing blue-white as it writes and fading to yellow-green behind. The CGA themes use the two four-colour palettes of IBM's 1981 Color Graphics Adapter, seen through a colour tube's stripe mask. This set is old: every turn of the dial degausses the tube, the magnetised colour patches creep back over a few seconds, and you'll spot faint burn-in, dust and the odd picture tear. Switch GLOW off for a clean picture. A tribute to Windmill Software's <i>Digger</i> (1983); characters, art, sound and code here are original.",
     titleText: 'ARROWS TO DIG · SPACE FOR A SPARK<br>CLEAR EVERY EMERALD OR EVERY GRUB', start: 'START',
     paused: 'PAUSED', pausedText: 'PRESS P OR ESC TO CARRY ON', resume: 'RESUME',
-    over: 'CAVE-IN', overText: (n, s) => `LEVEL ${n} · ${s} POINTS`, again: 'DIG AGAIN',
+    over: 'CAVE-IN', overText: (n: number, s: number) => `LEVEL ${n} · ${s} POINTS`, again: 'DIG AGAIN',
     netOff: 'OFFLINE · THE GAME KEEPS RUNNING', netOn: 'BACK ONLINE', ready: 'SAVED FOR OFFLINE PLAY', update: 'NEW VERSION READY', restart: 'RESTART', install: 'Install app',
   },
   'zh-hant': {
@@ -43,7 +44,7 @@ export const I18N: Record<string, any> = {
     ctlNote: '單色顯示器只會發出一種螢光粉的顏色，而每種螢光粉的餘暉長短不一：長餘暉綠色會在移動物件後面拖出殘影；P7 雷達顯像管則可以看到電子束由上而下掃描，掃過時閃出藍白色，之後慢慢褪成黃綠色。CGA 主題用的是 IBM 1981 年 Color Graphics Adapter 的兩組四色調色盤，並透過彩色顯像管的條紋遮罩呈現。這部電視機已經很舊：每次轉動旋鈕都會消磁，磁化色斑幾秒後會慢慢回來，你亦會看到淡淡的烙印、灰塵和偶爾的畫面撕裂。關掉 GLOW 便可看到乾淨的畫面。本作向 Windmill Software 的《Digger》（1983）致敬；角色、美術、聲音和程式碼均為原創。',
     titleText: '方向鍵挖掘 · 空白鍵發射火花<br>清除所有綠寶石或所有蟲子即可過關', start: '開始',
     paused: '已暫停', pausedText: '按 P 或 Esc 繼續', resume: '繼續',
-    over: '坍塌了！', overText: (n, s) => `第 ${n} 關 · ${s} 分`, again: '再挖一次',
+    over: '坍塌了！', overText: (n: number, s: number) => `第 ${n} 關 · ${s} 分`, again: '再挖一次',
     netOff: '離線中 · 遊戲照常運作', netOn: '已恢復連線', ready: '已儲存，可離線遊玩', update: '新版本已準備好', restart: '重新啟動', install: '安裝應用程式',
   },
   'zh-hans': {
@@ -63,13 +64,19 @@ export const I18N: Record<string, any> = {
     ctlNote: '单色显示器只会发出一种荧光粉的颜色，而每种荧光粉的余晖长短不一：长余晖绿色会在移动对象后面拖出残影；P7 雷达显像管则可以看到电子束由上而下扫描，扫过时闪出蓝白色，之后慢慢褪成黄绿色。CGA 主题用的是 IBM 1981 年 Color Graphics Adapter 的两组四色调色板，并通过彩色显像管的条纹遮罩呈现。这部电视机已经很旧：每次转动旋钮都会消磁，磁化色斑几秒后会慢慢回来，你也会看到淡淡的烙印、灰尘和偶尔的画面撕裂。关掉 GLOW 便可看到干净的画面。本作向 Windmill Software 的《Digger》（1983）致敬；角色、美术、声音和代码均为原创。',
     titleText: '方向键挖掘 · 空格键发射火花<br>清除所有绿宝石或所有虫子即可过关', start: '开始',
     paused: '已暂停', pausedText: '按 P 或 Esc 继续', resume: '继续',
-    over: '坍塌了！', overText: (n, s) => `第 ${n} 关 · ${s} 分`, again: '再挖一次',
+    over: '坍塌了！', overText: (n: number, s: number) => `第 ${n} 关 · ${s} 分`, again: '再挖一次',
     netOff: '离线中 · 游戏照常运行', netOn: '已恢复连接', ready: '已保存，可离线游玩', update: '新版本已准备好', restart: '重新启动', install: '安装应用',
   },
 };
-export const LANGS = Object.keys(I18N), LANG_ALIAS = { zh: 'zh-hant', 'zh-hk': 'zh-hant', 'zh-tw': 'zh-hant', 'zh-mo': 'zh-hant', 'zh-cn': 'zh-hans', 'zh-sg': 'zh-hans' };
-export const hashLang = () => { const h = location.hash.slice(1).toLowerCase(); return LANG_ALIAS[h] || (LANGS.includes(h) ? h : null); };
+export const LANGS = Object.keys(I18N);
+export const LANG_ALIAS: Record<string, string> = { zh: 'zh-hant', 'zh-hk': 'zh-hant', 'zh-tw': 'zh-hant', 'zh-mo': 'zh-hant', 'zh-cn': 'zh-hans', 'zh-sg': 'zh-hans' };
+export const hashLang = (): string | null => {
+  const h = location.hash.slice(1).toLowerCase();
+  return LANG_ALIAS[h] || (LANGS.includes(h) ? h : null);
+};
+const isLang = (l: string): l is Lang => l === 'en' || l === 'zh-hant' || l === 'zh-hans';
 for (const l of Object.keys(I18N)) {
+  if (!isLang(l)) continue;
   // the monitor note's last sentence is Tunnel Raider's credit: it moves to that game's instructions
   const note = I18N[l].ctlNote, m = /(A tribute to .*$|本作向.*$)/.exec(note);
   if (m) { I18N[l].trCred = m[1]; I18N[l].ctlNote = note.slice(0, m.index).trim(); }

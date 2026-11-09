@@ -137,7 +137,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 - **Tests:** Vitest (`tests/unit`: disk rules and the plug-in rule) and Playwright scripts (`tests/flow.cjs`, `tests/pages.cjs`, `tests/stick.cjs`, `tests/haptics.cjs`) against `npm run preview`.
 - **Deploy:** Vercel's Astro preset, `npm run build` → `dist`.
 - **Releases (decided):** pooled release with production gated by a Promotion Branch. Production branch `production`, platform Vercel. Merges to `main` deploy previews and update one standing `release: vX.Y.Z` PR; merging that PR tags the version and fast-forwards `production`, which Vercel ships. See [docs/releasing.md](docs/releasing.md).
-- **Types:** TypeScript is loose for now (`strict: false`) because the ported console code is untyped. New code should be typed; tighten module by module.
+- **Types:** `tsconfig.json` stays `strict: false` while the ported console is tightened module by module. `tsconfig.strict.json` lists the modules that already pass `strict`, and `npm run typecheck` runs it. That list is the plug-in contract, the disk registry, the bus, the language table, the loader, and the small modules those import. `core.ts` stays off the list until it is split. The kit has its own strict config, `tsconfig.kit.json`.
 
 ## Where things are now
 
@@ -148,7 +148,8 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 | `src/components/` | React components (static): `ConsoleSet` and its parts, `Header`, `ManualBar`, `NetBadge`; `Manual.tsx` is the live island |
 | `src/main.ts` | Engine entry: console, PWA, analytics |
 | `src/console/core.ts` | CRT picture pipeline, input, sound, switches, scores, name entry, game loop, and the `api` games get |
-| `src/console/loader.ts` | Boot screens, disk menu, loading screens and drive sounds, SELECT |
+| `src/console/loader.ts` | Boot screens, disk menu, loading screens and drive sounds, SELECT. Reads the console through `host.ts` |
+| `src/console/host.ts` | Typed seam the loader uses, so the loader can be strict before `core.ts` is |
 | `src/console/i18n.ts` | Every string (base table plus console and disk strings), no side effects |
 | `src/console/strings.ts`, `manual.ts` | The console's own strings and instructions |
 | `src/console/bus.ts` | Tiny store shared by the engine and React islands (language, whose instructions) |
