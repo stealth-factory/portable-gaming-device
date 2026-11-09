@@ -21,10 +21,17 @@ const slots = new Map<string, Slot>();
 let declared: ButtonMap = {};
 let translate: (key: string) => string = k => k;
 
-/** Add a physical button. The first label is used until an app maps the slot. */
-export function defineSlot(id: string, keys: string[], fallback: string, el?: HTMLElement | null, labelEl?: HTMLElement | null): Slot {
+/** Add a physical button. The first label is used until an app maps the slot. Taps and clicks on `el` press and release
+    it, unless `ownPointer` says the caller wires the pointer itself (FIRE and BOOST do, for the menu and the play-only queue). */
+export function defineSlot(id: string, keys: string[], fallback: string, el?: HTMLElement | null, labelEl?: HTMLElement | null, ownPointer = false): Slot {
   const s: Slot = { id, keys, el, labelEl: labelEl ?? el, fallback, label: fallback, enabled: true, queued: false, held: false };
   slots.set(id, s); render(s);
+  if (el && !ownPointer) {
+    el.addEventListener('pointerdown', e => { e.preventDefault(); if (press(id)) { try { el.setPointerCapture(e.pointerId); } catch (_) {} } });
+    const up = () => release(id);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  }
   return s;
 }
 export function slotIds(): string[] { return [...slots.keys()]; }

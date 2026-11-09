@@ -319,8 +319,8 @@ addEventListener('blur', () => { held.length = 0; Btn.release('fire'); if (S.mod
   zone.addEventListener('contextmenu', e => e.preventDefault());
 
   // the set's action buttons, as slots any app can map (src/console/buttons.ts); a third button is one more line here
-  Btn.defineSlot('fire', ['Space', 'KeyZ', 'KeyX'], 'spark', $('fireBtn'));
-  Btn.defineSlot('boost', ['ShiftLeft', 'ShiftRight', 'KeyB'], 'boost', $('boostBtn'), $('boostBtn').querySelector('span'));
+  Btn.defineSlot('fire', ['Space', 'KeyZ', 'KeyX'], 'spark', $('fireBtn'), null, true);
+  Btn.defineSlot('boost', ['ShiftLeft', 'ShiftRight', 'KeyB'], 'boost', $('boostBtn'), $('boostBtn').querySelector('span'), true);
   const fire = $('fireBtn');
   fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
   const off = () => Btn.release('fire');

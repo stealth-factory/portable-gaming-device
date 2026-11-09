@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as Btn from '../../src/console/buttons';
 import { DISKS } from '../../src/games/registry';
+import { I18N, LANGS } from '../../src/console/i18n';
+import { MENU_BUTTONS, BOOT_BUTTONS } from '../../src/console/console-buttons';
 
 describe('action button slots', () => {
   beforeEach(() => {
@@ -44,10 +46,11 @@ describe('action button slots', () => {
     expect(Btn.button('gamepadY').enabled).toBe(false);
   });
 
-  it('every disk maps its buttons to I18N keys it ships', () => {
-    for (const d of DISKS) {
-      expect(Object.keys(d.buttons).length).toBeGreaterThan(0);
-      for (const spec of Object.values(d.buttons)) expect(typeof spec.label).toBe('string');
+  it('every app\'s button labels have text in every language', () => {
+    const apps = [['menu', MENU_BUTTONS], ['boot', BOOT_BUTTONS], ...DISKS.map(d => [d.id, d.buttons] as const)] as const;
+    for (const [app, map] of apps) {
+      expect(Object.keys(map).length, app).toBeGreaterThan(0);
+      for (const spec of Object.values(map)) for (const l of LANGS) expect(typeof I18N[l][spec.label], `${app} ${l} ${spec.label}`).toBe('string');
     }
   });
 });

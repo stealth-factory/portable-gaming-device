@@ -6,8 +6,9 @@ import {
   clearInput, ordinal, api, fetchRuntime, runtimeReady,
 } from './core';
 import { DISKS as GAMES } from '../games/registry';
-import type { ButtonMap, GameDisk } from '../games/types';
+import type { GameDisk } from '../games/types';
 import { useButtons } from './buttons';
+import { BOOT_BUTTONS, MENU_BUTTONS } from './console-buttons';
 
 export const BOOT_LEN = 4.0, WARM_LEN = 2.3, MAX_LOAD = 5;
 
@@ -76,12 +77,6 @@ export function diskInfo(y: number, p: number, t: number, d: GameDisk){
   const CELLS = LW < 330 ? 16 : 24, w = CELLS * 9 + 3 + 40;
   return sectorBar(Math.max(10, Math.round(LW / 2 - w / 2)), y, p, t, d.file, d.size);
 }
-
-/* ---------- the console's own buttons: the boot and the disk menu are apps like any game ---------- */
-// booting: nothing to press yet
-export const BOOT_BUTTONS: ButtonMap = { fire: { label: 'spark', enabled: false }, boost: { label: 'boost', enabled: false } };
-// the disk menu: FIRE loads the highlighted disk; BOOST has no job here, so it stays dark
-export const MENU_BUTTONS: ButtonMap = { fire: { label: 'menuSel' }, boost: { label: 'boost', enabled: false } };
 
 /* ---------- boot ---------- */
 export function startConsole(kind: 'cold' | 'warm'){
