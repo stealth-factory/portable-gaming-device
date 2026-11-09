@@ -19,7 +19,7 @@ A 1983-style home console in the browser, on an old phosphor monitor. Switch it 
 | 1 | **Tunnel Raider** | `TUNNEL.EXE` | 4.4 s | Dig for emeralds, drop sacks of gold on the grubs and outwit smarter monsters every level. A stage clock ticks on the top bar, and digging out every block of earth on a level wins a spare cart. A tribute to Windmill Software's *Digger* (1983). |
 | 2 | **Dino Run** | `DINORUN.COM` | 1.8 s | Jump the cacti and boulders, duck the pterosaurs, run as far as you can. A tribute to the offline dinosaur game in Google Chrome (2014). |
 | 3 | **Invader Force** | `INVFORCE.EXE` | 3.1 s | Hold the line against a marching alien formation: one shot at a time, walls that crumble, a mystery saucer, a short shield on BOOST, and capsules that drop weapons (Twin, Spread, Rapid, a lightning laser), a stacking shot-speed boost and a rare atomic bomb. A tribute to Taito's *Space Invaders* (1978). |
-| 4 | **I Invade** | `IINVADE.EXE` | 2.6 s | The same war from the other side: steer the alien fleet as it sinks, bomb the tanks from its left, middle or right bomb bay, and call in the UFO for a heavy strike. Wipe out the tanks or touch down on their row. The tanks shoot back, and learn to dodge. |
+| 4 | **I Invade** | `IINVADE.EXE` | 2.6 s | The same war from the other side: steer the alien fleet as it climbs from the bottom of the screen, bomb the tanks along the top from its left, middle or right bomb bay, and call in the UFO for a heavy strike. Wipe out the tanks or reach their row. The tanks shoot back, and learn to dodge. |
 
 The characters, art, sound and code in all four are original.
 
@@ -37,7 +37,7 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
 - **The phosphor dial and switches:**
   - **Dial:** green P1, long-afterglow green P39, radar P7 (a visible beam sweeping down the tube), amber P3, paper white P4 and the two CGA palettes.
   - **Switches:** SOUND, GLOW (all the tube effects), HOLD (pause) and FULL (full screen).
-- **FIRE and BOOST** change with the game: FIRE and BOOST in Tunnel Raider, JUMP and DUCK in Dino Run, FIRE and SHIELD in Invader Force (SHIELD turns into NUKE while you hold an atomic bomb), ◀ ▼ ▶ and UFO in I Invade, which brings out a fire key either side of FIRE for its left, middle and right bomb bays (<kbd>Z</kbd>, <kbd>Space</kbd> and <kbd>V</kbd>). In Dino Run, Invader Force and I Invade a tap on the screen works as JUMP, FIRE or the middle bomb bay.
+- **FIRE and BOOST** change with the game: FIRE and BOOST in Tunnel Raider, JUMP and DUCK in Dino Run, FIRE and SHIELD in Invader Force (SHIELD turns into NUKE while you hold an atomic bomb), ◀ ▲ ▶ and UFO in I Invade, which brings out a fire key either side of FIRE for its left, middle and right bomb bays (<kbd>Z</kbd>, <kbd>Space</kbd> and <kbd>V</kbd>). In Dino Run, Invader Force and I Invade a tap on the screen works as JUMP, FIRE or the middle bomb bay.
 - **Instructions:** the printed leaflet under the set shows the console's instructions while the menu is up and the loaded game's while you play.
 
 ### High scores

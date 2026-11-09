@@ -93,10 +93,10 @@ Requirements 1 to 10 below are built: the console boots into a disk menu with fo
 
 ### 10. I Invade
 
-- The fourth disk: the fixed-screen alien shooter played from the other side. You steer the alien fleet left and right while it sinks a step every few seconds (sooner each wave); three fire buttons (`fireL`, `fire`, `fireR`: ◀, ▼ and ▶, or <kbd>Z</kbd>, <kbd>Space</kbd> and <kbd>V</kbd>) drop a bomb from the left, middle or right bomb bay (the outermost columns and the one nearest the fleet's middle, lit along its underside), one in the air at a time (owner's design).
-- The defenders' tanks (two on wave 1, up to five) patrol behind pillboxes, shoot up at the fleet (each hit costs an alien) and, more often each wave, dodge falling bombs.
-- Win a wave by destroying every tank, or by touching down on the tanks' row (20 per alien landed). Losing every alien loses a fleet; three fleets, plus one every 2,000.
-- BOOST calls in the UFO: it crosses the sky and drops a heavy bomb, which goes through walls, on the first tank it passes over, then recharges (about 14 s). Taps on the screen drop bombs (`tap: true`).
+- The fourth disk: the fixed-screen alien shooter played from the other side. The fleet starts at the bottom of the screen and attacks upward; the tanks hold the top (owner's call, GAM-23). You steer the alien fleet left and right while it climbs a step every few seconds (sooner each wave); three fire buttons (`fireL`, `fire`, `fireR`: ◀, ▲ and ▶, or <kbd>Z</kbd>, <kbd>Space</kbd> and <kbd>V</kbd>) send a bomb up from the left, middle or right bomb bay (the outermost columns and the one nearest the fleet's middle, lit along its front), one in the air at a time (owner's design).
+- The defenders' tanks (two on wave 1, up to five) patrol along the top behind pillboxes, shoot down at the fleet (each hit costs an alien) and, more often each wave, dodge the bombs coming up.
+- Win a wave by destroying every tank, or by reaching the tanks' row (20 per alien landed). Losing every alien loses a fleet; three fleets, plus one every 2,000.
+- BOOST calls in the UFO: it crosses the screen under the fleet and fires a heavy bomb, which goes through walls, up at the first tank it passes beneath, then recharges (about 14 s). Taps on the screen fire bombs from the middle bay (`tap: true`).
 - Original fleet (crown, puffer, pod), tanks, UFO, sounds and code.
 
 ## Stack (decided)

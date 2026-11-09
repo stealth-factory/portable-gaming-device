@@ -62,7 +62,7 @@ export const POD: Sprite[] = [[
   '..#.....#..',
   '...........',
 ]];
-/** The defenders' tank: a boxy hull on road wheels, gun pointing up at you. */
+/** The defenders' tank: a boxy hull on road wheels. Drawn upside down in the game, hanging from the planet with its gun pointing down at you. */
 export const TANK: Sprite = [
   '......#......',
   '......#......',
