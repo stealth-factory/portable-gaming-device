@@ -98,6 +98,39 @@ export const BURST: Sprite = [
   '#...#...#..',
 ];
 
+/** A weapon capsule's shell, and the mark inside it (5 × 3, drawn at +2, +2) for each weapon. */
+export const CAPSULE: Sprite = [
+  '.#######.',
+  '#.......#',
+  '#.......#',
+  '#.......#',
+  '#.......#',
+  '#.......#',
+  '.#######.',
+];
+export const CAPSULE_MARK: Record<string, Sprite> = {
+  twin:   ['.#.#.', '.#.#.', '.#.#.'],
+  spread: ['#.#.#', '.###.', '..#..'],
+  rapid:  ['#..#.', '.#..#', '#..#.'],
+  pierce: ['...##', '.###.', '##...'],
+  speed:  ['..#..', '.###.', '#.#.#'],
+  nuke:   ['#.#.#', '.###.', '#.#.#'],
+};
+/** A capsule going off: a wide ring of shards. */
+export const BLAST: Sprite = [
+  '....#...#...#....',
+  '..#...#...#...#..',
+  '.#..#.......#..#.',
+  '#..#...#.#...#..#',
+  '..#..#.....#..#..',
+  '#...#...#...#...#',
+  '..#..#.....#..#..',
+  '#..#...#.#...#..#',
+  '.#..#.......#..#.',
+  '..#...#...#...#..',
+  '....#...#...#....',
+];
+
 export function sprite(s: Sprite, x: number, y: number, role: Role){
   const g = api.g; g.fillStyle = api.col(role);
   const x0 = Math.round(x), y0 = Math.round(y);

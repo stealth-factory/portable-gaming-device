@@ -69,6 +69,8 @@ export interface ConsoleAPI {
   readonly boostQueued: boolean; readonly boostHeld: boolean;
   readonly tapQueued: boolean; readonly tapHeld: boolean;
   clearFire(): void; clearBoost(): void; clearTap(): void;
+  /** Relabel the BOOST button for now with one of the game's I18N keys; null puts the disk's own label back. */
+  setBoostLabel(key: string | null): void;
 
   /* ---- sound ---- */
   /** A synth beep: frequency (Hz), duration (s), volume, pitch slide (Hz), delay (s). Silent when SOUND is off. */

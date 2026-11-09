@@ -39,6 +39,10 @@ const MANUAL: GameDisk['manual'] = [
     { k: 'if1', v: '10', lit: true }, { k: 'if2', v: '20', lit: true }, { k: 'if3', v: '30', lit: true },
     { k: 'if4', v: '50 · 100 · 150 · 300', lit: true }, { k: 'if5', v: 'if5v' },
   ] },
+  { h: 'ifCapH', p: 'ifCap' },
+  { h: 'ifWepH', list: [
+    { k: 'ifw1', v: 'ifw1v' }, { k: 'ifw2', v: 'ifw2v' }, { k: 'ifw3', v: 'ifw3v' }, { k: 'ifw4', v: 'ifw4v' }, { k: 'ifw5', v: 'ifw5v' }, { k: 'ifw6', v: 'ifw6v' },
+  ] },
   { h: 'ctlH', keys: true, list: [
     { k: 'ik1', v: 'ik1v' }, { k: 'ik2', v: 'ik2v' }, { k: 'ik3', v: 'ik3v' }, { k: 'k3', v: 'k3v' }, { k: 'c3', v: 'c3v' },
   ] },
@@ -47,7 +51,7 @@ const MANUAL: GameDisk['manual'] = [
 
 export const disk: GameDisk = {
   id: 'invader', order: 3, slug: 'invader-force',
-  page: { title: 'Invader Force', description: 'Hold the line against a marching alien formation: shoot them down before they land, duck behind the walls and grab the mystery saucer, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.' },
+  page: { title: 'Invader Force', description: 'Hold the line against a marching alien formation: shoot them down before they land, duck behind the walls and grab the mystery saucer, catch weapon capsules, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.' },
   title: 'INVADER FORCE', nameKey: 'ifName', file: 'INVFORCE.EXE', size: 28672, loadSecs: 3.1,
   steps: [[0, 0], [0.08, 0.04], [0.2, 0.22], [0.3, 0.24], [0.45, 0.48], [0.52, 0.5], [0.66, 0.7], [0.74, 0.72], [0.9, 0.96], [1, 1]],
   blurb: 'AIM · FIRE · HOLD', verb: 'FIGHT', tap: true,

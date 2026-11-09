@@ -346,6 +346,12 @@ export function setGame(d: GameDisk | null){
   const T = I18N[lang]; $('fireBtn').innerHTML = T[$('fireBtn').dataset.i18n]; $('boostBtn').querySelector('span').innerHTML = T[$('boostBtn').querySelector('span').dataset.i18n];
   if (d) setManual(d.id);
 }
+/* a game can relabel BOOST for a while (Invader Force's NUKE); null goes back to the disk's label */
+export function setBoostLabel(key: string | null){
+  const span = $('boostBtn').querySelector('span'), k = key || (game ? game.boostKey : 'boost');
+  if (span.dataset.i18n === k) return;
+  span.dataset.i18n = k; span.innerHTML = I18N[lang][k] ?? k;
+}
 export function renderOverlay(){
   const T = I18N[lang];
   const v = { title: ['TUNNEL RAIDER', T.titleText, T.start], paused: [T.paused, T.pausedText, T.resume], over: [T[game.overKey], T.overText(ovVars.n, ovVars.s), T[game.againKey]] }[ovKind];
@@ -939,7 +945,7 @@ export const api: ConsoleAPI = {
   get fireQueued(){ return fireQueued; }, get fireHeld(){ return fireHeld; },
   get boostQueued(){ return boostQueued; }, get boostHeld(){ return boostHeld; },
   get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; },
-  clearFire: clearFireQueued, clearBoost: clearBoostQueued, clearTap,
+  clearFire: clearFireQueued, clearBoost: clearBoostQueued, clearTap, setBoostLabel,
   tone,
   get best(){ return best; }, set best(v: number){ best = v; },
   saveBest, finishGame, track, mulberry32,

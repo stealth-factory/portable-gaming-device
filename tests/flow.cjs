@@ -1,4 +1,5 @@
-// Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu.
+// Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
+// plus Invader Force's weapon capsules, speed boost and blasts.
 const { chromium, devices } = require('playwright');
 (async () => {
 const BASE = process.env.BASE || 'http://localhost:4173/', out = process.env.OUT || '/tmp/shots';
@@ -37,6 +38,37 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   if (m2 === 'entry') { await p.keyboard.type('DINO'); await p.keyboard.press('Enter'); await p.waitForTimeout(500); await p.screenshot({ path: `${out}/${tag}-dino-board.png` }); }
   const boards = await p.evaluate(() => ({ dino: localStorage.getItem('gg-board-dino'), tunnel: localStorage.getItem('gg-board-tunnel') }));
   console.log(tag, { tunnelLoad: tl.toFixed(1), afterSelect: afterSel, dinoLoad: dl.toFixed(1), dino: st, endMode: m2, boards });
+  // Invader Force: load it, fire, then catch capsules and try each weapon, the speed boost and the blasts
+  await p.keyboard.press('g'); await p.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 6000 });
+  await p.evaluate(() => __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'invader')));
+  await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 10000 });
+  const leaflet = await p.evaluate(() => document.querySelector('#manual')?.textContent || '');
+  const dbg = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); return { weapon: F.weapon, speed: F.speed, shots: F.shots.length, beam: !!F.beam, capsules: F.capsules.length, blasts: F.blasts.length, alive: F.aliens.filter(a => a.alive).length }; });
+  await p.keyboard.press('Space'); await p.waitForTimeout(150);
+  const basic = await dbg();
+  await p.evaluate(() => __gg.runtime.debug.drop('twin')); await p.waitForTimeout(900);
+  const caught = await dbg();
+  await p.keyboard.press('Space'); await p.waitForTimeout(120);
+  const twin = await dbg();
+  await p.evaluate(() => __gg.runtime.debug.arm('spread')); await p.waitForTimeout(500); await p.keyboard.press('Space'); await p.waitForTimeout(40);
+  const spread = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-spread.png` });
+  await p.evaluate(() => { __gg.runtime.debug.arm('speed'); __gg.runtime.debug.arm('speed'); __gg.runtime.debug.arm('pierce'); }); await p.waitForTimeout(500);
+  await p.keyboard.press('Space'); await p.waitForTimeout(60);
+  const pierce = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-pierce.png` });
+  await p.evaluate(() => { const F = __gg.runtime.debug.state(); __gg.S.boostT = 1; __gg.runtime.debug.clash(F.ox + 20, F.oy + 50); __gg.runtime.debug.blast(F.ox + 40, F.oy + 40); }); await p.waitForTimeout(100);
+  const blasts = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-blast.png` });
+  await p.waitForTimeout(600);
+  await p.evaluate(() => __gg.runtime.debug.arm('nuke')); await p.waitForTimeout(200);
+  const label = await p.evaluate(() => document.querySelector('#boostBtn span').textContent);
+  await p.keyboard.press('Shift'); await p.waitForTimeout(200);
+  const flying = await p.evaluate(() => !!__gg.runtime.debug.state().missile); await p.screenshot({ path: `${out}/${tag}-invader-missile.png` });
+  await p.waitForFunction(() => !__gg.runtime.debug.state().missile, null, { timeout: 4000 }); await p.waitForTimeout(80);
+  const nuked = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-nuke.png` });
+  const label2 = await p.evaluate(() => document.querySelector('#boostBtn span').textContent);
+  await p.evaluate(() => { if (__gg.S.mode === 'play') { __gg.S.score = 0; __gg.finishGame(); } }); await p.waitForTimeout(300);
+  const ok = basic.shots === 1 && caught.weapon === 'twin' && twin.shots === 2 && spread.shots === 3 && pierce.beam && pierce.speed === 2 && blasts.blasts >= 2 && blasts.alive < pierce.alive && /Capsules/.test(leaflet) && label === 'NUKE' && label2 === 'SHIELD' && flying && nuked.alive < blasts.alive;
+  if (!ok) errs.push(tag + ' invader weapons: ' + JSON.stringify({ basic, caught, twin, spread, pierce, blasts, label, label2, flying, nuked }));
+  console.log(tag, { invader: { basic: basic.shots, caught: caught.weapon, twin: twin.shots, spread: spread.shots, pierce: pierce.beam, speed: pierce.speed, alive: [pierce.alive, blasts.alive, nuked.alive], label: [label, label2], end: await mode(p) } });
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();
 })();
