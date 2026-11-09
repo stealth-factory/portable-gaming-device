@@ -130,7 +130,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const blasts = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-blast.png` });
   await p.waitForTimeout(600);
   // Rapid keeps firing while Space is held down (no key repeat needed)
-  await p.evaluate(() => { __gg.runtime.debug.state().bunkers = []; __gg.S.boostT = 5; __gg.runtime.debug.arm('rapid'); });   // shield up: no walls to hide behind
+  await p.evaluate(() => { __gg.runtime.debug.clearWalls(); __gg.S.boostT = 5; __gg.runtime.debug.arm('rapid'); });   // shield up: no walls to hide behind
   await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 });
   await p.keyboard.down('Space'); await p.waitForTimeout(300);
   const rapid = await dbg(); await p.keyboard.up('Space');

@@ -445,6 +445,8 @@ const create: CreateGame = a => {
     blast: (x: number, y: number) => { caps.drop(x, y, 'twin', true); explode(caps.list[caps.list.length - 1]); },
     clash: (x: number, y: number) => clash(x, y),
     cannonY: () => cannonY(),
+    /** Knock every wall down (tests). */
+    clearWalls: () => walls.clear(),
     /** Drop a capsule straight above the barrel, low enough that its blast reaches you, but not yet catchable (tests). */
     target: (w: Drop = 'twin') => { caps.drop(Math.round(F.px) + 2, cannonY() - 17, w, true); },
   } };
