@@ -103,7 +103,7 @@ const IMAGES = [
     if (tk.x + 6 < mid - 3) k('keydown', 'ArrowLeft'); else if (tk.x + 6 > mid + 3) k('keydown', 'ArrowRight');
     else { k('keydown', 'Space'); k('keyup', 'Space'); }
   }, 30); });
-  await p.waitForTimeout(4000);
+  await p.waitForTimeout(7500);
   await p.keyboard.press('Shift');
   await until(() => { const F = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && F.ufo && F.ufo.x > __gg.LW * 0.35 && F.ufo.x < __gg.LW * 0.65; }, 20000).catch(() => {});
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await shot('play-iinvade.png');

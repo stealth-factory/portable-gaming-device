@@ -6,7 +6,7 @@ Notes for anyone (human or agent) working in this repo. Read this before changin
 
 **Game Guy 3000 Deluxe** (Game Guy for short) is a browser game console: one old CRT monitor that boots, shows a game loader, and runs several games. It starts as a copy of [Tunnel Raider](https://github.com/wiiiimm/tunnel-raider), which is still its own repo and site (`tunnel-raider.wiiiimm.codes`); changes made here do not flow back to it.
 
-Requirements 1 to 9 below are built: the console boots into a disk menu with three games, Tunnel Raider, Dino Run and Invader Force, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
+Requirements 1 to 10 below are built: the console boots into a disk menu with four games, Tunnel Raider, Dino Run, Invader Force and I Invade, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
 
 ## Requirements (from the owner)
 
@@ -70,6 +70,13 @@ Requirements 1 to 9 below are built: the console boots into a disk menu with thr
 - Original aliens (jelly, beetle, drone), cannon, saucer, sounds and code. Never reproduce Taito's invader sprites, the 👾 emoji's artwork, or any open-source remake's code or assets.
 - BOOST is a short SHIELD that blocks bombs, then recharges; taps on the screen fire (`tap: true` on the disk).
 
+### 10. I Invade
+
+- The fourth disk: Invader Force role-reversed. The player steers the whole alien fleet (55 ships, no spare fleet) and bombs from the bay, the column nearest the fleet's middle. Pushing into a side drops a row, but the next drop needs the other side.
+- The earthlings start with one tank with three lives, then send teams (`TEAM` in `game.ts`: up to three, then six), each tank with three lives, and get quicker to dodge and shoot.
+- Things to rain down: BOMB (FIRE, taps), a cluster bomb (up), a UFO strike (BOOST) and a meteor shower (down, charged by hits).
+- It reuses Invader Force's original sprites from `../invader-force/art`; the same never-copy rules apply. Gameplay scoped and tuned with an autopilot test (wave 1 in about 20 s for a perfect bot; a do-nothing fleet is repelled).
+
 ## Stack (decided)
 
 **Astro + React components + a plain TypeScript console engine on Canvas 2D.** No game engine: the picture comes from the console's own four-colour quantiser and phosphor pass, which an engine's renderer would fight.
@@ -101,7 +108,7 @@ Requirements 1 to 9 below are built: the console boots into a disk menu with thr
 | `src/console/pwa.ts` | Install button, offline-ready and update prompts |
 | `src/games/types.ts` | The plug-in contract: `GameDisk`, `GameRuntime`, `ConsoleAPI` |
 | `src/games/registry.ts` | Finds `*/disk.ts` (eager) and `*/game.ts` (lazy) |
-| `src/games/tunnel-raider/`, `dino-run/`, `invader-force/` | The three games (`disk.ts`, `game.ts`, plus helpers) |
+| `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/` | The four games (`disk.ts`, `game.ts`, plus helpers) |
 | `public/` | Icons, favicon, share images (`og-image.png`, `og-<slug>.png` per game) |
 | `tools/share-images/` | `make.cjs` captures the console and renders the share images and `docs/screens/`; `share.css` is their layout |
 
@@ -140,4 +147,4 @@ Useful places:
 ## Open questions
 
 - The site address for the console. Then set `site` in `astro.config.mjs`, absolute share-image URLs and a canonical link in `ConsoleLayout.astro`.
-- Which games join after Invader Force.
+- Which games join after I Invade.
