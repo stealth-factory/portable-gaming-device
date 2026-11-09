@@ -3,9 +3,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
-  EMBER, baseSpeed, batSigned, batWidth, breakableCount, buildWall, clampTravel, columnCount,
-  emptyFraction, fittedRows, quotas, resolveBat, resolveBrick, rowCountForHeight, travelDegrees,
-  velocityFromSigned, wallCleared, waveSpeed,
+  BEND_PX, DROP_CHANCE, EMBER, FAST_MUL, NARROW_MUL, SEAR_HITS, SLOW_MUL, WIDE_MUL,
+  applyCatch, applySear, baseSpeed, batSigned, batTopAt, batWidth, batWidthWith, bendIntent,
+  breakableCount, brickReleasesDrop, buildWall, clampTravel, columnCount, easeBend, emptyFraction,
+  fittedRows, loseEmberMods, pacedSpeed, pickDrop, quotas, resolveBat, resolveBrick, rowCountForHeight,
+  travelDegrees, velocityFromSigned, wallCleared, waveSpeed,
 } from '../../src/games/bricks/rules';
 import type { Cell } from '../../src/games/bricks/rules';
 
@@ -225,6 +227,122 @@ describe('the court', () => {
     expect(waveSpeed(1, 49, 100)).toBeCloseTo(130 * 1.08, 5);
     expect(waveSpeed(1, 24, 100)).toBeCloseTo(130 * 1.12, 5);
     expect(waveSpeed(30, 10, 100)).toBe(220);
+  });
+});
+
+describe('the bow', () => {
+  it('leaves a flat bat on the old angles', () => {
+    expect(batSigned(50, 50, 72, 0, 1, 0)).toBe(18);
+    expect(batSigned(86, 50, 72, 0, 1)).toBe(batSigned(86, 50, 72, 0, 1, 0));
+  });
+
+  it('steers off the slope of the curve, and a centre hit stays put', () => {
+    const flat = batSigned(86, 50, 72, 0, 1, 0);
+    const hill = batSigned(86, 50, 72, 0, 1, BEND_PX);
+    const valley = batSigned(86, 50, 72, 0, 1, -BEND_PX);
+    expect(hill).toBeGreaterThan(flat);
+    expect(valley).toBeLessThan(flat);
+    expect(hill).toBeLessThanOrEqual(72);
+    expect(batSigned(50, 50, 72, 0, 1, BEND_PX)).toBe(18);
+    expect(batSigned(50, 50, 72, 0, -1, -BEND_PX)).toBe(-18);
+  });
+
+  it('lifts only the middle', () => {
+    expect(batTopAt(200, 0, BEND_PX)).toBe(200 - BEND_PX);
+    expect(batTopAt(200, 1, BEND_PX)).toBe(200);
+    expect(batTopAt(200, -1, -BEND_PX)).toBe(200);
+    expect(batTopAt(200, 0, -BEND_PX)).toBe(200 + BEND_PX);
+  });
+
+  it('reads up and down from the stick or the keys, and eases back instead of snapping', () => {
+    expect(bendIntent('up', [])).toBe(1);
+    expect(bendIntent('down', [])).toBe(-1);
+    expect(bendIntent('left', [])).toBe(0);
+    expect(bendIntent('right', ['up'])).toBe(1);
+    expect(bendIntent('down', ['up'])).toBe(-1);
+    expect(bendIntent(null, ['left', 'down'])).toBe(-1);
+    expect(bendIntent(null, [])).toBe(0);
+    const step = easeBend(1, 0, 1 / 60);
+    expect(step).toBeLessThan(1);
+    expect(step).toBeGreaterThan(0.5);
+    let bend = 1;
+    for (let i = 0; i < 90; i++) bend = easeBend(bend, 0, 1 / 60);
+    expect(bend).toBe(0);
+  });
+
+  it('still catches an ember on the raised middle', () => {
+    const bat = { x: 100, y: 200, w: 72 };
+    const flat = resolveBat({ x: 134, y: 193, vx: 0, vy: 40 }, bat, 0, 1, 130, 0);
+    const raised = resolveBat({ x: 134, y: 193, vx: 0, vy: 40 }, bat, 0, 1, 130, BEND_PX);
+    expect(flat.kind).toBe('miss');
+    expect(raised.kind).toBe('bounce');
+    if (raised.kind !== 'bounce') return;
+    expect(raised.y).toBe(bat.y - BEND_PX - 6);
+  });
+});
+
+describe('falling capsules', () => {
+  it('releases one from a broken brick, and never from an anvil or a crack', () => {
+    for (const kind of ['clay', 'kiln', 'glass', 'cinder'] as const) {
+      expect(brickReleasesDrop(kind, true, 0)).toBe(true);
+      expect(brickReleasesDrop(kind, true, DROP_CHANCE)).toBe(false);
+      expect(brickReleasesDrop(kind, false, 0)).toBe(false);
+    }
+    expect(brickReleasesDrop('anvil', true, 0)).toBe(false);
+    expect(brickReleasesDrop('clay', true, 0, 4)).toBe(false);
+    expect(pickDrop(0)).toBe('broad');
+    expect(pickDrop(0.99)).toBe('sear');
+  });
+
+  it('replaces size with size and speed with speed, and clears both when the ember is missed', () => {
+    let got = applyCatch(null, null, 0, 'broad');
+    expect(got.size).toBe('broad');
+    expect(batWidthWith(72, got.size)).toBe(Math.round(72 * WIDE_MUL));
+    got = applyCatch(got.size, got.pace, got.sear, 'slim');
+    expect(got.size).toBe('slim');
+    expect(batWidthWith(72, got.size)).toBe(Math.round(72 * NARROW_MUL));
+    got = applyCatch(got.size, got.pace, got.sear, 'flare');
+    expect(got).toMatchObject({ size: 'slim', pace: 'flare' });
+    expect(pacedSpeed(130, got.pace)).toBeCloseTo(130 * FAST_MUL, 5);
+    got = applyCatch(got.size, got.pace, got.sear, 'damp');
+    expect(got.pace).toBe('damp');
+    expect(pacedSpeed(130, got.pace)).toBeCloseTo(130 * SLOW_MUL, 5);
+    got = applyCatch(got.size, got.pace, got.sear, 'sear');
+    expect(got.sear).toBe(SEAR_HITS);
+    expect(got.size).toBe('slim');
+    expect(loseEmberMods(got.size, got.pace, got.sear)).toEqual({ size: null, pace: null, sear: SEAR_HITS });
+  });
+
+  it('spends a Sear charge when the ember leaves, and not on an anvil, glass or a kiln crack', () => {
+    const clay = resolveBrick([{ kind: 'clay', hits: 0 }], 1, 0, 10, 40, 'top');
+    const through = applySear('clay', clay.cell == null, 3, { vx: 10, vy: 40 }, clay);
+    expect(through.bounced).toBe(false);
+    expect(through.vx).toBe(10);
+    expect(through.vy).toBe(40);
+    expect(through.charges).toBe(2);
+
+    const crack = resolveBrick([{ kind: 'kiln', hits: 0 }], 1, 0, 10, 40, 'top');
+    const stay = applySear('kiln', crack.cell == null, 2, { vx: 10, vy: 40 }, crack);
+    expect(crack.cell).toEqual({ kind: 'kiln', hits: 1 });
+    expect(stay.bounced).toBe(false);
+    expect(stay.charges).toBe(2);
+
+    const anvil = resolveBrick([{ kind: 'anvil', hits: 0 }], 1, 0, 10, 40, 'top');
+    const bounced = applySear('anvil', false, 3, { vx: 10, vy: 40 }, anvil);
+    expect(bounced.bounced).toBe(true);
+    expect(bounced.charges).toBe(3);
+    expect(bounced.vy).toBeLessThan(0);
+
+    const glass = resolveBrick([{ kind: 'glass', hits: 0 }], 1, 0, 40, -30, 'top');
+    const pane = applySear('glass', true, 3, { vx: 40, vy: -30 }, glass);
+    expect(pane.bounced).toBe(false);
+    expect(pane.charges).toBe(3);
+    expect(pane.vx).toBe(40);
+    expect(pane.vy).toBe(-30);
+
+    const plain = applySear('clay', true, 0, { vx: 10, vy: 40 }, clay);
+    expect(plain.bounced).toBe(true);
+    expect(plain.charges).toBe(0);
   });
 });
 

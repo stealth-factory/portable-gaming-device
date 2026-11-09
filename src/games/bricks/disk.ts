@@ -39,6 +39,7 @@ function drawLoad(a: ConsoleAPI, p: number, t: number) {
 const MANUAL: GameDisk['manual'] = [
   { h: 'howH', p: 'bHow' },
   { h: 'bBrickH', p: 'bBricks' },
+  { h: 'bDropH', p: 'bDrops' },
   { h: 'secScore', list: [
     { k: 'bClay', v: 'bClayV' }, { k: 'bKiln', v: 'bKilnV' }, { k: 'bGlass', v: 'bGlassV' },
     { k: 'bCinder', v: 'bCinderV' }, { k: 'bAnvil', v: 'bAnvilV' }, { k: 'bClear', v: 'bClearV' },

@@ -81,7 +81,7 @@ describe('a played wave', () => {
     const follow = (frame: number) => {
       const s = runtime.debug!.state();
       held.length = 0;
-      const centre = s.px + 36;
+      const centre = s.px + s.bw / 2;
       const falling = s.served && s.vy > 0;
       const land = falling ? s.bx + 2 + s.vx * Math.max(0, (s.py - (s.by + 4)) / s.vy) : s.bx + 2;
       const mean = s.left.length
@@ -108,5 +108,53 @@ describe('a played wave', () => {
     }
     expect(kilnAtWave).toBeGreaterThan(0);
     expect(brokeKiln).toBe(true);
+  });
+
+  it('bows while up or down is held, slides only left and right, and eases back', () => {
+    const { S, runtime, held } = harness();
+    runtime.start();
+    S.mode = 'play';
+    const parked = runtime.debug!.state();
+    held.push('up');
+    for (let i = 0; i < 40; i++) runtime.update(1 / 60);
+    const up = runtime.debug!.state();
+    expect(up.bend).toBeGreaterThan(0.8);
+    expect(up.px).toBeCloseTo(parked.px, 1);
+    held.splice(0, held.length, 'down');
+    for (let i = 0; i < 40; i++) runtime.update(1 / 60);
+    expect(runtime.debug!.state().bend).toBeLessThan(-0.8);
+    held.length = 0;
+    const full = runtime.debug!.state().bend;
+    for (let i = 0; i < 8; i++) runtime.update(1 / 60);
+    const easing = runtime.debug!.state().bend;
+    expect(easing).toBeGreaterThan(full);
+    expect(easing).toBeLessThan(-0.15);
+    for (let i = 0; i < 90; i++) runtime.update(1 / 60);
+    expect(runtime.debug!.state().bend).toBe(0);
+    held.push('right');
+    runtime.update(1 / 60);
+    expect(runtime.debug!.state().px).toBeGreaterThan(parked.px);
+  });
+
+  it('catches a capsule and lets a new size replace the last', () => {
+    const { S, runtime } = harness();
+    runtime.start();
+    S.mode = 'play';
+    const base = runtime.debug!.state().bw;
+    runtime.debug!.drop('broad');
+    runtime.update(1 / 60);
+    const wide = runtime.debug!.state();
+    expect(wide.size).toBe('broad');
+    expect(wide.bw).toBe(Math.round(base * 1.5));
+    expect(wide.drops).toEqual([]);
+    runtime.debug!.drop('slim');
+    runtime.update(1 / 60);
+    const slim = runtime.debug!.state();
+    expect(slim.size).toBe('slim');
+    expect(slim.bw).toBe(Math.round(base * 0.6));
+    runtime.debug!.drop('sear');
+    runtime.update(1 / 60);
+    expect(runtime.debug!.state().sear).toBe(3);
+    expect(runtime.debug!.state().size).toBe('slim');
   });
 });

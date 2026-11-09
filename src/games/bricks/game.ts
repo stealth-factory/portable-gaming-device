@@ -1,14 +1,16 @@
 /* Bricks: one bat, one ember, a wall. Nothing in this file adds a second ember. */
 import type { ConsoleAPI, CreateGame } from '../types';
-import type { Fx, Round, Score } from '../../kit/play';
-import { clamp, consume, drawHud, horizontal, makeFx, makeRound, makeScore, play, pressed, sweep } from '../../kit/play';
-import { drawBat, drawBrick, drawEmber, BAT_MINI } from './art';
+import type { Fx, Pickups, Round, Score } from '../../kit/play';
+import { clamp, consume, drawHud, horizontal, makeFx, makePickups, makeRound, makeScore, play, pressed, sweep } from '../../kit/play';
+import { CAP_H, CAP_W, drawBat, drawBrick, drawDrop, drawEmber, BAT_MINI } from './art';
 import {
   BAT_BOTTOM, BAT_H, EMBER, SLOT_H, SLOT_W,
-  approachSide, bandX, baseSpeed, batSigned, batWidth, breakableCount, buildWall, clampTravel, columnCount,
-  fittedRows, isBreakable, resolveBat, resolveBrick, velocityFromSigned, wallCleared, waveSpeed,
+  applyCatch, applySear, approachSide, bandX, baseSpeed, batSigned, batT, batTopAt, batWidth, batWidthWith,
+  bendIntent, bendRise, breakableCount, brickReleasesDrop, buildWall, clampTravel, columnCount, easeBend,
+  fittedRows, isBreakable, loseEmberMods, pacedSpeed, pickDrop, resolveBat, resolveBrick, velocityFromSigned,
+  wallCleared, waveSpeed, DROP_LABEL, MAX_FALLING,
 } from './rules';
-import type { Brick, Cell, Side } from './rules';
+import type { Brick, Cell, DropKind, PaceMod, Side, SizeMod } from './rules';
 
 const BAT_SPEED = 210;
 
@@ -34,6 +36,15 @@ let speed = 130;
 let waveStart = 1;
 /** Set once a breakable goes this life, so a fresh serve is back at the wave's base speed. */
 let thinLive = false;
+/** −1 bowed down, +1 bowed up. Eases back to 0 when up and down are released. */
+let bend = 0;
+let size: SizeMod = null;
+let pace: PaceMod = null;
+let sear = 0;
+/** A kiln Sear has already cracked and is still passing through. */
+let slipping = -1;
+let dropRng: () => number = () => 0;
+let caps: Pickups<DropKind>;
 
 const CLEAR_JINGLE = { notes: [392, 523, 659], dur: 0.09, vol: 0.045, gap: 0.1 };
 const EXTRA_JINGLE = { notes: [523, 659, 784, 1046], dur: 0.08, vol: 0.045, gap: 0.08 };
@@ -42,8 +53,11 @@ const KILN_JINGLE = { notes: [330, 520], dur: 0.05, vol: 0.045, gap: 0.06 };
 function batTop() {
   return api.LH - BAT_BOTTOM - BAT_H;
 }
-function batW() {
-  return batWidth(api.LW, api.S.level);
+function liveBatW() {
+  return batWidthWith(batWidth(api.LW, api.S.level), size);
+}
+function rise() {
+  return bendRise(bend);
 }
 function slotOf(index: number) {
   const c = index % cols, r = Math.floor(index / cols);
@@ -55,14 +69,21 @@ function slotCentre(index: number) {
 }
 
 function glue() {
-  emberX = batX + batW() / 2 - EMBER / 2;
-  emberY = batTop() - 2 - EMBER;
+  const w = liveBatW();
+  emberX = batX + w / 2 - EMBER / 2;
+  const top = batTopAt(batTop(), batT(emberX + EMBER / 2, batX, w), rise());
+  emberY = top - 2 - EMBER;
   vx = 0;
   vy = 0;
 }
 
 function clampBat() {
-  batX = clamp(batX, 2, api.LW - 2 - batW());
+  batX = clamp(batX, 2, api.LW - 2 - liveBatW());
+}
+
+function emberSpeed() {
+  const wave = thinLive ? waveSpeed(api.S.level, breakableCount(cells), waveStart) : baseSpeed(api.S.level);
+  return pacedSpeed(wave, pace);
 }
 
 function build(wave: number) {
@@ -73,7 +94,9 @@ function build(wave: number) {
   cells = buildWall(wave, cols, rows, api.mulberry32(wave * 10007 + 17));
   waveStart = Math.max(1, breakableCount(cells));
   thinLive = false;
-  speed = baseSpeed(wave);
+  slipping = -1;
+  dropRng = api.mulberry32(wave * 10007 + 91);
+  speed = emberSpeed();
   served = false;
   clampBat();
   glue();
@@ -84,13 +107,15 @@ function moveBat(dt: number) {
   batDir = dir;
   if (dir !== 0) lastDir = dir;
   batX += dir * BAT_SPEED * dt;
+  bend = easeBend(bend, bendIntent(api.stickDir, api.held), dt);
   clampBat();
 }
 
 function serve() {
   consume(api, 'fire', true);
-  speed = thinLive ? waveSpeed(api.S.level, breakableCount(cells), waveStart) : baseSpeed(api.S.level);
-  const signed = batSigned(emberX + EMBER / 2, batX + batW() / 2, batW(), batDir, lastDir);
+  speed = emberSpeed();
+  const w = liveBatW();
+  const signed = batSigned(emberX + EMBER / 2, batX + w / 2, w, batDir, lastDir, rise());
   const v = velocityFromSigned(signed, speed);
   vx = v.vx;
   vy = v.vy;
@@ -101,13 +126,44 @@ function serve() {
 
 function noteRemoved() {
   thinLive = true;
-  const next = waveSpeed(api.S.level, breakableCount(cells), waveStart);
+  const next = emberSpeed();
   const hyp = Math.hypot(vx, vy);
   if (hyp > 0 && next > hyp + 0.01) {
     vx = vx / hyp * next;
     vy = vy / hyp * next;
   }
   if (next > speed) speed = next;
+}
+
+function maybeDrop(kind: Brick['kind'], removed: boolean, index: number) {
+  if (!brickReleasesDrop(kind, removed, dropRng(), caps.falling)) return;
+  const drop = pickDrop(dropRng());
+  const s = slotOf(index);
+  caps.drop(Math.round(s.x + (SLOT_W - CAP_W) / 2), Math.round(s.y + SLOT_H), drop);
+}
+
+function grant(kind: DropKind) {
+  const prev = liveBatW();
+  const centre = batX + prev / 2;
+  const next = applyCatch(size, pace, sear, kind);
+  const paceChanged = next.pace !== pace;
+  size = next.size;
+  pace = next.pace;
+  sear = next.sear;
+  batX = centre - liveBatW() / 2;
+  clampBat();
+  if (!served) glue();
+  if (served && paceChanged) {
+    const nextSpeed = emberSpeed();
+    const hyp = Math.hypot(vx, vy);
+    if (hyp > 0) {
+      vx = vx / hyp * nextSpeed;
+      vy = vy / hyp * nextSpeed;
+    }
+    speed = nextSpeed;
+  }
+  fx.pop(DROP_LABEL[kind], batX + liveBatW() / 2, batTop() - 12, { role: 'gold' });
+  api.tone(740, 0.05, 0.045, 120);
 }
 
 function maybeClear() {
@@ -122,6 +178,11 @@ function maybeClear() {
 
 function miss() {
   if (api.S.mode !== 'play') return;
+  const lost = loseEmberMods(size, pace, sear);
+  size = lost.size;
+  pace = lost.pace;
+  sear = lost.sear;
+  slipping = -1;
   served = false;
   api.tone(220, 0.25, 0.05, -180);
   api.track('life_lost', { game: 'bricks', level: api.S.level });
@@ -179,6 +240,7 @@ function hitBrick(index: number, fromX: number, fromY: number) {
     const c = slotCentre(hit.clay);
     cells[hit.clay] = null;
     score.add(10, c.x, c.y);
+    maybeDrop('clay', true, hit.clay);
   }
   if (hit.bounced) {
     vx = hit.vx;
@@ -188,6 +250,34 @@ function hitBrick(index: number, fromX: number, fromY: number) {
   }
   soundFor(before, hit.cell == null);
   if (isBreakable(before) && (hit.cell == null || hit.clay >= 0)) noteRemoved();
+  maybeDrop(before.kind, hit.cell == null, index);
+  maybeClear();
+}
+
+/** Sear: the ember keeps going. A charge is spent only when the brick is gone. */
+function strikeThrough(index: number) {
+  const before = cells[index];
+  if (!before) return;
+  const slot = slotOf(index);
+  const side = approachSide(emberX, emberY, slot, vx, vy);
+  const hit = resolveBrick(cells, cols, index, vx, vy, side);
+  const removed = hit.cell == null;
+  const powered = applySear(before.kind, removed, sear, { vx, vy }, hit);
+  cells[index] = hit.cell;
+  sear = powered.charges;
+  vx = powered.vx;
+  vy = powered.vy;
+  const at = slotCentre(index);
+  if (hit.points) score.add(hit.points, at.x, at.y);
+  if (hit.clay >= 0 && cells[hit.clay]?.kind === 'clay') {
+    const c = slotCentre(hit.clay);
+    cells[hit.clay] = null;
+    score.add(10, c.x, c.y);
+    maybeDrop('clay', true, hit.clay);
+  }
+  soundFor(before, removed);
+  if (isBreakable(before) && (removed || hit.clay >= 0)) noteRemoved();
+  if (removed) maybeDrop(before.kind, true, index);
   maybeClear();
 }
 
@@ -200,12 +290,16 @@ function breakGlass(index: number) {
   score.add(hit.points, at.x, at.y);
   soundFor(before, true);
   noteRemoved();
+  maybeDrop('glass', true, index);
   maybeClear();
 }
 
+function batBody() {
+  return { x: batX, y: batTop(), w: liveBatW() };
+}
+
 function hitBat(x: number, y: number) {
-  const bat = { x: batX, y: batTop(), w: batW() };
-  const hit = resolveBat({ x, y, vx, vy }, bat, batDir, lastDir, speed);
+  const hit = resolveBat({ x, y, vx, vy }, batBody(), batDir, lastDir, speed, rise());
   if (hit.kind === 'miss') return;
   emberX = hit.x;
   emberY = hit.y;
@@ -237,13 +331,24 @@ function fly(dt: number) {
     const x0 = emberX, y0 = emberY;
     const end = sweep({ x: emberX, y: emberY }, dx, dy, 2, (x, y) => {
       const idx = brickAt(x, y);
+      if (idx >= 0 && idx === slipping) {
+        const slot = slotOf(idx);
+        const still = x < slot.x + slot.w && x + EMBER > slot.x && y < slot.y + slot.h && y + EMBER > slot.y;
+        if (still) return false;
+        slipping = -1;
+      }
       if (idx >= 0 && cells[idx]?.kind === 'glass') {
         breakGlass(idx);
         return api.S.mode !== 'play';
       }
+      if (idx >= 0 && cells[idx] && cells[idx].kind !== 'anvil' && sear > 0) {
+        strikeThrough(idx);
+        if (cells[idx]) slipping = idx;
+        return api.S.mode !== 'play';
+      }
       if (idx >= 0) return true;
       if (outside(x, y)) return true;
-      const bat = resolveBat({ x, y, vx, vy }, { x: batX, y: batTop(), w: batW() }, batDir, lastDir, speed);
+      const bat = resolveBat({ x, y, vx, vy }, batBody(), batDir, lastDir, speed, rise());
       return bat.kind !== 'miss';
     });
     if (api.S.mode !== 'play') return;
@@ -256,7 +361,7 @@ function fly(dt: number) {
     }
     const idx = brickAt(end.x, end.y);
     if (idx >= 0) hitBrick(idx, x0, y0);
-    else if (resolveBat({ x: end.x, y: end.y, vx, vy }, { x: batX, y: batTop(), w: batW() }, batDir, lastDir, speed).kind !== 'miss') hitBat(end.x, end.y);
+    else if (resolveBat({ x: end.x, y: end.y, vx, vy }, batBody(), batDir, lastDir, speed, rise()).kind !== 'miss') hitBat(end.x, end.y);
     else hitWall(end.x, end.y);
     remain -= seg;
     if (emberY > api.LH) { miss(); return; }
@@ -272,6 +377,12 @@ function start() {
   fx.clear();
   lastDir = 1;
   batDir = 0;
+  bend = 0;
+  size = null;
+  pace = null;
+  sear = 0;
+  slipping = -1;
+  caps.clear();
   batX = (api.LW - batWidth(api.LW, 1)) / 2;
   build(1);
 }
@@ -282,6 +393,14 @@ function update(dt: number) {
   const mode = api.S.mode;
   if (mode === 'ready' || mode === 'play') moveBat(dt);
   if (!served && (mode === 'ready' || mode === 'play')) glue();
+  if (mode === 'ready' || mode === 'play' || mode === 'dying' || mode === 'clear') {
+    const canCatch = mode === 'ready' || mode === 'play';
+    const w = liveBatW();
+    const lifted = Math.max(0, rise());
+    const dipped = Math.max(0, -rise());
+    const caught = caps.update(dt, canCatch ? { x: batX, y: batTop() - lifted, w, h: BAT_H + lifted + dipped } : null);
+    for (const kind of caught) grant(kind);
+  }
   if (!playing) return;
   if (!served) {
     if (pressed(api, 'fire', true)) serve();
@@ -306,7 +425,8 @@ function draw() {
     const c = i % cols, r = Math.floor(i / cols);
     drawBrick(api, brick, ox + c * SLOT_W, oy + r * SLOT_H);
   }
-  drawBat(api, batX, batTop(), batW());
+  caps.draw();
+  drawBat(api, batX, batTop(), liveBatW(), rise());
   if (emberY < LH) drawEmber(api, emberX, emberY);
   fx.draw();
   drawHud(api, { right: 'WAVE ' + S.level, lives: { art: BAT_MINI, role: 'cart', spare: true, max: 5 } });
@@ -324,11 +444,18 @@ const create: CreateGame = a => {
   api = a;
   fx = makeFx(a);
   score = makeScore(a, { extraEvery: 2000, maxLives: 6, fx, onExtra: () => play(a, EXTRA_JINGLE) });
+  caps = makePickups(a, {
+    size: { w: CAP_W, h: CAP_H },
+    speed: 72,
+    max: MAX_FALLING,
+    draw: (kind, x, y) => drawDrop(a, kind, x, y),
+  });
   round = makeRound(a, {
     respawn() {
       served = false;
       thinLive = false;
-      speed = baseSpeed(a.S.level);
+      slipping = -1;
+      speed = emberSpeed();
       glue();
     },
     nextLevel() { build(a.S.level); },
@@ -342,12 +469,20 @@ const create: CreateGame = a => {
         bx: emberX, by: emberY,
         vx: served ? vx : 0, vy: served ? vy : 0,
         px: batX, py: batTop(),
+        bw: liveBatW(),
+        bend,
+        size, pace, sear,
         bricks: breakableCount(cells),
         lives: a.S.lives,
         wave: a.S.level,
         kinds: kinds(),
+        drops: caps.list.map(p => ({ kind: p.kind, x: p.x, y: p.y })),
         left: cells.flatMap((cell, i) => cell && isBreakable(cell) ? [{ c: i % cols, r: Math.floor(i / cols), kind: cell.kind, hits: cell.hits }] : []),
       }),
+      /** Hang a capsule just above the bat so the next frame can catch it. */
+      drop: (kind: DropKind) => {
+        caps.drop(Math.round(batX + liveBatW() / 2 - CAP_W / 2), Math.round(batTop() - CAP_H - 1), kind, true);
+      },
     },
   };
 };

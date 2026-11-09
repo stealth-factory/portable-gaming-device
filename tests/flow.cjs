@@ -1,5 +1,6 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
-// plus Invader Force's weapon capsules, speed boost and blasts, and I Invade's button pad and weapons.
+// plus Invader Force's weapon capsules, speed boost and blasts, I Invade's button pad and weapons,
+// and Bricks' Enter serve, bowed bat and falling capsules.
 // Then every disk on the menu (future games included): choose it with the menu's keys or a tap,
 // play, HOLD when the tab is hidden, game over, name entry or the table, G back to the menu.
 const { chromium, devices } = require('playwright');
@@ -95,6 +96,48 @@ async function playEveryDisk(p, tag){
       const serveOk = before.mode === 'play' && before.served === false && before.vx === 0 && before.vy === 0 && after.served === true && (after.vx !== 0 || after.vy !== 0);
       if (!serveOk) errs.push(tag + ' bricks enter serve: ' + JSON.stringify({ before, after }));
       console.log(tag, 'bricks enter serve', { before, after });
+      const base = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { bw: s.bw, px: s.px }; });
+      await p.keyboard.down('ArrowUp');
+      const bowed = await p.waitForFunction(() => __gg.runtime.debug.state().bend > 0.7, null, { timeout: 1500 }).then(() => true, () => false);
+      const up = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { bend: s.bend, px: s.px }; });
+      await p.keyboard.up('ArrowUp');
+      await p.keyboard.down('ArrowDown');
+      const flipped = await p.waitForFunction(() => __gg.runtime.debug.state().bend < -0.7, null, { timeout: 1500 }).then(() => true, () => false);
+      await p.keyboard.up('ArrowDown');
+      const eased = await p.waitForFunction(() => Math.abs(__gg.runtime.debug.state().bend) < 0.2, null, { timeout: 1500 }).then(() => true, () => false);
+      const bowOk = bowed && flipped && eased && up.bend > 0.7 && Math.abs(up.px - base.px) < 2;
+      if (!bowOk) errs.push(tag + ' bricks bow: ' + JSON.stringify({ base, up, bowed, flipped, eased }));
+      console.log(tag, 'bricks bow', { base, up, bowed, flipped, eased });
+      const caught = await p.evaluate(async () => {
+        const dbg = __gg.runtime.debug;
+        const baseW = dbg.state().bw;
+        const take = (kind) => new Promise(resolve => {
+          dbg.drop(kind);
+          const t0 = performance.now();
+          const step = () => {
+            const s = dbg.state();
+            if (s.size === kind || s.pace === kind || (kind === 'sear' && s.sear === 3) || performance.now() - t0 > 1500) resolve(s);
+            else requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        });
+        const wide = await take('broad');
+        const slim = await take('slim');
+        const fast = await take('flare');
+        const slow = await take('damp');
+        const sear = await take('sear');
+        return { baseW, wide, slim, fast, slow, sear, boost: document.querySelector('#boostBtn')?.getAttribute('aria-disabled'), leaflet: document.querySelector('#manual')?.textContent || '' };
+      });
+      const dropOk = caught.wide.size === 'broad' && caught.wide.bw === Math.round(caught.baseW * 1.5)
+        && caught.slim.size === 'slim' && caught.slim.bw === Math.round(base.bw * 0.6)
+        && caught.fast.pace === 'flare' && caught.slow.pace === 'damp' && caught.slow.size === 'slim'
+        && caught.sear.sear === 3 && caught.boost === 'true'
+        && caught.leaflet.includes('Broad') && /bow/i.test(caught.leaflet);
+      if (!dropOk) errs.push(tag + ' bricks drops: ' + JSON.stringify({
+        base: base.bw, wide: { size: caught.wide.size, bw: caught.wide.bw }, slim: { size: caught.slim.size, bw: caught.slim.bw },
+        pace: [caught.fast.pace, caught.slow.pace], sear: caught.sear.sear, boost: caught.boost,
+      }));
+      console.log(tag, 'bricks drops', { wide: caught.wide.bw, slim: caught.slim.bw, pace: caught.slow.pace, sear: caught.sear.sear, boost: caught.boost });
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
