@@ -124,45 +124,9 @@ public/                    icons, favicon, share image
 
 ### Adding a game
 
-Make a folder in `src/games/` with two files. Nothing else needs editing: the disk menu, its page (`/<slug>`), its instructions, its high-score table and the offline cache all pick it up.
+Make a folder in `src/games/` with a `disk.ts` (the label, loading screen and instructions) and a `game.ts` (the game, default export `create(api)`). Nothing else needs editing: the disk menu, its page (`/<slug>`), its instructions, its high-score table and the offline cache all pick it up.
 
-`disk.ts` is the label. It's small and loaded up front, so the menu and the loading screen can show while the game is fetched:
-
-```ts
-import type { ConsoleAPI, GameDisk } from '../types';
-
-export const disk: GameDisk = {
-  id: 'pong', order: 3, slug: 'paddle-ball',
-  page: { title: 'Paddle Ball', description: 'Bat the blip past the other paddle.' },
-  title: 'PADDLE BALL', nameKey: 'pbName', file: 'PADDLE.COM', size: 6144, loadSecs: 1.2,
-  steps: [[0, 0], [0.3, 0.4], [0.5, 0.45], [1, 1]],
-  blurb: 'BAT · BOUNCE · WIN', verb: 'PLAY', overKey: 'over', againKey: 'again',
-  buttons: { fire: { label: 'spark' }, boost: { label: 'boost', enabled: false } },   // no BOOST in this game: it stays dark
-  manual: [{ h: 'howH', p: 'pbHow' }],
-  strings: { en: { pbName: 'Paddle Ball', pbHow: '…' }, 'zh-hant': { … }, 'zh-hans': { … } },
-  drawLoad(api: ConsoleAPI, p: number, t: number){ api.txt('PADDLE BALL', api.LW / 2, 40, 'text', 'center', 16); api.diskInfo(80, p, t, disk); },
-};
-```
-
-`game.ts` is the game. It's downloaded while the drive reads the disk, and gets everything from the `api` it's handed:
-
-```ts
-import type { CreateGame } from '../types';
-
-const create: CreateGame = api => ({
-  start(){ api.fitGrid(); api.S.score = 0; },
-  update(dt){ if (api.S.mode === 'ready' && (api.S.modeT -= dt) <= 0) api.S.mode = 'play'; /* … */ },
-  draw(){ api.g.fillStyle = api.col('text'); /* … */ },
-});
-export default create;
-```
-
-Rules (the unit tests check them):
-- **No console imports:** a game never imports from `src/console`; everything comes through `ConsoleAPI`.
-- **No side effects:** loading a game's modules must not do anything (no canvases or listeners at the top level); do that in `create()`.
-- **Loads within 5 seconds:** `loadSecs` is 5 or less, and different from every other game's.
-- **Three languages:** the name and instructions come in `en`, `zh-hant` and `zh-hans`.
-- **Original work:** characters, art and sound are your own, even for a tribute.
+**[Making a game disk](src/games/README.md)** has the rest: every file a game needs in its folder and outside it, the artwork and images (sprites, loading screen, share image, screenshots and the launcher cover), the strings in three languages, the tests, the plug-in rules and a minimal example.
 
 ### Share images and screenshots
 
