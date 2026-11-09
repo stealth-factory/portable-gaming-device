@@ -65,7 +65,7 @@ export interface ConsoleAPI {
   /** The step to move in now (stick first, then the newest key), or null. */
   wantDir(): Step | null;
   /** Any action button by slot id: its label, whether it's live, and its press state. The set has 'fire' and 'boost', plus
-      'fireL' and 'fireR', extra fire keys either side of FIRE (Z and C) that appear only while the app maps them.
+      'fireL' and 'fireR', extra fire keys either side of FIRE (Z and V) that appear only while the app maps them.
       With all three showing, each is about 32 px wide on a small phone: give them labels of three letters or fewer. */
   button(id: string): ButtonState;
   /** Take a press off a slot once it's handled. */
