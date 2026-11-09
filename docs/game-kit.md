@@ -51,10 +51,13 @@ system built on it.
    `any` on `ConsoleAPI` today; the kit reads only the fields it owns
    (`score`, `level`, `lives`, `nextLife`, `mode`, `modeT`, `time`) through a
    small `SharedState` type of its own until WII-42 types `S` properly.
-5. **Input goes through the button-slot API** from PR #9 (`api.button(id)`,
-   `api.clearButton(id)`, `api.setButtons(patch)`). The kit adds convenience
-   on top of it, never a parallel mechanism, and it never assumes a fixed
-   number of buttons.
+5. **Buttons belong to the console core.** PR #9 puts button mapping in the
+   core: which slots exist, their keys, labels, enabled state, press and held
+   state, and later gamepad buttons. The kit owns none of that and adds no
+   parallel mechanism. It only reads what `api.button(id)` already exposes,
+   never assumes a fixed number of buttons, and anything a game needs that
+   isn't there goes into `ConsoleAPI` (the plug-in rule: add to the API, not
+   the import list).
 6. **No change in behaviour when a game migrates.** Same constants, same
    timings, same drawing. Behaviour changes are separate PRs.
 7. **Small.** Every game page downloads the kit while the drive "reads" the
@@ -294,23 +297,26 @@ export const pick = <T>(xs: readonly T[]) => T;
 export const blink = (time: number, hz: number) => boolean;    // Math.floor(time * hz) % 2 === 0, used everywhere
 ```
 
-### `controls.ts`: reading the buttons
+### `controls.ts`: reading the buttons (small, and optional)
 
-Thin helpers over the button-slot API from PR #9. Nothing here knows how many
-buttons the set has.
+Everything about the buttons themselves is the console core's (PR #9):
+slots, keys, labels, on/off, queued and held state, and the gamepad to come.
+This module holds only the two or three lines every game repeats when it
+reads that state, and the implementation PR may decide they are not worth a
+module at all.
 
 ```ts
 /** −1, 0 or 1 from the stick first, then the newest left/right key: the two lines every side-scroller writes. */
 export function horizontal(api: ConsoleAPI): -1 | 0 | 1;
-/** A press on a slot this frame, or a tap on the screen when `tap` is true. Does not clear it. */
+/** A press on a slot this frame, or a tap on the screen when `tap` is true. Reads `api.button(slot).queued`; does not clear it. */
 export function pressed(api: ConsoleAPI, slot: string, tap?: boolean): boolean;
-export function heldDown(api: ConsoleAPI, slot: string, tap?: boolean): boolean;
-/** Take the presses off the given slots (and taps) once handled. */
+/** Take the presses off the given slots (and taps) once handled, through `api.clearButton` / `api.clearTap`. */
 export function consume(api: ConsoleAPI, slots: string[], tap?: boolean): void;
 ```
 
-Games keep reading `api.button('fire')` directly where that reads better. This
-module lands only after PR #9 merges, since it depends on `api.button`.
+If any of these turns out to be useful to the menu or the boot screen as
+well, it belongs in the core as part of `ConsoleAPI`, not here. This module
+lands only after PR #9 merges.
 
 ### `jingles.ts`: short tunes
 
@@ -355,8 +361,8 @@ and babysat to mergeable. No phase changes a game's behaviour.
 3. **Invader Force moves onto it**, including `pickups`; `weapons.ts` shrinks
    to the weapon rules. `tests/unit/invader-weapons.test.ts` splits between
    `tests/unit/kit/pickups.test.ts` and what remains.
-4. **`controls`**, once PR #9 is on `main`; both shooters and Dino Run take
-   `horizontal()`, `pressed()` and `consume()`.
+4. **`controls`**, once PR #9 is on `main`, if it still earns its place; both
+   shooters and Dino Run take `horizontal()`, `pressed()` and `consume()`.
 5. **Dino Run** takes `hud`, `round` and `jingles`. Tunnel Raider is left as it
    is unless the owner wants it moved.
 
@@ -390,7 +396,7 @@ first commit.
 | [WII-43](https://linear.app/stealth-company/issue/WII-43) haptics | `round.lose()`, `score.add()` on an extra life and `pickups.update()` on a catch are the three places to call `api.buzz()` once it exists. |
 | [WII-39](https://linear.app/stealth-company/issue/WII-39), [WII-40](https://linear.app/stealth-company/issue/WII-40) | Console only; no kit interaction. |
 | PR #3 weapon drops | Becomes the first `pickups` client (phase 3). |
-| PR #9 button slots | `controls` builds on it (phase 4). |
+| PR #9 button slots | Buttons stay in the core; the kit only reads `api.button()` (phase 4). |
 
 ## Open questions for the owner
 
