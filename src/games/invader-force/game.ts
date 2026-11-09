@@ -169,19 +169,21 @@ function arm(w: Drop){
     if (F.nuke) { addScore(500, F.px, cannonY() - 14); return; }   // only one at a time: a spare is worth 500
     F.nuke = true; api.setBoostLabel('nuke');
     [262, 330, 392, 523, 392, 523].forEach((f, i) => tone(f, 0.12, 0.05, 0, i * 0.09));
-    F.bursts.push({ x: Math.max(4, Math.min(api.LW - 60, F.px - 12)), y: cannonY() - 14, t: 1.2, text: 'NUKE READY' });
+    F.bursts.push({ x: Math.max(4, Math.min(api.LW - 60, F.px - 12)), y: labelY(), t: 1.2, text: 'NUKE READY' });
     return;
   }
   if (w === 'speed') {
     ({ level: F.speed, t: F.speedT } = stackSpeed(F.speed));
     [523, 659, 784, 1047, 1319].slice(0, 2 + F.speed).forEach((f, i) => tone(f, 0.05, 0.035, 0, i * 0.045));
-    F.bursts.push({ x: Math.max(4, Math.min(api.LW - 40, F.px - 6)), y: cannonY() - 14, t: 0.9, text: 'SPEED x' + F.speed });
+    F.bursts.push({ x: Math.max(4, Math.min(api.LW - 40, F.px - 6)), y: labelY(), t: 0.9, text: 'SPEED x' + F.speed });
     return;
   }
   F.weapon = w; F.weaponT = WEAPON_TIME; F.fireCd = 0;
   [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.07, 0.04, 0, i * 0.06));
-  F.bursts.push({ x: Math.max(4, Math.min(api.LW - 40, F.px - 6)), y: cannonY() - 14, t: 0.9, text: WEAPON_NAME[w] });
+  F.bursts.push({ x: Math.max(4, Math.min(api.LW - 40, F.px - 6)), y: labelY(), t: 0.9, text: WEAPON_NAME[w] });
 }
+/** Where a pickup's label goes: above the cannon, stacked over any label still showing. */
+function labelY(){ return cannonY() - 14 - 9 * F.bursts.filter(b => b.text && b.y > cannonY() - 60).length; }
 /** A bomb sets a capsule off: a wide blast that bites the walls, takes out aliens and bombs, and your
     cannon too unless the shield is up. Returns true if it cost you a life. */
 function explode(c: Capsule){
@@ -205,7 +207,7 @@ function flyMissile(dt: number){
   for (const a of F.aliens) {
     if (!a.alive) continue;
     const ax = F.ox + a.c * SX, ay = F.oy + a.r * SY;
-    if (m.x >= ax - 1 && m.x < ax + AW + 1 && m.y <= ay + AH && m.y + 7 >= ay) return detonate(m.x, m.y, a.r);
+    if (m.x >= ax - 3 && m.x < ax + AW + 3 && m.y <= ay + AH && m.y + 7 >= ay) return detonate(m.x, m.y, a.r);
   }
   if (m.y < api.HUD + 2) detonate(m.x, m.y, -1);
 }

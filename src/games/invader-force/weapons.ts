@@ -9,7 +9,7 @@ export const DROPS: Drop[] = ['twin', 'spread', 'rapid', 'pierce', 'speed'];
 export const NUKE_CHANCE = 0.004, SAUCER_NUKE = 0.12, NUKE_BLAST_R = 28;
 /** A nuke is a missile: it flies up (through walls and bombs) until it hits an alien or the saucer,
     then wipes out 3 or 4 whole rows around the point of impact, so it never empties a wave of 6 or more. */
-export const NUKE_MIN = 3, NUKE_MAX = 4, NUKE_SPEED = 150;
+export const NUKE_MIN = 3, NUKE_MAX = 4, NUKE_SPEED = 260;
 export const nukeDepth = (rand: number) => (rand < 0.5 ? 3 : 4);
 export const rollNuke = (rand: number, falling: number) => falling < MAX_CAPSULES && rand < NUKE_CHANCE;
 /** The rows a nuke wipes out: `depth` rows around the row it hit (one above it, the rest below,

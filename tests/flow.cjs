@@ -50,7 +50,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const caught = await dbg();
   await p.keyboard.press('Space'); await p.waitForTimeout(120);
   const twin = await dbg();
-  await p.evaluate(() => __gg.runtime.debug.arm('spread')); await p.waitForTimeout(500); await p.keyboard.press('Space'); await p.waitForTimeout(40);
+  await p.evaluate(() => __gg.runtime.debug.arm('spread')); await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 }); await p.keyboard.press('Space'); await p.waitForTimeout(40);
   const spread = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-spread.png` });
   await p.evaluate(() => { __gg.runtime.debug.arm('speed'); __gg.runtime.debug.arm('speed'); __gg.runtime.debug.arm('pierce'); }); await p.waitForTimeout(500);
   await p.keyboard.press('Space'); await p.waitForTimeout(60);
@@ -58,7 +58,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.evaluate(() => { const F = __gg.runtime.debug.state(); __gg.S.boostT = 1; __gg.runtime.debug.clash(F.ox + 20, F.oy + 50); __gg.runtime.debug.blast(F.ox + 40, F.oy + 40); }); await p.waitForTimeout(100);
   const blasts = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-blast.png` });
   await p.waitForTimeout(600);
-  await p.evaluate(() => __gg.runtime.debug.arm('nuke')); await p.waitForTimeout(200);
+  await p.evaluate(() => { const F = __gg.runtime.debug.state(), a = F.aliens.filter(q => q.alive).sort((p, q) => q.r - p.r)[0]; F.px = F.ox + a.c * 16 - 1; __gg.runtime.debug.arm('nuke'); }); await p.waitForTimeout(200);   // under a live alien
   const label = await p.evaluate(() => document.querySelector('#boostBtn span').textContent);
   await p.keyboard.press('Shift'); await p.waitForTimeout(200);
   const flying = await p.evaluate(() => !!__gg.runtime.debug.state().missile); await p.screenshot({ path: `${out}/${tag}-invader-missile.png` });
