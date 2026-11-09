@@ -30,7 +30,7 @@ const IMAGES = [
     tag: 'Hold the line against the marching formation. One shot at a time: make it count.',
     disks: disk('c3', 'Invader Force', 'INVFORCE.EXE', 40, -4, 2) + disk('c4', 'Tunnel Raider', 'TUNNEL.EXE', 190, 7, 1) },
   { out: 'og-i-invade.png', tv: 'play-iinvade.png', h1: 'I Invade', sub: '<small>on the Game Guy 3000 Deluxe</small>',
-    tag: 'Be the invaders for once. Steer the fleet, bomb the tanks, call in the UFO.',
+    tag: 'Be the invaders for once. Time the bomb bays, outlast the tanks, call in the UFO.',
     disks: disk('c1', 'I Invade', 'IINVADE.EXE', 40, -4, 2) + disk('c3', 'Invader Force', 'INVFORCE.EXE', 190, 7, 1) },
   { out: 'og-dino-run.png', tv: 'play-dino.png', h1: 'Dino Run', sub: '<small>on the Game Guy 3000 Deluxe</small>',
     tag: 'Jump the cacti, duck the pterosaurs, run as far as the desert goes.',
@@ -101,9 +101,10 @@ const IMAGES = [
       if (F.tanks.some(t => !t.out && t.downT <= 0 && Math.abs(t.x + 6.5 - F.bays[b].x) < 8)) { k('keydown', key); k('keyup', key); }
     }
   }, 30); });
-  await p.waitForTimeout(4000);
+  // the UFO starts half charged and ignores a call until it's full, so wait for the charge before calling it in
+  await until(() => __gg.S.mode === 'play' && __gg.S.boost >= 1, 20000);
   await p.keyboard.press('Shift');
-  await until(() => { const F = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && F.ufo && F.ufo.x > __gg.LW * 0.35 && F.ufo.x < __gg.LW * 0.65; }, 20000).catch(() => {});
+  await until(() => { const F = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && F.ufo && F.ufo.x > __gg.LW * 0.35 && F.ufo.x < __gg.LW * 0.65; }, 20000);   // no catch: a missed UFO fails the run
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await shot('play-iinvade.png');
   /* ---- 2. lay out and render the share images ---- */
   const r = await (await b.newContext({ viewport: { width: 1200, height: 630 } })).newPage();

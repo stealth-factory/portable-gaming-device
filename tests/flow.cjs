@@ -210,13 +210,17 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   // the high-score screens are the console's: the stick comes back
   await p.evaluate(() => { __gg.S.score = 0; __gg.finishGame(); }); await p.waitForTimeout(100);
   const overPad = await padView();
+  // off the playing screens the pad's keys are the console's again: C still changes the phosphor
+  const phos = () => p.evaluate(() => document.documentElement.style.getPropertyValue('--phos') + document.documentElement.style.getPropertyValue('--plastic'));
+  const phosBefore = await phos(); await p.keyboard.press('KeyC'); const phosC = (await phos()) !== phosBefore;
+  for (let i = 0; i < 12 && (await phos()) !== phosBefore; i++) await p.keyboard.press('KeyC');   // and back round to where it was
   await backToMenu(p);
   const backPad = await padView();
   const want = { menu: { pad: false, keys: '- - - - - -', stick: true, fire: true }, game: { pad: true, keys: '◀ ▲ ▶ CLUSTER METEORS -', stick: false, fire: false } };
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const iiOk = same(menuPad, want.menu) && same(gamePad, want.game) && same(backPad, want.menu) && !overPad.pad && overPad.stick && Object.values(bays).every(Boolean) && one && up && tapPad && !/^pad/.test(focus) && cluster && meteorsDark === 'true' && meteorsLit === 'false' && meteors === 18 && landed;
-  if (!iiOk) errs.push(tag + ' i invade pad: ' + JSON.stringify({ menuPad, gamePad, overPad, backPad, bays, one, up, tapPad, focus, cluster, meteorsDark, meteorsLit, meteors, landed }));
-  console.log(tag, JSON.stringify({ iinvade: { gamePad, bays, one, up, tapPad, cluster, meteors, landed, overPad: overPad.pad } }));
+  const iiOk = same(menuPad, want.menu) && same(gamePad, want.game) && same(backPad, want.menu) && !overPad.pad && overPad.stick && Object.values(bays).every(Boolean) && one && up && tapPad && !/^pad/.test(focus) && cluster && meteorsDark === 'true' && meteorsLit === 'false' && meteors === 18 && landed && phosC;
+  if (!iiOk) errs.push(tag + ' i invade pad: ' + JSON.stringify({ menuPad, gamePad, overPad, backPad, bays, one, up, tapPad, focus, cluster, meteorsDark, meteorsLit, meteors, landed, phosC }));
+  console.log(tag, JSON.stringify({ iinvade: { gamePad, bays, one, up, tapPad, cluster, meteors, landed, phosC, overPad: overPad.pad } }));
   await playEveryDisk(p, tag);
 }
 console.log(errs.join('\n') || 'no errors'); await b.close();

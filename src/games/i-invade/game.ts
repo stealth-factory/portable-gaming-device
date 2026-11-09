@@ -367,8 +367,26 @@ function update(dt: number){
 
   updateTanks(dt);
 
+  /* everything in flight moves in sub-steps of at most 3 px, so a fast shell on a tall tube can't skip an 8 px alien or a wall */
+  const fastest = Math.max(0, ...F.bombs.map(b => b.v), ...F.meteors.map(m => Math.hypot(m.vx, m.vy)), ...F.shells.map(s => s.v));
+  const steps = Math.min(12, Math.max(1, Math.ceil(fastest * dt / 3)));
+  for (let i = 0; i < steps; i++) flight(dt / steps);
+
+  /* how the wave ends */
+  const left = alive();
+  if (!left.length) return repelled();
+  const front = F.oy + Math.min(...left.map(a => a.r)) * SY;
+  if (front <= touchY()) {
+    F.landed = true;
+    for (const t of F.tanks) if (!t.out) { t.out = true; fx.burst(t.x, tankY(), 0.6, BLAST); }
+    return waveWon('touchdown', 500 + 20 * left.length);
+  }
+  if (F.tanks.every(t => t.out)) return waveWon('fallen', 20 * left.length);
+}
+function flight(dt: number){
+  const S = api.S, LW = api.LW;
   /* bombs and meteors rise to the earthlings */
-  const burstY = bunkerY() + PH + 5, spawn: Bomb[] = [];
+  const k = kH(), burstY = bunkerY() + PH + 5, spawn: Bomb[] = [];
   for (const b of F.bombs) {
     b.y -= b.v * dt;
     if (b.k === 'cluster' && b.y <= burstY) {   // bursts into three bomblets short of the walls
@@ -418,17 +436,6 @@ function update(dt: number){
   }
   F.shells = F.shells.filter(s => s.y <= api.LH);
   F.bombs = F.bombs.filter(b => b.y > 0);
-
-  /* how the wave ends */
-  const left = alive();
-  if (!left.length) return repelled();
-  const front = F.oy + Math.min(...left.map(a => a.r)) * SY;
-  if (front <= touchY()) {
-    F.landed = true;
-    for (const t of F.tanks) if (!t.out) { t.out = true; fx.burst(t.x, tankY(), 0.6, BLAST); }
-    return waveWon('touchdown', 500 + 20 * left.length);
-  }
-  if (F.tanks.every(t => t.out)) return waveWon('fallen', 20 * left.length);
 }
 function repelled(){
   const S = api.S;

@@ -267,7 +267,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') { toggleMute(); return; }
   if (e.code === 'KeyF') { setFull(!full); return; }
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyB') { if (Btn.press('boost') && S.mode !== 'play') Btn.clearQueued('boost'); e.preventDefault(); return; }
-  { const sl = Btn.slotForKey(e.code); if (sl) { Btn.press(sl.id); e.preventDefault(); return; } }   // any further slots
+  { const sl = Btn.slotForKey(e.code); if (sl && (!sl.optional || inGame())) { Btn.press(sl.id); e.preventDefault(); return; } }   // any further slots
   if (e.code === 'KeyC') { setMode(MODE_ORDER[(MODE_ORDER.indexOf(modeKey) + 1) % MODE_ORDER.length]); track('theme', { theme: modeKey, via: 'key' }); return; }
   if (e.code === 'Enter' && !tvOn) { ensureAudio(); powerOn(); e.preventDefault(); return; }
   if (e.code === 'Enter' && (S.mode === 'title' || S.mode === 'over')) { startGame(); e.preventDefault(); }
