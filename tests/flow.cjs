@@ -1,7 +1,7 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
 // plus Invader Force's weapon capsules, speed boost and blasts.
-// Then every disk on the menu (future games included): load → play → game over → name entry
-// or the table → G back to the menu.
+// Then every disk on the menu (future games included): choose it with the menu's keys or a tap,
+// play, game over, name entry or the table, G back to the menu.
 const { chromium, devices } = require('playwright');
 (async () => {
 const BASE = process.env.BASE || 'http://localhost:4173/', out = process.env.OUT || '/tmp/shots';
@@ -14,14 +14,39 @@ async function backToMenu(p){
   if (await mode(p) !== 'menu') await p.keyboard.press('g');
   await p.waitForFunction(() => __gg.S.mode === 'menu' && globalThis.__ggBus.get().manual === 'console' && document.querySelector('#manH')?.textContent === 'Operating Instructions', null, { timeout: 8000 });
 }
-// one pass per disk: boot is already done; load, play, qualify for the table, then G home
+// the row's place on the tube, in the same units drawMenu uses, so a tap lands on that disk
+function diskRow(i){
+  const LW = __gg.LW, LH = __gg.LH, n = __gg.DISKS.length;
+  const rowH = Math.max(18, Math.min(36, Math.floor((LH - 16 - 64 - 36) / n) - 6)), gap = rowH >= 30 ? 6 : 3;
+  const bw = Math.min(LW - 16, 300), x0 = Math.round(LW / 2 - bw / 2);
+  const block = 64 + n * (rowH + gap) + 36, top = Math.max(8, Math.round((LH - block) / 2));
+  const y = top + 60 + i * (rowH + gap);
+  return { x: (x0 + bw / 2) / LW, y: (y + rowH / 2) / LH };
+}
+// desk moves the highlight and presses Enter; a phone taps the row. Neither calls loadGame itself
+async function chooseDisk(p, tag, i){
+  if (tag === 'desk') {
+    const n = await p.evaluate(() => __gg.DISKS.length), sel = await p.evaluate(() => __gg.S.menuSel | 0);
+    for (let s = 0; s < (i - sel + n) % n; s++) await p.keyboard.press('ArrowDown');
+    const now = await p.evaluate(() => __gg.S.menuSel);
+    if (now !== i) { errs.push(tag + ' menu keys missed disk ' + i + ' (highlight ' + now + ')'); return false; }
+    await p.keyboard.press('Enter');
+    return true;
+  }
+  const box = await p.locator('#cv').boundingBox();
+  const pt = await p.evaluate(diskRow, i);
+  await p.mouse.click(box.x + pt.x * box.width, box.y + pt.y * box.height);
+  return true;
+}
+// one pass per disk: boot is already done; choose it on the menu, play, qualify for the table, then G home
 async function playEveryDisk(p, tag){
   await backToMenu(p);
   const disks = await p.evaluate(() => __gg.DISKS.map(d => d.id));
   for (const id of REQUIRED) if (!disks.includes(id)) errs.push(tag + ' menu missing ' + id);
   for (let i = 0; i < disks.length; i++) {
     const id = disks[i];
-    await p.evaluate(i => __gg.loadGame(i), i);
+    if (!await chooseDisk(p, tag, i)) { console.log(tag, 'disk', id, { pick: 'missed' }); continue; }
+    await p.waitForFunction(id => (__gg.S.mode === 'load' || __gg.S.mode === 'ready' || __gg.S.mode === 'play') && __gg.game && __gg.game.id === id, id, { timeout: 4000 });
     await p.waitForFunction(id => __gg.S.mode === 'play' && __gg.game && __gg.game.id === id && globalThis.__ggBus.get().manual === id && (document.querySelector('#manH')?.textContent || '') !== 'Operating Instructions', id, { timeout: 12000 });
     await p.keyboard.press('Space'); await p.waitForTimeout(200);
     await p.screenshot({ path: `${out}/${tag}-every-${id}.png` });
