@@ -1,12 +1,14 @@
 /* I Invade's disk: its label, loading screen and instructions. */
 import type { ConsoleAPI, GameDisk } from '../types';
-import { useApi, sprite, CROWN, PUFFER, POD, TANK, UFO } from './art';
+import { drawSprite } from '../../kit/play/sprite';
+import type { Role, Sprite } from '../../kit/play/types';
+import { CROWN, PUFFER, POD, TANK, UFO } from './art';
 import { strings } from './strings';
 
 /* the loading screen: your fleet sinks towards the planet as the disk reads, the UFO crosses the sky,
    and a bomb falls from the bay onto the tanks patrolling below */
 function drawLoad(a: ConsoleAPI, p: number, t: number){
-  useApi(a);
+  const sprite = (art: Sprite, x: number, y: number, role: Role) => drawSprite(a, art, x, y, role);
   const { g, LW, LH, HUD, txt } = a;
   const top = HUD + Math.max(6, Math.round((LH - HUD - 150) / 3));
   txt('I INVADE', LW / 2, top, 'text', 'center', 16);

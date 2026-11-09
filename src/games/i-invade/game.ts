@@ -2,9 +2,12 @@
    Steer the formation, drop bombs from its bomb bay, and call in the UFO for a strike from above.
    The fleet, tanks, art, sound and code here are original. Everything is in low-res screen pixels. */
 import type { ConsoleAPI, CreateGame } from '../types';
-import { useApi, sprite, CROWN, PUFFER, POD, TANK, UFO, BLAST } from './art';
+import { makeFx, makeWalls, makeScore, makeRound, drawHud, drawSprite, horizontal, play, rnd } from '../../kit/play';
+import type { Fx, Walls, Score, Round, Jingle, Role, Sprite } from '../../kit/play';
+import { CROWN, PUFFER, POD, TANK, UFO, BLAST, PILLBOX, MINI } from './art';
 
-let api: ConsoleAPI;
+let api: ConsoleAPI, fx: Fx, walls: Walls, score: Score, round: Round;
+const sprite = (s: Sprite, x: number, y: number, role: Role) => drawSprite(api, s, x, y, role);
 
 const SX = 16, SY = 12, AW = 11, AH = 8;                 // formation spacing; alien size
 const ROWS = 4, FLEET_SPEED = 48, BOMB_SPEED = 150, SHOT_SPEED = 170;
@@ -12,26 +15,27 @@ const TW = 13, TH = 7;                                    // tank size
 const UFO_SPEED = 72, UFO_RECHARGE = 14, EXTRA_EVERY = 2000;
 const SPRITES = [CROWN, PUFFER, PUFFER, POD];
 const ROLES = ['rockjaw', 'borer', 'borer', 'grub'];
-const BW = 18, BH = 10;
+/* tunes */
+const EXTRA: Jingle = { notes: [523, 659, 784, 1047], dur: 0.08, vol: 0.05, gap: 0.07 };
+const LANDED: Jingle = { notes: [262, 330, 392, 523, 392, 523, 659], dur: 0.12, vol: 0.045, gap: 0.1 };
+const LOST: Jingle = { notes: [392, 330, 262, 196, 147], dur: 0.16, vol: 0.045, gap: 0.15, slide: -20 };
+const WON: Jingle = { notes: [392, 523, 659, 784, 1047], dur: 0.1, vol: 0.04, gap: 0.09 };
 
 type Alien = { c: number; r: number; alive: boolean };
 type Tank = { x: number; dir: number; goal: number; goalT: number; cool: number; out: boolean; dodge: boolean };
 type Shot = { x: number; y: number };
-type Bunker = { x: number; y: number; px: Uint8Array };
 
 const F = {
   aliens: [] as Alien[], cols: 9, ox: 0, oy: 0, dropT: 0, beatT: 0, frame: 0, note: 0,
   bomb: null as null | Shot,
-  tanks: [] as Tank[], shots: [] as Shot[], bunkers: [] as Bunker[],
+  tanks: [] as Tank[], shots: [] as Shot[],
   ufo: null as null | { x: number; dir: number; dropped: boolean }, heavy: null as null | Shot,
-  bursts: [] as { x: number; y: number; t: number; text?: string }[],
-  extra: EXTRA_EVERY, landed: false, wiped: false,
+  landed: false, wiped: false,
 };
 
 const groundY = () => api.LH - 5;
 const tankY = () => api.LH - 14;
 const bunkerY = () => tankY() - 26;
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const tone: ConsoleAPI['tone'] = (...a) => api.tone(...a);
 const alive = () => F.aliens.filter(a => a.alive);
 const tankPts = () => 100 + 50 * (api.S.level - 1);
@@ -70,48 +74,16 @@ function newWave(){
     const x = Math.round((LW - TW) * (i + 0.5) / n);
     F.tanks.push({ x, dir: i % 2 ? -1 : 1, goal: x, goalT: rnd(0.5, 1.5), cool: rnd(1.2, 2.4), out: false, dodge: false });
   }
-  const nb = LW >= 300 ? 4 : 3, gap = (LW - nb * BW) / (nb + 1);
-  F.bunkers = [];
-  for (let i = 0; i < nb; i++) {
-    const px = new Uint8Array(BW * BH);
-    for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {
-      const roof = y === 0 ? x > 2 && x < BW - 3 : y === 1 ? x > 0 && x < BW - 1 : true;   // a rounded pillbox
-      const slit = y === 3 && x >= 7 && x < 11;
-      px[y * BW + x] = roof && !slit ? 1 : 0;
-    }
-    F.bunkers.push({ x: Math.round(gap + i * (BW + gap)), y: bunkerY(), px });
-  }
-  F.ufo = null; F.heavy = null; F.bursts = []; F.landed = false;
+  walls.clear(); walls.row(LW >= 300 ? 4 : 3, bunkerY(), PILLBOX);
+  F.ufo = null; F.heavy = null; fx.clear(); F.landed = false;
 }
 
 function start(){
   api.fitGrid();
   const S = api.S;
-  S.score = 0; S.level = 1; S.lives = 3; S.charge = 1; S.boost = 1; S.boostT = 0;
-  F.extra = EXTRA_EVERY;
+  S.level = 1; S.lives = 3; S.charge = 1; S.boost = 1; S.boostT = 0;
+  score.reset();
   newWave();
-}
-
-function addScore(n: number, x?: number, y?: number){
-  const S = api.S;
-  S.score += n;
-  if (S.score > api.best) api.best = S.score;
-  if (S.score >= F.extra) { F.extra += EXTRA_EVERY; S.lives++; [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.08, 0.05, 0, i * 0.07)); }
-  if (x != null) F.bursts.push({ x, y: y!, t: 0.8, text: String(n) });
-}
-
-function bunkerHit(x: number, y: number, radius = 2){
-  for (const b of F.bunkers) {
-    const lx = Math.floor(x - b.x), ly = Math.floor(y - b.y);
-    if (lx < 0 || ly < 0 || lx >= BW || ly >= BH || !b.px[ly * BW + lx]) continue;
-    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
-      const xx = lx + dx, yy = ly + dy;
-      if (xx < 0 || yy < 0 || xx >= BW || yy >= BH) continue;
-      if (dx * dx + dy * dy <= radius * radius + 1 && Math.random() < 0.75) b.px[yy * BW + xx] = 0;
-    }
-    return true;
-  }
-  return false;
 }
 
 function hitTank(x: number, y: number){
@@ -121,33 +93,23 @@ function hitTank(x: number, y: number){
 }
 function blowUp(t: Tank){
   t.out = true;
-  addScore(tankPts(), t.x, tankY() - 10);
-  F.bursts.push({ x: t.x, y: tankY(), t: 0.5 });
+  score.add(tankPts(), t.x, tankY() - 10);
+  fx.burst(t.x, tankY(), 0.5, BLAST);
   tone(140, 0.3, 0.06, -90); tone(70, 0.4, 0.05, -30, 0.05);
 }
 
 function update(dt: number){
   const S = api.S, LW = api.LW;
-  for (const b of F.bursts) b.t -= dt;
-  F.bursts = F.bursts.filter(b => b.t > 0);
-  if (S.mode === 'ready') { if ((S.modeT -= dt) <= 0) S.mode = 'play'; api.clearFire(); api.clearTap(); api.clearBoost(); return; }
-  if (S.mode === 'clear') { if ((S.modeT -= dt) <= 0) { S.level++; newWave(); S.mode = 'ready'; S.modeT = 1.2; } return; }
-  if (S.mode === 'dying') {
-    if ((S.modeT -= dt) > 0) return;
-    if (S.lives > 0) { newFleet(); S.mode = 'ready'; S.modeT = 0.9; }
-    else api.finishGame();
-    return;
-  }
-  if (S.mode !== 'play') return;
+  fx.update(dt);
+  if (!round.tick(dt)) return;
   const sp = span();
   if (!sp) return;
 
   /* you steer the fleet left and right; FIRE drops a bomb from the bomb bay, one in the air at a time */
-  const sd = api.stickDir, keys = api.held.filter(d => d === 'left' || d === 'right');
-  const dir = sd === 'left' || sd === 'right' ? sd : keys[keys.length - 1];
+  const dir = horizontal(api);
   if (dir) {
     const lo = 4 - sp.minC * SX, hi = LW - 4 - AW - sp.maxC * SX;
-    F.ox = Math.max(lo, Math.min(hi, F.ox + (dir === 'left' ? -1 : 1) * FLEET_SPEED * dt));
+    F.ox = Math.max(lo, Math.min(hi, F.ox + dir * FLEET_SPEED * dt));
   }
   if ((api.fireQueued || api.tapQueued) && !F.bomb) {
     F.bomb = { x: Math.round(sp.bayX), y: sp.bayY };
@@ -180,13 +142,13 @@ function update(dt: number){
     const b = F.bomb; b.y += BOMB_SPEED * dt;
     const t = hitTank(b.x, b.y + 3);
     if (t) { blowUp(t); F.bomb = null; }
-    else if (bunkerHit(b.x, b.y + 3, 2)) { F.bomb = null; tone(180, 0.06, 0.03); }
-    else if (b.y + 3 >= groundY()) { F.bomb = null; F.bursts.push({ x: b.x - 6, y: groundY() - 6, t: 0.2 }); tone(90, 0.08, 0.03); }
+    else if (walls.bite(b.x, b.y + 3, 2)) { F.bomb = null; tone(180, 0.06, 0.03); }
+    else if (b.y + 3 >= groundY()) { F.bomb = null; fx.burst(b.x - 6, groundY() - 6, 0.2, BLAST); tone(90, 0.08, 0.03); }
   }
   /* the UFO's heavy bomb smashes through the walls */
   if (F.heavy) {
     const h = F.heavy; h.y += BOMB_SPEED * 1.2 * dt;
-    bunkerHit(h.x, h.y + 4, 3);
+    walls.bite(h.x, h.y + 4, 3);
     const t = hitTank(h.x, h.y + 4);
     if (t) { blowUp(t); F.heavy = null; }
     else if (h.y + 4 >= groundY()) F.heavy = null;
@@ -202,16 +164,16 @@ function update(dt: number){
     F.dropT = dropEvery(); F.oy += 6;
     for (const a of alive()) {   // the fleet chews through walls it sinks into
       const ax = F.ox + a.c * SX, ay = F.oy + a.r * SY;
-      if (ay + AH >= bunkerY()) for (let x = ax; x < ax + AW; x += 2) for (let y = ay; y < ay + AH; y += 2) bunkerHit(x, y, 1);
+      if (ay + AH >= bunkerY()) walls.chew({ x: ax, y: ay, w: AW, h: AH });
     }
   }
   /* touchdown: the fleet reaches the tanks' row, and the planet is yours */
   if (sp.bottom + 6 >= tankY()) {
     const left = alive().length;
-    F.landed = true; addScore(left * 20);
-    for (const t of F.tanks) if (!t.out) { t.out = true; F.bursts.push({ x: t.x, y: tankY(), t: 0.6 }); }
-    S.mode = 'clear'; S.modeT = 2.2;
-    [262, 330, 392, 523, 392, 523, 659].forEach((f, i) => tone(f, 0.12, 0.045, 0, i * 0.1));
+    F.landed = true; score.add(left * 20);
+    for (const t of F.tanks) if (!t.out) { t.out = true; fx.burst(t.x, tankY(), 0.6, BLAST); }
+    round.clear({ secs: 2.2 });
+    play(api, LANDED);
     api.track('touchdown', { level: S.level, aliens: left });
     return;
   }
@@ -246,13 +208,13 @@ function update(dt: number){
   for (const s of F.shots) {
     s.y -= SHOT_SPEED * dt;
     if (F.bomb && Math.abs(F.bomb.x - s.x) <= 1 && Math.abs(F.bomb.y - s.y) < 4) { F.bomb = null; s.y = -99; tone(1200, 0.04, 0.02); continue; }   // shot meets bomb
-    if (bunkerHit(s.x, s.y, 1)) { s.y = -99; continue; }
-    if (F.ufo && s.y < api.HUD + 9 && s.x >= F.ufo.x && s.x < F.ufo.x + 16) { F.bursts.push({ x: F.ufo.x, y: api.HUD + 2, t: 0.4 }); F.ufo = null; s.y = -99; tone(700, 0.3, 0.04, -600); continue; }
+    if (walls.bite(s.x, s.y, 1)) { s.y = -99; continue; }
+    if (F.ufo && s.y < api.HUD + 9 && s.x >= F.ufo.x && s.x < F.ufo.x + 16) { fx.burst(F.ufo.x, api.HUD + 2, 0.4, BLAST); F.ufo = null; s.y = -99; tone(700, 0.3, 0.04, -600); continue; }
     for (const a of F.aliens) {
       if (!a.alive) continue;
       const ax = F.ox + a.c * SX, ay = F.oy + a.r * SY;
       if (s.x >= ax && s.x < ax + AW && s.y <= ay + AH && s.y + 3 >= ay) {
-        a.alive = false; s.y = -99; F.bursts.push({ x: ax - 1, y: ay, t: 0.2 }); tone(240, 0.12, 0.04, -160);
+        a.alive = false; s.y = -99; fx.burst(ax - 1, ay, 0.2, BLAST); tone(240, 0.12, 0.04, -160);
         break;
       }
     }
@@ -261,35 +223,21 @@ function update(dt: number){
 
   /* every alien gone: that fleet is lost */
   if (!alive().length) {
-    F.wiped = true; S.lives--; S.mode = 'dying'; S.modeT = 1.6; F.bomb = null; F.shots = [];
-    [392, 330, 262, 196, 147].forEach((f, i) => tone(f, 0.16, 0.045, -20, i * 0.15));
+    F.wiped = true; round.lose({ secs: 1.6 }); F.bomb = null; F.shots = [];
+    play(api, LOST);
     return;
   }
   /* every tank gone: wave won */
   if (F.tanks.every(t => t.out)) {
-    S.mode = 'clear'; S.modeT = 1.8; F.shots = [];
-    [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.1, 0.04, 0, i * 0.09));
+    round.clear(); F.shots = [];
+    play(api, WON);
   }
 }
 
 /* ---------- drawing ---------- */
-const MINI = ['.#####.', '###.###', '#######', '.#.#.#.'];   // a spare fleet in the HUD
-function hud(){
-  const { g, LW, HUD, S, txt } = api;
-  g.fillStyle = api.col('bg'); g.fillRect(0, 0, LW, HUD);
-  txt(String(S.score).padStart(6, '0'), 6, 6, 'text');
-  if (LW >= 300) txt('HI ' + String(api.best).padStart(6, '0'), 80, 6, 'hud');
-  const wave = 'WAVE ' + S.level;
-  txt(wave, LW - 6, 6, 'hud', 'right');
-  const lives = Math.max(0, Math.min(5, S.lives - (S.mode === 'dying' ? 0 : 1)));
-  let x = LW - 12 - wave.length * 6 - lives * 10;
-  for (let i = 0; i < lives; i++, x += 10) sprite(MINI, x, 6, 'grub');
-  g.fillStyle = api.col('hud'); for (let i = 0; i < LW; i += 4) g.fillRect(i, HUD - 2, 2, 1);
-}
 function draw(){
   const { g, LW, S } = api;
-  g.fillStyle = api.col('gem');
-  for (const b of F.bunkers) for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) if (b.px[y * BW + x]) g.fillRect(b.x + x, b.y + y, 1, 1);
+  walls.draw('gem');
   // your fleet, with the bomb bay lit while a bomb is ready
   for (const a of F.aliens) if (a.alive) sprite(SPRITES[a.r][F.frame], F.ox + a.c * SX, F.oy + a.r * SY, ROLES[a.r]);
   const sp = span();
@@ -303,18 +251,18 @@ function draw(){
   for (const s of F.shots) g.fillRect(s.x, Math.round(s.y), 1, 3);
   for (const t of F.tanks) if (!t.out) sprite(TANK, t.x, tankY(), 'cart');
   g.fillStyle = api.col('hud'); g.fillRect(0, groundY(), LW, 1);
-  for (const b of F.bursts) {
-    if (b.text) api.txt(b.text, b.x, b.y, 'gold');
-    else sprite(BLAST, b.x, b.y, Math.floor(b.t * 12) % 2 ? 'spark' : 'gold');
-  }
-  hud();
+  fx.draw();
+  drawHud(api, { right: 'WAVE ' + S.level, lives: { art: MINI, role: 'grub' } });
   if (S.mode === 'ready') api.banner('WAVE ' + S.level, 'FIRE TO BOMB · BOOST FOR UFO');
   if (S.mode === 'clear') api.banner(F.landed ? 'TOUCHDOWN' : 'TANKS DESTROYED', F.landed ? 'THE PLANET IS YOURS' : '');
   if (S.mode === 'dying' && F.wiped) api.banner('FLEET LOST');
 }
 
 const create: CreateGame = a => {
-  api = a; useApi(a);
-  return { start, update, draw, debug: { state: () => F } };
+  api = a;
+  fx = makeFx(a); walls = makeWalls(a);
+  score = makeScore(a, { extraEvery: EXTRA_EVERY, fx, onExtra: () => play(a, EXTRA) });
+  round = makeRound(a, { respawn: newFleet, nextLevel: newWave, times: { ready: 1.2, respawn: 0.9, dying: 1.6, clear: 1.8 }, clearOnReady: ['fire', 'boost'] });
+  return { start, update, draw, debug: { state: () => ({ ...F, walls: walls.list, fx: fx.count, nextLife: score.nextLife }) } };
 };
 export default create;
