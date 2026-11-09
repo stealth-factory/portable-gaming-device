@@ -11,9 +11,11 @@ Notes for anyone (human or agent) working in this repo. Read this before changin
 - **Specs and plans** are Linear project documents or issue descriptions, never files in this repo.
 - The Linear GitHub integration is on: it links a PR to the issue named in its branch or title and comments the link back on the PR.
 
-**Everything is tracked there:** planned features, bugs, specs and the decisions waiting on the owner. Before starting anything, look for the issue; before proposing something, check it is not already filed, and not already decided against. How work moves between Linear and GitHub is under [Linear and pull requests](#linear-and-pull-requests).
+**Everything is tracked in Linear:** planned features, bugs, specs and the decisions waiting on the owner. Before starting anything, look for the issue; before proposing something, check it is not already filed, and not already decided against. How work moves between Linear and GitHub is under [Linear and pull requests](#linear-and-pull-requests).
 
-**Never push to `main`.** Every change goes through a pull request, unless the owner explicitly says to push that specific change to `main`; permission for one change is not permission for the next. The owner's account can bypass branch protection, so a push to `main` *succeeds*: a `Changes must be made through a pull request` line from GitHub is a bypass warning, not a rejection. To stay off it:
+## Never push to `main`
+
+Every change goes through a pull request, unless the owner explicitly says to push that specific change to `main`; permission for one change is not permission for the next. The owner's account can bypass branch protection, so a push to `main` *succeeds*: a `Changes must be made through a pull request` line from GitHub is a bypass warning, not a rejection. To stay off it:
 
 - create branches with `--no-track` (`git switch --no-track -c <branch> origin/main`, or `git worktree add --no-track -b <branch> <path> origin/main`), or point the upstream at the branch itself;
 - push only with an explicit refspec: `git push -u origin HEAD:refs/heads/<branch>`. Never `git push origin main`, never a bare `git push` from a branch tracking `main`, never `--force` to `main`;
@@ -195,7 +197,7 @@ Release PRs (`release: vX.Y.Z`) and bot PRs (ImgBot) need no issue; the release 
 
 ## Gotchas paid for already
 
-- **A push GitHub warns about is a push that landed.** See *Never push to `main`* at the top: `--no-track`, an explicit `HEAD:refs/heads/<branch>` refspec and an `ls-remote` of `main` after the push each stop an accidental push to `main`; use all three.
+- **A push GitHub warns about is a push that landed.** See [Never push to `main`](#never-push-to-main): `--no-track`, an explicit `HEAD:refs/heads/<branch>` refspec and an `ls-remote` of `main` after the push each stop an accidental push to `main`; use all three.
 - **`gh pr view <branch>` finds the most recently *merged* PR when no open one exists.** Ask `gh pr list --state open --head <branch>` and act on the number (`--jq '.[0].number // empty'`, or jq prints `null`).
 - **Under squash merge a branch is permanently ahead of `main`.** Comparing commits can never tell you a branch merged; ask the pull request.
 - **A secret scan of the diff cannot see commit messages.** This repo is public. Scan `git log origin/main..HEAD` as well as the diff before pushing, and describe a removed secret by its shape, never its value.
