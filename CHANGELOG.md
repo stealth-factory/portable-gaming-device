@@ -3,6 +3,21 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.8.0] - 2026-11-10
+
+### Documentation
+
+- Document the files every game disk needs (GAM-47) (#66)
+
+### Features
+
+- **launcher**: Add disk genres and captured covers (GAM-49) (#74)
+- **launcher**: The cover carousel and flipbook previews (GAM-50, GAM-51) (#78)
+
+### Miscellaneous
+
+- **skills**: Update private skills from upstream (GAM-48) (#69)
+
 ## [0.7.0] - 2026-11-09
 
 ### Bug Fixes
