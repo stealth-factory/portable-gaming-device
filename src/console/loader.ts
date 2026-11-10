@@ -3,8 +3,10 @@
 import {
   S, g, col, txt, LW, LH, HUD, ac, muted, tone, noise, headClick, out, ensureAudio, stickDir, held,
   overlay, $, tvOn, age, setAccReset, track, layoutName, startGame, setGame, game, readBest, setManual,
-  clearInput, ordinal, api, fetchRuntime, runtimeReady,
+  clearInput, ordinal, api, fetchRuntime, runtimeReady, readBoard, reduceMotion,
 } from './core';
+import { I18N } from './i18n';
+import { createLauncher, type Launcher, type LauncherSystem } from './launcher';
 import { DISKS as GAMES } from '../games/registry';
 import type { GameDisk } from '../games/types';
 import { useButtons } from './buttons';
@@ -104,19 +106,47 @@ export function drawBoot(){
   if (Math.floor(t * 3) % 2 === 0) { g.fillStyle = col('text'); g.fillRect(cx, cy, 7, 2); }
 }
 
-/* ---------- the disk menu ---------- */
-let menuRects: { x: number; y: number; w: number; h: number; i: number }[] = [];
+/* ---------- the disk launcher: the cover carousel (src/console/launcher/) ---------- */
+/* ?menu=list keeps the old list for one release, in case the carousel gives trouble (GAM-50; goes in GAM-52) */
+const OLD_LIST = /[?&]menu=list\b/.test(location.search);
+// disks whose code couldn't be fetched (offline before they were cached): NOT ON DEVICE until the set is back online
+const unreachable = new Set<string>();
+addEventListener('online', () => unreachable.clear());
+const lastId = () => { try { return localStorage.getItem('gg-last'); } catch (_) { return null; } };
+const system: LauncherSystem = {
+  disks: () => GAMES,
+  state: id => unreachable.has(id) ? { kind: 'missing', size: GAMES.find(d => d.id === id)?.size ?? 0 } : { kind: 'ready' },
+  best: id => { const score = readBest(id), top = readBoard(id)[0]; return { score, name: top && top.s === score ? top.n : null }; },
+  load: i => loadGame(i),
+  download: () => {},
+  lastDiskId: lastId,
+  reducedMotion: () => reduceMotion,
+  tick: () => { if (ac && !muted) tone(660, 0.02, 0.03); },
+  seek: () => { if (ac && !muted) { headClick(ac.currentTime + 0.02, 0.18, 2300); headClick(ac.currentTime + 0.07, 0.18, 2500); } },
+  label: key => String(I18N.en?.[key] ?? GAMES.map(d => d.strings.en?.[key]).find(v => typeof v === 'string') ?? key),
+};
+// made on first use: core.ts (and its api) imports this module, so api isn't ready while this file loads
+let made: Launcher | null = null;
+const launcher = () => (made ??= createLauncher(api, system));
+/** Where a tap lands on the launcher now, for tests/flow.cjs (`__gg.launcherTargets()`). */
+export const launcherTargets = () => OLD_LIST ? [] : launcher().targets();
+
 export function enterMenu(){
   S.mode = 'menu'; S.menuT = 0; S.menuDir = null; S.menuRep = 0;
-  if (S.menuSel == null) { let i = 0; try { i = Math.max(0, GAMES.findIndex(d => d.id === localStorage.getItem('gg-last'))); } catch (_) {} S.menuSel = i; }
+  if (S.menuSel == null) { const i = Math.max(0, GAMES.findIndex(d => d.id === lastId())); S.menuSel = i; }
+  launcher().enter(S.menuSel);
   overlay.hidden = true; setGame(null); setManual('console'); useButtons(MENU_BUTTONS);
 }
+
+/* ---------- the old disk list (?menu=list) ---------- */
+let menuRects: { x: number; y: number; w: number; h: number; i: number }[] = [];
 export function menuMove(d: string){
   const n = GAMES.length;
   S.menuSel = (S.menuSel + (d === 'down' || d === 'right' ? 1 : n - 1)) % n;
   if (ac && !muted) tone(660, 0.02, 0.03);
 }
 export function menuKey(e: KeyboardEvent){
+  if (!OLD_LIST) { const used = launcher().key(e.code); S.menuSel = launcher().sel; return used; }
   const KEYS: Record<string, string> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
   if (KEYS[e.code]) { menuMove(KEYS[e.code]); return true; }
   if (['Space', 'Enter', 'NumpadEnter', 'KeyZ', 'KeyX'].includes(e.code)) { loadGame(S.menuSel); return true; }
@@ -125,11 +155,13 @@ export function menuKey(e: KeyboardEvent){
   return false;
 }
 export function updateMenu(dt: number){
+  if (!OLD_LIST) { S.menuT += dt; launcher().update(dt, stickDir); S.menuSel = launcher().sel; return; }
   S.menuT += dt; S.menuRep -= dt;
   if (stickDir !== S.menuDir) { S.menuDir = stickDir; if (stickDir) { menuMove(stickDir); S.menuRep = 0.4; } }
   else if (stickDir && S.menuRep <= 0) { menuMove(stickDir); S.menuRep = 0.18; }
 }
 export function menuTap(x: number, y: number){
+  if (!OLD_LIST) { launcher().tap(x, y); S.menuSel = launcher().sel; return; }
   const hit = menuRects.find(q => x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h);
   if (hit) { S.menuSel = hit.i; loadGame(hit.i); }
 }
@@ -142,6 +174,11 @@ function floppy(x: number, y: number, on: boolean){
   g.fillStyle = col(on ? 'text' : 'hud'); g.fillRect(x + 3, y + 9, 8, 1); g.fillRect(x + 3, y + 11, 6, 1);
 }
 export function drawMenu(){
+  if (!OLD_LIST) {
+    if (S.diskError > 0) S.diskError -= 1 / 60;
+    launcher().draw(S.diskError > 0 ? 'DISK ERROR · CONNECT AND TRY AGAIN' : null);
+    return;
+  }
   const t = S.menuT, n = GAMES.length;
   // rows shrink (and drop their second line) when the disks don't all fit on a short tube
   const { rowH, gap, top } = menuRows(n, LH), tall = rowH >= 30;
@@ -200,7 +237,7 @@ export function updateLoad(_dt: number){
   S.loadT = (performance.now() - S.loadAt) / 1000;
   if (S.loadT < S.loadLen + 0.35) return;
   if (runtimeReady(game.id)) startGame();
-  else if (S.loadErr) { S.diskError = 2.5; enterMenu(); }   // couldn't fetch the game (offline before it was cached)
+  else if (S.loadErr) { S.diskError = 2.5; unreachable.add(game.id); enterMenu(); }   // couldn't fetch the game (offline before it was cached)
 }
 export function drawLoad(){
   let p = progress(game.steps, S.loadT / S.loadLen);

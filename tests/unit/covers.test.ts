@@ -63,8 +63,18 @@ describe('painting a cover', () => {
   });
   it('can leave the background unpainted', () => {
     const r = recorder();
-    paintPixels(r, COLS, [0, 3], 2, 1, 0, 0, 2, 1, true);
+    paintPixels(r, COLS, [0, 3], 2, 1, 0, 0, 2, 1, { skip0: true });
     expect(r.rects).toEqual([{ c: '#333', x: 1, y: 0, w: 1, h: 1 }]);
+  });
+  it('paints part of the source, remapped', () => {
+    const r = recorder();
+    paintPixels(r, COLS, [3, 2, 1, 0], 4, 1, 0, 0, 2, 1, { src: [1, 0, 2, 1], map: [0, 0, 1, 2] });
+    expect(r.rects).toEqual([{ c: '#111', x: 0, y: 0, w: 1, h: 1 }, { c: '#000', x: 1, y: 0, w: 1, h: 1 }]);
+  });
+  it('paints an upright card from the middle of a wide cover', () => {
+    const r = recorder(), idx = Array.from({ length: 8 * 6 }, (_, i) => ((i % 8) === 0 || (i % 8) === 7 ? 3 : 1));
+    paintCover(r, COLS, { w: 8, h: 6, data: encodeCover(idx, 8, 6) }, 0, 0, 3, 4);
+    expect(r.rects.every(q => q.c === '#111')).toBe(true);   // the bright side bands are cropped away
   });
   it.each(DISKS.filter(d => d.cover).map(d => [d.id, d] as const))('%s paints inside its rectangle', (_id, d) => {
     const r = recorder();
