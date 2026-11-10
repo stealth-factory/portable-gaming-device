@@ -29,5 +29,6 @@ function makeBus(): Bus {
   };
 }
 
-const KEY = '__ggBus';
-export const bus: Bus = ((globalThis as any)[KEY] ??= makeBus());
+const KEY = '__ggBus' as const;
+type GlobalWithBus = typeof globalThis & { [KEY]?: Bus };
+export const bus: Bus = ((globalThis as GlobalWithBus)[KEY] ??= makeBus());

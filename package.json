@@ -2,13 +2,13 @@
   "name": "game-guy",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
     "build": "npm run typecheck && astro build",
     "preview": "astro preview --port 4173",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.kit.json",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "devDependencies": {

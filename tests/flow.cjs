@@ -1,6 +1,7 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
 // plus Invader Force's weapon capsules, speed boost and blasts, I Invade's button pad and weapons,
-// and Bricks' Enter serve, bowed bat, sideways stick speed and falling capsules.
+// Bricks' Enter serve, bowed bat, sideways stick speed and falling capsules,
+// and Martian Storm's tuck, which shrugs off a shot.
 // Then every disk on the menu (future games included): choose it with the menu's keys or a tap,
 // play, HOLD when the tab is hidden, game over, name entry or the table, G back to the menu.
 const { chromium, devices } = require('playwright');
@@ -178,6 +179,22 @@ async function playEveryDisk(p, tag){
         pace: [caught.fast.pace, caught.slow.pace], sear: caught.sear.sear, boost: caught.boost,
       }));
       console.log(tag, 'bricks drops', { wide: caught.wide.bw, slim: caught.slim.bw, pace: caught.slow.pace, sear: caught.sear.sear, boost: caught.boost });
+    } else if (id === 'martian-storm') {
+      // Shift spends one tuck. A pellet on the skiff during that tuck does not cost a life.
+      const before = await p.evaluate(() => __gg.runtime.debug.state());
+      await p.keyboard.press('Shift');
+      const spent = await p.waitForFunction(n => __gg.runtime.debug.state().tucks === n - 1, before.tucks, { timeout: 1000 }).then(() => true, () => false);
+      const mid = await p.evaluate(() => {
+        const s = __gg.runtime.debug.state();
+        __gg.runtime.debug.pellet();
+        return s;
+      });
+      await p.waitForTimeout(150);
+      const after = await p.evaluate(() => ({ state: __gg.runtime.debug.state(), boost: document.querySelector('#boostBtn')?.textContent || '' }));
+      const tuckOk = before.tucks === 3 && mid.tucks === before.tucks - 1 && after.state.lives === before.lives && after.state.lives === 3;
+      if (!tuckOk || !spent) errs.push(tag + ' martian storm tuck: ' + JSON.stringify({ before, mid, after, spent }));
+      console.log(tag, 'martian storm tuck', { tucks: mid.tucks, lives: after.state.lives, boost: after.boost });
+      await p.keyboard.press('Space');
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes

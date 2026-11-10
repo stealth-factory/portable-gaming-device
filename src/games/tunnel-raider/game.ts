@@ -1,26 +1,26 @@
 /* Tunnel Raider: dig for emeralds, drop sacks of gold on the grubs, outwit them level after level.
    A tribute to Windmill Software's Digger (1983); characters, art, sound and code are original.
    Everything from the console comes through `api` (see src/games/types.ts). */
-import type { ConsoleAPI, CreateGame } from '../types';
+import type { ConsoleAPI, CreateGame, Dir, Role } from '../types';
 
 let api: ConsoleAPI;
 
 export const BOOST_MUL = 1.6, BOOST_TIME = 1.6, BOOST_RECHARGE = 7;   // a 60% burst for 1.6 s, refilling over 7 s
 const tone = (...a: Parameters<ConsoleAPI['tone']>) => api.tone(...a);
 export const sfx = {
-  gem: n => tone(620 + n * 55, 0.06),
+  gem: (n: number) => tone(620 + n * 55, 0.06),
   chain: () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.08, 0.04, 0, i * 0.07)),
   thud: () => tone(120, 0.12, 0.06, -50),
   burst: () => { tone(220, 0.2, 0.045, 500); },
   gold: () => { tone(880, 0.05); tone(1320, 0.08, 0.045, 0, 0.06); },
   zap: () => tone(1500, 0.18, 0.03, -1200),
   kill: () => tone(420, 0.2, 0.045, -320),
-  eat: n => tone(500 + n * 160, 0.14, 0.045, 300),
+  eat: (n: number) => tone(500 + n * 160, 0.14, 0.045, 300),
   sun: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.07, 0.045, 0, i * 0.06)),
   die: () => [440, 392, 330, 262, 196].forEach((f, i) => tone(f, 0.16, 0.045, -20, i * 0.15)),
   clear: () => [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.1, 0.04, 0, i * 0.09)),
   life: () => [1047, 1319, 1568].forEach((f, i) => tone(f, 0.09, 0.05, 0, i * 0.08)),
-  siren: hi => tone(hi ? 700 : 560, 0.1, 0.03),
+  siren: (hi: boolean) => tone(hi ? 700 : 560, 0.1, 0.03),
   boost: () => { tone(260, 0.3, 0.05, 900); tone(130, 0.3, 0.03, 300); },
   boostReady: () => { tone(1568, 0.05, 0.03); tone(2093, 0.07, 0.03, 0, 0.05); },
 };
@@ -28,7 +28,7 @@ export const sfx = {
 let dirtCanvas: HTMLCanvasElement;   // made in create(), so loading this module has no side effects
 export function makeDirt(){
   if (dirtCanvas.width !== api.LW || dirtCanvas.height !== api.LH - api.HUD) { dirtCanvas.width = api.LW; dirtCanvas.height = api.LH - api.HUD; }
-  const d = dirtCanvas.getContext('2d'), w = dirtCanvas.width, h = dirtCanvas.height;
+  const d = dirtCanvas.getContext('2d')!, w = dirtCanvas.width, h = dirtCanvas.height;
   const img = d.createImageData(w, h), px = img.data;
   const base = api.palRGB[api.palette.roles.dirt], s1 = api.palRGB[api.palette.roles.ds1], s2 = api.palRGB[api.palette.roles.ds2];
   const r = api.mulberry32(api.S.level * 31 + 5), pat = (api.S.level - 1) % 4;
@@ -43,10 +43,10 @@ export function makeDirt(){
   d.putImageData(img, 0, 0);
 }
 
-export function carve(x, y){ if (api.inb(x, y)) api.S.dug[api.idx(x, y)] = 1; }
-export function genLevel(L){
+export function carve(x: number, y: number){ if (api.inb(x, y)) api.S.dug[api.idx(x, y)] = 1; }
+export function genLevel(L: number){
   api.fitGrid();
-  const r = api.mulberry32(L * 7919 + 13), ri = n => (r() * n) | 0;
+  const r = api.mulberry32(L * 7919 + 13), ri = (n: number) => (r() * n) | 0;
   api.S.dug.fill(0); api.S.em.fill(0);
   api.S.bags = []; api.S.golds = []; api.S.monsters = []; api.S.sparks = []; api.S.parts = []; api.S.pops = [];
   const runL = 3 + ri(4);
@@ -59,7 +59,7 @@ export function genLevel(L){
     if (r() < 0.5) { const x = ri(api.W - 2) + 1, y0 = 1 + ri(api.H - 5), len = 3 + ri(3); for (let y = y0; y < y0 + len; y++) carve(x, y); }
     else { const y = 2 + ri(api.H - 5), x0 = ri(api.W - 6), len = 4 + ri(4); for (let x = x0; x < x0 + len; x++) carve(x, y); }
   }
-  const nearSpawn = (x, y) => x >= api.W - 4 && y <= 2;
+  const nearSpawn = (x: number, y: number) => x >= api.W - 4 && y <= 2;
   const area = (api.W * api.H) / 150;   // treasure scales with the size of the field
   const clusters = Math.max(3, Math.round((5 + Math.min(3, (L / 2) | 0)) * area));
   for (let c = 0; c < clusters; c++) {
@@ -74,7 +74,7 @@ export function genLevel(L){
     if (api.S.dug[api.idx(x, y)] || api.S.dug[api.idx(x, y + 1)] || api.S.em[api.idx(x, y)] || nearSpawn(x, y) || bagAt(x, y) || bagAt(x, y + 1) || bagAt(x, y - 1)) continue;
     api.S.bags.push({ x, y, fy: y, state: 'rest', t: 0, dist: 0, slide: 0 });
   }
-  api.S.emLeft = api.S.em.reduce((a, b) => a + b, 0);
+  api.S.emLeft = api.S.em.reduce((a: number, b: number) => a + b, 0);
   api.S.total = 6 + L;
   api.S.maxAlive = Math.min(5, 3 + ((L - 1) / 3 | 0));
   api.S.spawned = 0; api.S.spawnT = 1.2;
@@ -91,32 +91,32 @@ export function resetPlayer(){
 }
 
 /* ---------- queries ---------- */
-export function bagAt(x, y){ return api.S.bags.find(b => b.x === x && b.y === y); }
-export function restingBagAt(x, y){ const b = bagAt(x, y); return b && b.state !== 'fall' ? b : null; }
+export function bagAt(x: number, y: number){ return api.S.bags.find((b: any) => b.x === x && b.y === y); }
+export function restingBagAt(x: number, y: number){ const b = bagAt(x, y); return b && b.state !== 'fall' ? b : null; }
 /* the field wraps: leave by one edge and you come back in at the opposite one */
-export const wrapX = x => ((x % api.W) + api.W) % api.W, wrapY = y => ((y % api.H) + api.H) % api.H;
-export const wrapD = (d, span) => d - span * Math.round(d / span);   // shortest offset across the wrap
-export const wdist = (ax, ay, bx, by) => Math.hypot(wrapD(ax - bx, api.W * api.C), wrapD(ay - by, api.H * api.C));
-export function ppos(o){
+export const wrapX = (x: number) => ((x % api.W) + api.W) % api.W, wrapY = (y: number) => ((y % api.H) + api.H) % api.H;
+export const wrapD = (d: number, span: number) => d - span * Math.round(d / span);   // shortest offset across the wrap
+export const wdist = (ax: number, ay: number, bx: number, by: number) => Math.hypot(wrapD(ax - bx, api.W * api.C), wrapD(ay - by, api.H * api.C));
+export function ppos(o: any){
   const fw = api.W * api.C, fh = api.H * api.C, x = (o.x + (o.tx - o.x) * o.t) * api.C + api.C / 2, y = (o.y + (o.ty - o.y) * o.t) * api.C + api.C / 2;
   return { x: ((x % fw) + fw) % fw, y: ((y % fh) + fh) % fh };
 }
-export function wrapSpots(p){   // where to draw something that is half through an edge
+export function wrapSpots(p: { x: number; y: number }){   // where to draw something that is half through an edge
   const fw = api.W * api.C, fh = api.H * api.C, xs = [p.x], ys = [p.y];
   if (p.x < api.C) xs.push(p.x + fw); if (p.x > fw - api.C) xs.push(p.x - fw);
   if (p.y < api.C) ys.push(p.y + fh); if (p.y > fh - api.C) ys.push(p.y - fh);
   const out = []; for (const x of xs) for (const y of ys) out.push({ x, y }); return out;
 }
-export function pcell(o){ const p = ppos(o); return { x: Math.floor(p.x / api.C), y: Math.floor(p.y / api.C) }; }
-export function monsterOnCell(x, y){ return api.S.monsters.some(m => (m.x === x && m.y === y) || (m.moving && wrapX(m.tx) === x && wrapY(m.ty) === y)); }
+export function pcell(o: any){ const p = ppos(o); return { x: Math.floor(p.x / api.C), y: Math.floor(p.y / api.C) }; }
+export function monsterOnCell(x: number, y: number){ return api.S.monsters.some((m: any) => (m.x === x && m.y === y) || (m.moving && wrapX(m.tx) === x && wrapY(m.ty) === y)); }
 
-export function addScore(n, x?, y?){
+export function addScore(n: number, x?: number, y?: number){
   api.S.score += n;
   if (x !== undefined) api.S.pops.push({ x, y, text: String(n), life: 0.9 });
   while (api.S.score >= api.S.nextLife) { api.S.lives++; api.S.nextLife += 20000; sfx.life(); }
   if (api.S.score > api.best) (api.best = api.S.score);
 }
-export function burst(x, y, roles, n = 14){
+export function burst(x: number, y: number, roles: string[], n = 14){
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, v = 40 + Math.random() * 90;
     api.S.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30, life: 0.5 + Math.random() * 0.4, role: roles[i % roles.length] });
@@ -124,8 +124,8 @@ export function burst(x, y, roles, n = 14){
 }
 
 /* ---------- player ---------- */
-export function setFace(d){ api.S.player.face = d.dx > 0 ? 'right' : d.dx < 0 ? 'left' : d.dy < 0 ? 'up' : 'down'; }
-export function tryMove(d){
+export function setFace(d: { dx: number; dy: number }){ api.S.player.face = d.dx > 0 ? 'right' : d.dx < 0 ? 'left' : d.dy < 0 ? 'up' : 'down'; }
+export function tryMove(d: { dx: number; dy: number }){
   const p = api.S.player; setFace(d);
   const nx = p.x + d.dx, ny = p.y + d.dy, cx = wrapX(nx), cy = wrapY(ny);   // nx/ny may sit just past an edge, for a smooth slide through it
   const bag = bagAt(cx, cy);
@@ -151,7 +151,7 @@ export function checkAllDug(){
   const pp = ppos(api.S.player); api.S.pops.push({ x: pp.x, y: pp.y - 10, text: '1UP', life: 1.4 });
   api.track('all_dug', { level: api.S.level, secs: Math.round(api.S.stageT) });
 }
-export function collectGem(x, y){
+export function collectGem(x: number, y: number){
   const i = api.idx(x, y); if (!api.S.em[i]) return;
   api.S.em[i] = 0; api.S.emLeft--;
   api.S.streak = (api.S.time - api.S.lastGem < 1.6) ? api.S.streak + 1 : 1; api.S.lastGem = api.S.time;
@@ -159,7 +159,7 @@ export function collectGem(x, y){
   if (api.S.streak >= 8) { api.S.streak = 0; addScore(250, x * api.C + api.C / 2, y * api.C); sfx.chain(); } else sfx.gem(api.S.streak);
   burst(x * api.C + api.C / 2, y * api.C + api.C / 2, ['gem', 'gemHi'], 6);
 }
-export function updatePlayer(dt){
+export function updatePlayer(dt: number){
   const p = api.S.player, d = api.wantDir();
   if (p.moving) {
     if (d && d.dx === -p.mdx && d.dy === -p.mdy) {
@@ -183,7 +183,7 @@ export function updatePlayer(dt){
     api.S.sun.active = false; api.S.sun.used = true; api.track('sunstone', { level: api.S.level });
     addScore(1000, pp.x, pp.y - 10); sfx.sun();
     api.S.bonusT = Math.max(5, 15 - api.S.level); api.S.bonusChain = 0;
-    api.S.monsters.forEach(m => { if (m.type === 'b') { m.type = 'g'; m.morphT = 8; } });
+    api.S.monsters.forEach((m: any) => { if (m.type === 'b') { m.type = 'g'; m.morphT = 8; } });
   }
   if (api.S.sparks.length === 0) api.S.charge = Math.min(1, api.S.charge + dt / 2.6);
   if (api.boostQueued) { api.clearBoost(); if (api.S.boost >= 1 && api.S.boostT <= 0) { api.S.boostT = BOOST_TIME; api.S.boost = 0; sfx.boost(); } }
@@ -192,7 +192,8 @@ export function updatePlayer(dt){
   if (api.fireQueued || api.fireHeld) {
     api.clearFire();
     if (api.S.charge >= 1 && api.S.sparks.length === 0) {
-      const f = { right:[1,0], left:[-1,0], up:[0,-1], down:[0,1] }[p.face];
+      const facing: Record<string, number[]> = { right:[1,0], left:[-1,0], up:[0,-1], down:[0,1] };
+      const f = facing[p.face];
       api.S.sparks.push({ x: pp.x, y: pp.y, dx: f[0], dy: f[1], trail: [], age: 0 });
       api.S.charge = 0; sfx.zap(); api.buzz('fire');
     }
@@ -200,7 +201,7 @@ export function updatePlayer(dt){
 }
 
 /* ---------- sacks ---------- */
-export function updateBags(dt){
+export function updateBags(dt: number){
   const pp = ppos(api.S.player);
   for (let i = api.S.bags.length - 1; i >= 0; i--) {
     const b = api.S.bags[i];
@@ -220,7 +221,7 @@ export function updateBags(dt){
         const ci = api.idx(b.x, b.y);
         if (api.S.em[ci]) { api.S.em[ci] = 0; api.S.emLeft--; burst(b.x * api.C + api.C / 2, b.y * api.C + api.C / 2, ['gemDark', 'gem', 'gemHi'], 10); }   // a falling sack smashes any emerald in its way
         const below = b.y + 1;
-        if (!api.inb(b.x, below) || !api.S.dug[api.idx(b.x, below)] || api.S.bags.some(o => o !== b && o.x === b.x && o.y === below)) { landed = true; break; }
+        if (!api.inb(b.x, below) || !api.S.dug[api.idx(b.x, below)] || api.S.bags.some((o: any) => o !== b && o.x === b.x && o.y === below)) { landed = true; break; }
       }
       const bx = b.x * api.C + api.C / 2, by = b.fy * api.C + api.C / 2;
       for (let j = api.S.monsters.length - 1; j >= 0; j--) {
@@ -252,7 +253,7 @@ export function computeDist(){
   const q = [pc.x, pc.y]; dist[api.idx(pc.x, pc.y)] = 0;
   for (let h = 0; h < q.length; h += 2) {
     const x = q[h], y = q[h + 1], dd = dist[api.idx(x, y)];
-    for (const k in api.DIRS) {
+    for (const k of Object.keys(api.DIRS) as Dir[]) {
       const nx = wrapX(x + api.DIRS[k].dx), ny = wrapY(y + api.DIRS[k].dy);
       const i = api.idx(nx, ny);
       if (dist[i] >= 0 || !api.S.dug[i] || restingBagAt(nx, ny)) continue;
@@ -275,14 +276,14 @@ export function spawnMonster(){
     morphT: (7 + Math.random() * 10) * (1 - 0.55 * smartness()), wait: 0, wob: Math.random() * 6 });
   api.S.spawned++;
 }
-export function killMonster(j, pts){
+export function killMonster(j: number, pts: number){
   const m = api.S.monsters[j], mp = ppos(m);
   if (m.type === 'r') pts *= 2;
   api.S.monsters.splice(j, 1);
   addScore(pts, mp.x, mp.y - 10); sfx.kill();
   burst(mp.x, mp.y, m.type === 'b' ? ['borer', 'borerBelly'] : ['grub', 'grubBelly'], 14);
 }
-export function updateMonsters(dt){
+export function updateMonsters(dt: number){
   const bonus = api.S.bonusT > 0;
   const base = grubSpeed() * (bonus ? 0.7 : 1);
   const pp = ppos(api.S.player), smart = smartness();
@@ -306,7 +307,7 @@ export function updateMonsters(dt){
     let pick = null;
     if (m.type === 'g') {
       const opts = [];
-      for (const k in api.DIRS) {
+      for (const k of Object.keys(api.DIRS) as Dir[]) {
         const d = api.DIRS[k], ux = m.x + d.dx, uy = m.y + d.dy, nx = wrapX(ux), ny = wrapY(uy);
         if (!api.S.dug[api.idx(nx, ny)] || restingBagAt(nx, ny)) continue;
         const dd = api.S.dist[api.idx(nx, ny)];
@@ -326,7 +327,7 @@ export function updateMonsters(dt){
       order.push(...Object.values(api.DIRS).sort(() => Math.random() - 0.5));   // blocked by a sack: dig round it
       // from seam 3, diggers shove sacks sideways like the cart does
       const canShove = api.S.level >= 3 && !bonus, pc = pcell(api.S.player);
-      const shove = (d, nx, ny) => {
+      const shove = (d: { dx: number; dy: number }, nx: number, ny: number) => {
         if (!canShove || d.dy !== 0) return false;
         const b = restingBagAt(nx, ny); if (!b) return false;
         const bx = wrapX(nx + d.dx);
@@ -356,13 +357,13 @@ export function updateMonsters(dt){
     const mp = ppos(api.S.monsters[j]);
     if (wdist(mp.x, mp.y, pp.x, pp.y) < api.C * 0.68) {
       if (bonus) { const v = [200, 400, 800, 1600][Math.min(3, api.S.bonusChain)]; sfx.eat(api.S.bonusChain); api.S.bonusChain++; killMonster(j, v); }
-      else { killPlayer({ g: 'grub', b: 'borer', r: 'rockjaw' }[api.S.monsters[j].type] || 'grub'); return; }
+      else { const kinds: Record<string, string> = { g: 'grub', b: 'borer', r: 'rockjaw' }; killPlayer(kinds[api.S.monsters[j].type] || 'grub'); return; }
     }
   }
 }
 
 /* ---------- sparks ---------- */
-export function updateSparks(dt){
+export function updateSparks(dt: number){
   for (let i = api.S.sparks.length - 1; i >= 0; i--) {
     const s = api.S.sparks[i];
     s.trail.unshift({ x: s.x, y: s.y }); if (s.trail.length > 5) s.trail.pop();
@@ -385,7 +386,7 @@ export function updateSparks(dt){
 }
 
 /* ---------- life and death ---------- */
-export function killPlayer(cause){
+export function killPlayer(cause?: string){
   if (api.S.mode !== 'play') return;
   api.track('life_lost', { level: api.S.level, cause: cause || 'grub' });
   api.S.mode = 'dying'; api.S.modeT = 1.7; sfx.die(); api.buzz('lose');
@@ -403,7 +404,7 @@ export function afterDeath(){
   api.S.mode = 'ready'; api.S.modeT = 1.2;
 }
 
-export function update(dt){
+export function update(dt: number){
   if (api.S.mode === 'ready') { if ((api.S.modeT -= dt) <= 0) api.S.mode = 'play'; return; }
   if (api.S.mode === 'dying') { api.S.player.deadT += dt; updateBags(dt); if ((api.S.modeT -= dt) <= 0) afterDeath(); return; }
   if (api.S.mode === 'clear') { if ((api.S.modeT -= dt) <= 0) { api.S.level++; genLevel(api.S.level); api.S.mode = 'ready'; api.S.modeT = 1.4; api.saveBest(); } return; }
@@ -442,13 +443,13 @@ export function drawTunnels(){
   api.g.fillStyle = api.col('spawn');
   api.g.fillRect((api.W - 2) * api.C + 6, api.C + 6, 4, 4); api.g.fillRect((api.W - 1) * api.C - 10, api.C + 6, 4, 4);   // marks on the den's mouth
 }
-export function drawGem(x, y){
+export function drawGem(x: number, y: number){
   const X = x * api.C + api.C / 2, Y = y * api.C + api.C / 2;
   api.g.fillStyle = api.col('gemDark'); api.poly([X, Y - 11, X + 10, Y - 2, X, Y + 12, X - 10, Y - 2]);
   api.g.fillStyle = api.col('gem');     api.poly([X, Y - 8, X + 7, Y - 2, X, Y + 9, X - 7, Y - 2]);
   api.g.fillStyle = api.col('gemHi');   api.poly([X - 3, Y - 5, X + 3, Y - 5, X, Y - 1]);
 }
-export function drawBag(b){
+export function drawBag(b: any){
   const X = (b.x + b.slide) * api.C + api.C / 2, Y = (b.state === 'fall' ? b.fy : b.y) * api.C + api.C / 2;
   api.g.save(); api.g.translate(X, Y);
   if (b.state === 'wobble') api.g.translate(Math.round(Math.sin(api.S.time * 40) * 2), 0);
@@ -458,7 +459,7 @@ export function drawBag(b){
   api.g.fillStyle = api.col('bagBand'); api.g.fillRect(-7, -6, 14, 3); api.g.fillRect(-2, 1, 4, 6); api.g.fillRect(-5, 3, 10, 2);
   api.g.restore();
 }
-export function drawGold(o){
+export function drawGold(o: any){
   if (o.t < 3 && Math.floor(o.t * 8) % 2) return;
   const X = o.x * api.C + api.C / 2, Y = o.y * api.C + api.C / 2 + 4;
   for (const [dx, dy] of [[-7, 3], [0, 4], [7, 3], [-3, -3], [4, -3], [0, -8]]) {
@@ -475,8 +476,8 @@ export function drawSun(){
   api.g.fillStyle = api.col(Math.floor(api.S.time * 6) % 2 ? 'sun' : 'sunRay'); api.circ(X, Y, 8);
   api.g.fillStyle = api.col('bg'); api.g.fillRect(X - 3, Y - 3, 2, 2); api.g.fillRect(X + 1, Y - 3, 2, 2);
 }
-export function drawMonster(m){ for (const q of wrapSpots(ppos(m))) drawMonsterAt(m, q); }
-export function drawMonsterAt(m, p){
+export function drawMonster(m: any){ for (const q of wrapSpots(ppos(m))) drawMonsterAt(m, q); }
+export function drawMonsterAt(m: any, p: { x: number; y: number }){
   const bonus = api.S.bonusT > 0;
   const flashing = bonus && api.S.bonusT < 2 && Math.floor(api.S.bonusT * 8) % 2;
   api.g.save(); api.g.translate(p.x, p.y);
@@ -489,7 +490,7 @@ export function drawMonsterAt(m, p){
   // segmented grub: three humps
   api.g.fillStyle = api.col(body);
   api.circ(-7, 4 - bob, 6); api.circ(7, 4 + bob, 6); api.circ(0, -1, 10);
-  api.g.fillStyle = api.col(belly); api.g.fillRect(-9, 6, 18, 3);
+  api.g.fillStyle = api.col(belly as Role); api.g.fillRect(-9, 6, 18, 3);
   if (m.type === 'r' && !bonus) {
     // rockjaw: banded shell and a row of grinding teeth
     api.g.fillStyle = api.col('bg'); api.g.fillRect(-10, -2, 20, 2); api.g.fillRect(-12, 3, 24, 2);
@@ -514,7 +515,7 @@ export function drawMonsterAt(m, p){
   api.g.restore();
 }
 export function drawPlayer(){ for (const q of wrapSpots(ppos(api.S.player))) drawPlayerAt(q); }
-export function drawPlayerAt(pos){
+export function drawPlayerAt(pos: { x: number; y: number }){
   const p = api.S.player;
   if (api.S.mode === 'dying' && Math.floor(p.deadT * 10) % 2) return;
   api.g.save(); api.g.translate(pos.x, pos.y);
@@ -538,7 +539,7 @@ export function drawPlayerAt(pos){
 }
 export function drawSparks(){
   for (const s of api.S.sparks) {
-    api.g.fillStyle = api.col('sparkTrail'); s.trail.forEach((t, i) => { if (i % 2 === 0) api.g.fillRect(t.x - 2, t.y - 2, 4, 4); });
+    api.g.fillStyle = api.col('sparkTrail'); s.trail.forEach((t: any, i: number) => { if (i % 2 === 0) api.g.fillRect(t.x - 2, t.y - 2, 4, 4); });
     api.g.fillStyle = api.col('spark'); api.g.fillRect(s.x - 4, s.y - 4, 8, 8);
   }
 }
@@ -564,7 +565,7 @@ export function drawHud(){
   if (api.S.lives > maxH) api.txt('+' + (api.S.lives - maxH), hx0 + maxH * 10 + 1, 6, 'hud');
   // tiny F and B tags for the spark (fire) and boost meters
   const GLYPH = { F: ['###', '#..', '##.', '#..', '#..'], B: ['##.', '#.#', '##.', '#.#', '##.'] };
-  for (const [ch, gy] of [['F', 5], ['B', 11]]) GLYPH[ch].forEach((row, r) => { for (let c = 0; c < 3; c++) if (row[c] === '#') { api.g.fillStyle = api.col('hud'); api.g.fillRect(api.LW - 62 + c, gy + r, 1, 1); } });
+  for (const [ch, gy] of [['F', 5], ['B', 11]] as const) GLYPH[ch].forEach((row, r) => { for (let c = 0; c < 3; c++) if (row[c] === '#') { api.g.fillStyle = api.col('hud'); api.g.fillRect(api.LW - 62 + c, gy + r, 1, 1); } });
   // the level, and the stage clock ticking beside it: as much of both as fits between the hearts and the meters
   api.g.font = '8px Silkscreen, "Courier New", monospace';
   const left = hx0 + shown * 10 + (api.S.lives > maxH ? 18 : 0) + 6, right = api.LW - 69;

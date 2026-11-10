@@ -26,7 +26,7 @@ Every change goes through a pull request, unless the owner explicitly says to pu
 
 **Game Guy 3000 Deluxe** (Game Guy for short) is a browser game console: one old CRT monitor that boots, shows a game loader, and runs several games. It starts as a copy of [Tunnel Raider](https://github.com/wiiiimm/tunnel-raider), which is still its own repo and site (`tunnel-raider.wiiiimm.codes`); changes made here do not flow back to it.
 
-Requirements 1 to 11 below are built: the console boots into a disk menu with five games, Tunnel Raider, Dino Run, Invader Force, I Invade and Bricks, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
+Requirements 1 to 12 below are built: the console boots into a disk menu with six games, Tunnel Raider, Dino Run, Invader Force, I Invade, Bricks and Martian Storm, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
 
 ## Requirements (from the owner)
 
@@ -113,6 +113,16 @@ Requirements 1 to 11 below are built: the console boots into a disk menu with fi
 - Walls are generated, never drawn by hand. Wave 1 is clay and empty slots only. Rules live in `src/games/bricks/rules.ts` (unit-tested). The leaflet's about line is the only place a commercial brick game is named.
 - Original bat, ember, bricks, art, sound and code.
 
+### 12. Martian Storm
+
+- The sixth disk: an original vertical shooter (GAM-46). Fly a skiff up through a Martian dust storm, shoot the aliens that come down, and spend a limited tuck on BOOST to slip through a tight spot. The name on the menu, the page and the tube is Martian Storm. No year appears there.
+- Eight legs, counted upward. Leg 1 is the easiest. The dust scrolls for 24 seconds. Spores fly in fours and do not shoot; shooting all four before any leaves drops one token. Barbs fire one pellet, aimed once, not homing. Slabs, from leg 3, take four hits and stop shots. The token cycles points, an extra tuck and twin guns. One token on screen.
+- Three tucks at the start of each leg. A death on that leg keeps whatever is left; it does not hand out a fresh three, and it does not take any away. A tuck lasts 0.6 seconds: the hitbox is off, the guns are silent, and the skiff is back where the tuck started. Holding BOOST does not chain. A token can add one, up to five. The next leg resets to three.
+- The keyboard can hold a diagonal (scaled so it is not faster). The on-screen stick stays the console's 4-way stick.
+- Three skiffs, another every 2,000, up to five. A touch from a craft or a shot loses a skiff. The last skiff shows `DUSTED`. Clearing leg 8 lands on a pad with `GROUNDED`, then the console's card. Both endings use `STORM OVER`. Legs 1 to 7 use the kit's clear; leg 8 does not, because that helper would start another leg.
+- Load is 3.8 seconds. Rules live in `src/games/martian-storm/rules.ts` (unit-tested). The leaflet's about line is the only place the reference shooter is named.
+- Original skiff, spores, barbs, slabs, art, sound and code. Escorts, bosses, guns beyond twin, a longer route and an 8-way stick are later work.
+
 ## Stack (decided)
 
 **Astro + React components + a plain TypeScript console engine on Canvas 2D.** No game engine: the picture comes from the console's own four-colour quantiser and phosphor pass, which an engine's renderer would fight.
@@ -127,7 +137,7 @@ Requirements 1 to 11 below are built: the console boots into a disk menu with fi
 - **Tests:** Vitest (`tests/unit`: disk rules and the plug-in rule) and Playwright scripts (`tests/flow.cjs`, `tests/pages.cjs`, `tests/stick.cjs`, `tests/haptics.cjs`) against `npm run preview`.
 - **Deploy:** Vercel's Astro preset, `npm run build` → `dist`.
 - **Releases (decided):** pooled release with production gated by a Promotion Branch. Production branch `production`, platform Vercel. Merges to `main` deploy previews and update one standing `release: vX.Y.Z` PR; merging that PR tags the version and fast-forwards `production`, which Vercel ships. See [docs/releasing.md](docs/releasing.md).
-- **Types:** TypeScript is loose for now (`strict: false`) because the ported console code is untyped. New code should be typed; tighten module by module.
+- **Types:** `tsconfig.json` is `strict` (and `noImplicitAny`) for everything `npm run typecheck` covers: `src` and `tests`. A strict error anywhere fails that check. `tsconfig.kit.json` still typechecks the kit on its own; it is the same `strict` rules, not a looser set for the rest of the project. The console's state bag (`api.S`) stays `any`: each game owns its fields, and the kit names the ones it shares.
 
 ## Where things are now
 
@@ -138,16 +148,17 @@ Requirements 1 to 11 below are built: the console boots into a disk menu with fi
 | `src/components/` | React components (static): `ConsoleSet` and its parts, `Header`, `ManualBar`, `NetBadge`; `Manual.tsx` is the live island |
 | `src/main.ts` | Engine entry: console, PWA, analytics |
 | `src/console/core.ts` | CRT picture pipeline, input, sound, switches, scores, name entry, game loop, and the `api` games get |
-| `src/console/loader.ts` | Boot screens, disk menu, loading screens and drive sounds, SELECT |
+| `src/console/loader.ts` | Boot screens, disk menu, loading screens and drive sounds, SELECT. Reads the console through `host.ts` |
+| `src/console/host.ts` | Typed seam the loader uses, so the loader does not import `core.ts` |
 | `src/console/i18n.ts` | Every string (base table plus console and disk strings), no side effects |
 | `src/console/strings.ts`, `manual.ts` | The console's own strings and instructions |
 | `src/console/bus.ts` | Tiny store shared by the engine and React islands (language, whose instructions) |
 | `src/console/pwa.ts` | Install button, offline-ready and update prompts |
 | `src/games/types.ts` | The plug-in contract: `GameDisk`, `GameRuntime`, `ConsoleAPI` |
 | `src/games/registry.ts` | Finds `*/disk.ts` (eager) and `*/game.ts` (lazy) |
-| `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/`, `bricks/` | The five games; what each folder holds is under [Game folders](#game-folders) |
+| `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/`, `bricks/`, `martian-storm/` | The six games; what each folder holds is under [Game folders](#game-folders) |
 | `src/games/README.md` | Making a game disk: every file, the artwork and images, and the steps for a new one |
-| `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Strict TypeScript (`tsconfig.kit.json`), tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
+| `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
 | `src/kit/platform/` | Console services as DOM-free rules the core wires to the page. `haptics.ts` (GAM-5) is the first: named buzz patterns, the SOUND-off rule and which buzz wins, with the core supplying the vibrate call; button slots, gamepad and pause are to follow. See the [Shared game kit spec](https://linear.app/stealth-company/document/shared-game-kit-spec-338041de484b) |
 | `public/` | Icons, favicon, share images (`og-image.png`, `og-<slug>.png` per game) |
 | `tools/share-images/` | `make.cjs` captures the console and renders the share images and `docs/screens/`; `share.css` is their layout. `--covers` also writes each game's launcher cover (`src/games/<folder>/cover.ts`, generated, never edited by hand) from its play capture; `--covers-only` writes just those; `--previews` adds each game's flipbook (`preview.ts`, fetched lazily by `loadPreviews()` in the registry) |
@@ -255,4 +266,4 @@ Release PRs (`release: vX.Y.Z`) and bot PRs (ImgBot) need no issue; the release 
 ## Open questions
 
 - The site address for the console. Then set `site` in `astro.config.mjs`, absolute share-image URLs and a canonical link in `ConsoleLayout.astro`.
-- Which games join after Bricks.
+- Which games join after Martian Storm.

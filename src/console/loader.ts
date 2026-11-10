@@ -1,10 +1,7 @@
 /* The console's own screens: cold and warm boot, the disk menu, and loading a game off the floppy.
-   Every load plays the drive (motor, recalibrate, head steps, park) for exactly as long as it takes. */
-import {
-  S, g, col, txt, LW, LH, HUD, ac, muted, tone, noise, headClick, out, ensureAudio, stickDir, held,
-  overlay, $, tvOn, age, setAccReset, track, layoutName, startGame, setGame, game, readBest, setManual,
-  clearInput, ordinal, api, fetchRuntime, runtimeReady, readBoard, reduceMotion,
-} from './core';
+   Every load plays the drive (motor, recalibrate, head steps, park) for exactly as long as it takes.
+   State and hardware come through `host`, which core binds before a screen runs. */
+import { host } from './host';
 import { I18N } from './i18n';
 import { createLauncher, type Launcher, type LauncherSystem } from './launcher';
 import { DISKS as GAMES, loadPreviews } from '../games/registry';
@@ -20,6 +17,7 @@ export const BOOT_LEN = 4.0, WARM_LEN = 2.3, MAX_LOAD = 5;
 /* ---------- drive sounds ---------- */
 /** The floppy drive running for `dur` seconds, starting `start` seconds from now. */
 export function playDisk(start: number, dur: number){
+  const { ac, muted, noise, headClick, out } = host;
   if (!ac || muted || dur <= 0.2) return;
   const t0 = ac.currentTime + start, end = t0 + dur;
   // motor: a low filtered rumble with a hum underneath
@@ -46,6 +44,7 @@ export function playDisk(start: number, dur: number){
   headClick(end - 0.2, 0.25, 1500);   // the head parks
 }
 export function playBoot(kind: 'cold' | 'warm'){
+  const { ac, muted, tone } = host;
   if (!ac || muted) return;
   if (kind === 'cold') { tone(1000, 0.2, 0.05, 0, 0.85); playDisk(1.0, BOOT_LEN - 1.45); }
   else { tone(1000, 0.12, 0.045, 0, 0.1); playDisk(0.35, WARM_LEN - 0.75); }
@@ -59,6 +58,7 @@ export function progress(steps: [number, number][], f: number){
 }
 /** The sector bar: LOADING <FILE>, a framed bar of cells, the percentage and the head's track and sector. Returns the y below it. */
 export function sectorBar(x: number, y: number, p: number, t: number, file: string, size: number){
+  const { LW, txt, g, col } = host;
   const CELLS = LW < 330 ? 16 : 24, bytes = Math.floor(p * size / 512) * 512, done = p >= 1;
   txt('LOADING ' + file, x, y, 'text'); y += 14;
   const bw = CELLS * 9 + 3, bh = 11;
@@ -79,21 +79,24 @@ export function sectorBar(x: number, y: number, p: number, t: number, file: stri
 }
 /** The sector bar for a game's own loading screen, centred under its artwork. */
 export function diskInfo(y: number, p: number, t: number, d: GameDisk){
+  const { LW } = host;
   const CELLS = LW < 330 ? 16 : 24, w = CELLS * 9 + 3 + 40;
   return sectorBar(Math.max(10, Math.round(LW / 2 - w / 2)), y, p, t, d.file, d.size);
 }
 
 /* ---------- boot ---------- */
 export function startConsole(kind: 'cold' | 'warm'){
+  const { S, ensureAudio, overlay, $, clearInput, age, setAccReset, setGame, setManual } = host;
   ensureAudio();
   S.mode = 'boot'; S.bootT = 0; S.bootAt = performance.now(); S.bootKind = kind; S.bootLen = kind === 'cold' ? BOOT_LEN : WARM_LEN;
   overlay.hidden = true; clearInput();
-  $('pauseBtn').setAttribute('aria-pressed', 'false');
+  $('pauseBtn')!.setAttribute('aria-pressed', 'false');
   if (kind === 'cold') { age.dipLeft = 0.2; setAccReset(); }
   setGame(null); setManual('console'); useButtons(BOOT_BUTTONS);
   playBoot(kind);
 }
 export function drawBoot(){
+  const { S, txt, g, col } = host;
   const t = S.bootT, warm = S.bootKind === 'warm', t1 = S.bootLen - 0.4;
   if (t < 0.05) return;
   const { lines, enterAt } = bootScript(t, warm), t0 = Math.max(enterAt, warm ? 0.7 : 2.1);
@@ -117,7 +120,7 @@ const lastId = () => { try { return localStorage.getItem('gg-last'); } catch (_)
 // the launcher asks for every disk's best on every frame, so read storage once per visit to the menu:
 // scores only change while a game runs, or when the leaflet's Settings clears them
 const bests = new Map<string, { score: number; name: string | null }>();
-const readBestOf = (id: string) => { const score = readBest(id), top = readBoard(id)[0]; return { score, name: top && top.s === score ? top.n : null }; };
+const readBestOf = (id: string) => { const { readBest, readBoard } = host; const score = readBest(id), top = readBoard(id)[0]; return { score, name: top && top.s === score ? top.n : null }; };
 addEventListener(SETTINGS_EVENT, () => bests.clear());
 const system: LauncherSystem = {
   disks: () => GAMES,
@@ -126,18 +129,19 @@ const system: LauncherSystem = {
   load: i => loadGame(i),
   download: () => {},
   lastDiskId: lastId,
-  reducedMotion: () => reduceMotion,
-  tick: () => { if (ac && !muted) tone(660, 0.02, 0.03); },
-  seek: () => { if (ac && !muted) { headClick(ac.currentTime + 0.02, 0.18, 2300); headClick(ac.currentTime + 0.07, 0.18, 2500); } },
+  reducedMotion: () => host.reduceMotion,
+  tick: () => { const { ac, muted, tone } = host; if (ac && !muted) tone(660, 0.02, 0.03); },
+  seek: () => { const { ac, muted, headClick } = host; if (ac && !muted) { headClick(ac.currentTime + 0.02, 0.18, 2300); headClick(ac.currentTime + 0.07, 0.18, 2500); } },
   label: key => String(I18N.en?.[key] ?? GAMES.map(d => d.strings.en?.[key]).find(v => typeof v === 'string') ?? key),
 };
 // made on first use: core.ts (and its api) imports this module, so api isn't ready while this file loads
 let made: Launcher | null = null;
-const launcher = () => (made ??= createLauncher(api, system));
+const launcher = () => (made ??= createLauncher(host.api, system));
 /** Where a tap lands on the launcher now, for tests/flow.cjs (`__gg.launcherTargets()`). */
 export const launcherTargets = () => OLD_LIST ? [] : launcher().targets();
 
 export function enterMenu(){
+  const { S, overlay, setGame, setManual } = host;
   S.mode = 'menu'; S.menuT = 0; S.menuDir = null; S.menuRep = 0;
   bests.clear();
   if (S.menuSel == null) { const i = Math.max(0, GAMES.findIndex(d => d.id === lastId())); S.menuSel = i; }
@@ -149,11 +153,13 @@ export function enterMenu(){
 /* ---------- the old disk list (?menu=list) ---------- */
 let menuRects: { x: number; y: number; w: number; h: number; i: number }[] = [];
 export function menuMove(d: string){
+  const { S, ac, muted, tone } = host;
   const n = GAMES.length;
   S.menuSel = (S.menuSel + (d === 'down' || d === 'right' ? 1 : n - 1)) % n;
   if (ac && !muted) tone(660, 0.02, 0.03);
 }
 export function menuKey(e: KeyboardEvent){
+  const { S } = host;
   if (!OLD_LIST) { const used = launcher().key(e.code); S.menuSel = launcher().sel; return used; }
   const KEYS: Record<string, string> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
   if (KEYS[e.code]) { menuMove(KEYS[e.code]); return true; }
@@ -163,17 +169,20 @@ export function menuKey(e: KeyboardEvent){
   return false;
 }
 export function updateMenu(dt: number){
+  const { S, stickDir } = host;
   if (!OLD_LIST) { S.menuT += dt; launcher().update(dt, stickDir); S.menuSel = launcher().sel; return; }
   S.menuT += dt; S.menuRep -= dt;
   if (stickDir !== S.menuDir) { S.menuDir = stickDir; if (stickDir) { menuMove(stickDir); S.menuRep = 0.4; } }
   else if (stickDir && S.menuRep <= 0) { menuMove(stickDir); S.menuRep = 0.18; }
 }
 export function menuTap(x: number, y: number){
+  const { S } = host;
   if (!OLD_LIST) { launcher().tap(x, y); S.menuSel = launcher().sel; return; }
   const hit = menuRects.find(q => x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h);
   if (hit) { S.menuSel = hit.i; loadGame(hit.i); }
 }
 function floppy(x: number, y: number, on: boolean){
+  const { g, col } = host;
   g.fillStyle = col(on ? 'text' : 'hud'); g.fillRect(x, y, 14, 15);
   g.fillStyle = col('bg'); g.fillRect(x + 13, y, 1, 1);                              // clipped corner
   g.fillStyle = col(on ? 'bg' : 'textDim'); g.fillRect(x + 3, y, 8, 5);              // shutter
@@ -182,6 +191,7 @@ function floppy(x: number, y: number, on: boolean){
   g.fillStyle = col(on ? 'text' : 'hud'); g.fillRect(x + 3, y + 9, 8, 1); g.fillRect(x + 3, y + 11, 6, 1);
 }
 export function drawMenu(){
+  const { S, LH, LW, txt, g, col, readBest } = host;
   if (!OLD_LIST) {
     if (S.diskError > 0) S.diskError -= 1 / 60;
     launcher().draw(S.diskError > 0 ? 'DISK ERROR · CONNECT AND TRY AGAIN' : null);
@@ -219,6 +229,7 @@ export function drawMenu(){
 
 /* ---------- loading a game ---------- */
 export function loadGame(i: number){
+  const { ensureAudio, setGame, S, fetchRuntime, clearInput, tone, track, layoutName } = host;
   const d = GAMES[i]; if (!d) return;
   ensureAudio();
   setGame(d);
@@ -228,12 +239,15 @@ export function loadGame(i: number){
   S.loadErr = null;
   fetchRuntime(d).catch(err => { S.loadErr = err; });
   clearInput();
+  // after ensureAudio: the context may have just been created, so read it now
+  const { ac, muted } = host;
   if (ac && !muted) tone(1200, 0.03, 0.04);
   playDisk(0.05, S.loadLen - 0.05);
   track('game_load', { game: d.id, layout: layoutName() });
 }
 // boots and loads run on the wall clock, like the drive sounds, so a slow frame rate can't stretch them
 export function updateBoot(){
+  const { S } = host;
   S.bootT = (performance.now() - S.bootAt) / 1000;
   if (S.bootT < S.bootLen) return;
   // a game's own page (/dino-run …) boots straight into its disk the first time; RESET and SELECT go to the menu
@@ -242,12 +256,14 @@ export function updateBoot(){
   if (i >= 0) { S.menuSel = i; loadGame(i); } else enterMenu();
 }
 export function updateLoad(_dt: number){
+  const { S, runtimeReady, game, startGame } = host;
   S.loadT = (performance.now() - S.loadAt) / 1000;
   if (S.loadT < S.loadLen + 0.35) return;
   if (runtimeReady(game.id)) { unreachable.delete(game.id); startGame(); }   // it loaded, so it's on the device after all
   else if (S.loadErr) { S.diskError = 2.5; unreachable.add(game.id); enterMenu(); }   // couldn't fetch the game (offline before it was cached)
 }
 export function drawLoad(){
+  const { game, S, api, runtimeReady } = host;
   let p = progress(game.steps, S.loadT / S.loadLen);
   if (p >= 1 && !runtimeReady(game.id)) p = 0.99;
   game.drawLoad(api, p, S.loadT);
@@ -255,7 +271,10 @@ export function drawLoad(){
 
 /* ---------- SELECT: back to the disk menu through a warm boot ---------- */
 export function pressSelect(){
-  ensureAudio(); if (ac) tone(1100, 0.015, 0.06);
+  const { ensureAudio, tone, $, tvOn, track, game, S } = host;
+  ensureAudio();
+  const { ac } = host;
+  if (ac) tone(1100, 0.015, 0.06);
   const b = $('selectBtn'); if (b) { b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 140); }
   if (!tvOn) return;
   track('select', { game: game ? game.id : 'menu', level: S.level });
