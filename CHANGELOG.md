@@ -3,6 +3,12 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.9.0] - 2026-11-10
+
+### Features
+
+- **martian-storm**: Fly a skiff through the dust (GAM-46) (#68)
+
 ## [0.8.0] - 2026-11-10
 
 ### Documentation
