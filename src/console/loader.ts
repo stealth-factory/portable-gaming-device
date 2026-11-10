@@ -13,6 +13,7 @@ import { useButtons } from './buttons';
 import { BOOT_BUTTONS, MENU_BUTTONS } from './console-buttons';
 import { bootScript, PROMPT } from './boot';
 import { menuRows } from './menu-layout';
+import { SETTINGS_EVENT } from './settings';
 
 export const BOOT_LEN = 4.0, WARM_LEN = 2.3, MAX_LOAD = 5;
 
@@ -113,10 +114,15 @@ const OLD_LIST = /[?&]menu=list\b/.test(location.search);
 const unreachable = new Set<string>();
 addEventListener('online', () => unreachable.clear());
 const lastId = () => { try { return localStorage.getItem('gg-last'); } catch (_) { return null; } };
+// the launcher asks for every disk's best on every frame, so read storage once per visit to the menu:
+// scores only change while a game runs, or when the leaflet's Settings clears them
+const bests = new Map<string, { score: number; name: string | null }>();
+const readBestOf = (id: string) => { const score = readBest(id), top = readBoard(id)[0]; return { score, name: top && top.s === score ? top.n : null }; };
+addEventListener(SETTINGS_EVENT, () => bests.clear());
 const system: LauncherSystem = {
   disks: () => GAMES,
   state: id => unreachable.has(id) ? { kind: 'missing', size: GAMES.find(d => d.id === id)?.size ?? 0 } : { kind: 'ready' },
-  best: id => { const score = readBest(id), top = readBoard(id)[0]; return { score, name: top && top.s === score ? top.n : null }; },
+  best: id => bests.get(id) ?? bests.set(id, readBestOf(id)).get(id)!,
   load: i => loadGame(i),
   download: () => {},
   lastDiskId: lastId,
@@ -133,6 +139,7 @@ export const launcherTargets = () => OLD_LIST ? [] : launcher().targets();
 
 export function enterMenu(){
   S.mode = 'menu'; S.menuT = 0; S.menuDir = null; S.menuRep = 0;
+  bests.clear();
   if (S.menuSel == null) { const i = Math.max(0, GAMES.findIndex(d => d.id === lastId())); S.menuSel = i; }
   launcher().enter(S.menuSel);
   overlay.hidden = true; setGame(null); setManual('console'); useButtons(MENU_BUTTONS);
