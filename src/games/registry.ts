@@ -11,13 +11,15 @@ const previewModules = import.meta.glob<{ preview: Preview }>('./*/preview.ts');
 
 for (const [path, m] of Object.entries(diskModules)) m.disk.cover = coverModules[`./${path.split('/')[1]}/cover.ts`]?.cover;
 
-/** Fetch every disk's flipbook preview (once) and attach it to its disk as `preview`. */
+/** Fetch every disk's flipbook preview and attach it to its disk as `preview`. Once they all arrive this is a no-op;
+    if any failed (offline and not cached), the next call (the next visit to the menu) tries those again. */
 let previewsAsked: Promise<void> | null = null;
 export function loadPreviews(): Promise<void> {
   return (previewsAsked ??= Promise.all(Object.entries(diskModules).map(async ([path, m]) => {
     const load = previewModules[`./${path.split('/')[1]}/preview.ts`];
-    if (load) try { m.disk.preview = (await load()).preview; } catch (_) { /* offline and not cached: the cover stays still */ }
-  })).then(() => {}));
+    if (!load || m.disk.preview) return true;
+    try { m.disk.preview = (await load()).preview; return true; } catch (_) { return false; /* the cover stays still for now */ }
+  })).then(ok => { if (ok.includes(false)) previewsAsked = null; }));
 }
 
 export const DISKS: GameDisk[] = Object.values(diskModules).map(m => m.disk).sort((a, b) => a.order - b.order);
