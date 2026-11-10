@@ -244,7 +244,7 @@ export function updateBoot(){
 export function updateLoad(_dt: number){
   S.loadT = (performance.now() - S.loadAt) / 1000;
   if (S.loadT < S.loadLen + 0.35) return;
-  if (runtimeReady(game.id)) startGame();
+  if (runtimeReady(game.id)) { unreachable.delete(game.id); startGame(); }   // it loaded, so it's on the device after all
   else if (S.loadErr) { S.diskError = 2.5; unreachable.add(game.id); enterMenu(); }   // couldn't fetch the game (offline before it was cached)
 }
 export function drawLoad(){
