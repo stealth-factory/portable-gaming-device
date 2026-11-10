@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { bindHost, host, type ConsoleHost } from '../../src/console/host';
 import { loadGame, progress } from '../../src/console/loader';
+
+// loader.ts reads the address and listens for the network at load time. Vitest's node
+// environment has neither; the browser always does, so this only exists for the test.
+vi.hoisted(() => {
+  const g = globalThis as { location?: { search: string }; addEventListener?: (...args: unknown[]) => void };
+  if (typeof g.location === 'undefined') g.location = { search: '' };
+  if (typeof g.addEventListener !== 'function') g.addEventListener = () => {};
+});
 
 /* Enough of an audio node for the drive to connect and schedule, and nothing more. */
 function node(){

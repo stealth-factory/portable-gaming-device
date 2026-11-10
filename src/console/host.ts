@@ -5,7 +5,7 @@
    the audio context, the loaded disk) are getters, so each read sees the current one. Read one of
    those after a call that may have changed it (ensureAudio creates the context); a local copy
    taken before that call stays stale. */
-import type { ConsoleAPI, GameDisk } from '../games/types';
+import type { ConsoleAPI, Dir, GameDisk } from '../games/types';
 
 export interface ConsoleHost {
   /** The console's state bag. Still untyped: core owns the fields, the loader only reads and writes them. */
@@ -22,7 +22,7 @@ export interface ConsoleHost {
   headClick(t: number, vol?: number, freq?: number): void;
   out(): GainNode;
   ensureAudio(): void;
-  readonly stickDir: string | null;
+  readonly stickDir: Dir | null;
   readonly overlay: HTMLElement;
   $(id: string): HTMLElement | null;
   readonly tvOn: boolean;
