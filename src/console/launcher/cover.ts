@@ -59,26 +59,32 @@ export function cropTo(w: number, h: number, aspect: number): [number, number, n
 /** What painting needs: a 2D context's fillStyle and fillRect. */
 export interface Paint { fillStyle: any; fillRect(x: number, y: number, w: number, h: number): void }
 
+/** Options for painting: leave index 0 unpainted (the tube's background shows through), paint only part of the
+    source (`src`, in source pixels), or remap indices first (`map[i]`, to dim a cover). */
+export interface PaintOpts { skip0?: boolean; src?: [number, number, number, number]; map?: number[] }
+
 /** Paint palette indices (pw × ph) into the rectangle x, y, w, h by nearest neighbour, in `colours` (the theme's four,
-    by index). `skip0` leaves index 0 unpainted (the tube's background shows through). Runs of one index on a row
-    are one fillRect, which keeps a 128 × 96 cover to a couple of thousand rects at most. */
+    by index). Runs of one index on a row are one fillRect, which keeps a 128 × 96 cover to a couple of thousand rects. */
 export function paintPixels(g: Paint, colours: string[], px: ArrayLike<number>, pw: number, ph: number,
-  x: number, y: number, w: number, h: number, skip0 = false){
+  x: number, y: number, w: number, h: number, o: PaintOpts = {}){
   w = Math.round(w); h = Math.round(h); x = Math.round(x); y = Math.round(y);
   if (w <= 0 || h <= 0) return;
+  const [sx, sy, sw, sh] = o.src ?? [0, 0, pw, ph], map = o.map;
+  const at = (row: number, tx: number) => { const v = px[row + sx + Math.min(sw - 1, Math.floor(tx * sw / w))]; return map ? map[v] : v; };
   for (let ty = 0; ty < h; ty++) {
-    const row = Math.min(ph - 1, Math.floor(ty * ph / h)) * pw;
-    let runStart = 0, runV = px[row + 0];
+    const row = (sy + Math.min(sh - 1, Math.floor(ty * sh / h))) * pw;
+    let runStart = 0, runV = at(row, 0);
     for (let tx = 1; tx <= w; tx++) {
-      const v = tx < w ? px[row + Math.min(pw - 1, Math.floor(tx * pw / w))] : -1;
+      const v = tx < w ? at(row, tx) : -1;
       if (v === runV) continue;
-      if (!(skip0 && runV === 0)) { g.fillStyle = colours[runV]; g.fillRect(x + runStart, y + ty, tx - runStart, 1); }
+      if (!(o.skip0 && runV === 0)) { g.fillStyle = colours[runV]; g.fillRect(x + runStart, y + ty, tx - runStart, 1); }
       runStart = tx; runV = v;
     }
   }
 }
 
-/** Paint a cover into x, y, w, h. */
-export function paintCover(g: Paint, colours: string[], c: Cover, x: number, y: number, w: number, h: number){
-  paintPixels(g, colours, coverPixels(c), c.w, c.h, x, y, w, h);
+/** Paint a cover into x, y, w, h. A rectangle of another shape gets the middle of the cover at its own shape
+    (an upright card shows the centre 3:4 of a 4:3 capture), never a squashed one. */
+export function paintCover(g: Paint, colours: string[], c: Cover, x: number, y: number, w: number, h: number, map?: number[]){
+  paintPixels(g, colours, coverPixels(c), c.w, c.h, x, y, w, h, { src: cropTo(c.w, c.h, w / h), map });
 }

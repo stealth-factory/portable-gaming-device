@@ -15,33 +15,13 @@ async function backToMenu(p){
   if (await mode(p) !== 'menu') await p.keyboard.press('g');
   await p.waitForFunction(() => __gg.S.mode === 'menu' && globalThis.__ggBus.get().manual === 'console' && document.querySelector('#manH')?.textContent === 'Operating Instructions', null, { timeout: 8000 });
 }
-// the row's place on the tube, in the same units drawMenu uses, so a tap lands on that disk.
-// menuRows is nested because this function is sent to the page: keep it in step with src/console/menu-layout.ts
-function diskRow(i){
-  function menuRows(n, lh){
-    const frame = (rowH, gap, minTop) => {
-      const block = 64 + n * (rowH + gap) + 36;
-      const top = Math.max(minTop, Math.round((lh - block) / 2));
-      return { top, bottom: top + 88 + n * (rowH + gap) };
-    };
-    let rowH = Math.max(18, Math.min(36, Math.floor((lh - 16 - 64 - 36) / n) - 6));
-    let gap = rowH >= 30 ? 6 : 3;
-    const first = frame(rowH, gap, 8);
-    if (first.bottom <= lh - 1) return { rowH, gap, top: first.top };
-    gap = 2;
-    for (let rh = Math.min(rowH, 22); rh >= 12; rh--) {
-      const next = frame(rh, gap, 4);
-      if (next.bottom <= lh - 1) return { rowH: rh, gap, top: next.top };
-    }
-    return { rowH: 12, gap: 2, top: 4 };
-  }
-  const LW = __gg.LW, LH = __gg.LH, n = __gg.DISKS.length;
-  const { rowH, gap, top } = menuRows(n, LH);
-  const bw = Math.min(LW - 16, 300), x0 = Math.round(LW / 2 - bw / 2);
-  const y = top + 60 + i * (rowH + gap);
-  return { x: (x0 + bw / 2) / LW, y: (y + rowH / 2) / LH };
-}
-// desk moves the highlight and presses Enter; a phone taps the row. Neither calls loadGame itself
+// where a disk can be tapped on the launcher now: the launcher publishes its tap targets (low-res px), so the test
+// never copies its layout maths. A tick brings that disk to the front; a tap on the front cover loads it.
+const target = (p, kind, i) => p.evaluate(([kind, i]) => {
+  const q = __gg.launcherTargets().find(q => q.kind === kind && (i == null || q.i === i));
+  return q && { x: (q.x + q.w / 2) / __gg.LW, y: (q.y + q.h / 2) / __gg.LH };
+}, [kind, i]);
+// desk moves the front disk and presses Enter; a phone taps its tick, then the front cover. Neither calls loadGame itself
 async function chooseDisk(p, tag, i){
   if (tag === 'desk') {
     const n = await p.evaluate(() => __gg.DISKS.length), sel = await p.evaluate(() => __gg.S.menuSel | 0);
@@ -52,8 +32,14 @@ async function chooseDisk(p, tag, i){
     return true;
   }
   const box = await p.locator('#cv').boundingBox();
-  const pt = await p.evaluate(diskRow, i);
-  await p.mouse.click(box.x + pt.x * box.width, box.y + pt.y * box.height);
+  const click = pt => p.mouse.click(box.x + pt.x * box.width, box.y + pt.y * box.height);
+  if (await p.evaluate(() => __gg.S.menuSel) !== i) {
+    const tick = await target(p, 'tick', i);
+    if (!tick) { errs.push(tag + ' launcher has no tick for disk ' + i); return false; }
+    await click(tick); await p.waitForTimeout(80);
+    if (await mode(p) !== 'menu' || await p.evaluate(() => __gg.S.menuSel) !== i) { errs.push(tag + ' tick did not bring disk ' + i + ' to the front'); return false; }
+  }
+  await click(await target(p, 'front', i));
   return true;
 }
 // pretend the tab went into the background and came back (headless Chromium never hides a page by itself)
