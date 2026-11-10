@@ -149,7 +149,8 @@ Requirements 1 to 11 below are built: the console boots into a disk menu with fi
 | `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Strict TypeScript (`tsconfig.kit.json`), tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
 | `src/kit/platform/` | Console services as DOM-free rules the core wires to the page. `haptics.ts` (GAM-5) is the first: named buzz patterns, the SOUND-off rule and which buzz wins, with the core supplying the vibrate call; button slots, gamepad and pause are to follow. See the [Shared game kit spec](https://linear.app/stealth-company/document/shared-game-kit-spec-338041de484b) |
 | `public/` | Icons, favicon, share images (`og-image.png`, `og-<slug>.png` per game) |
-| `tools/share-images/` | `make.cjs` captures the console and renders the share images and `docs/screens/`; `share.css` is their layout |
+| `tools/share-images/` | `make.cjs` captures the console and renders the share images and `docs/screens/`; `share.css` is their layout. `--covers` also writes each game's launcher cover (`src/games/<folder>/cover.ts`, generated, never edited by hand) from its play capture; `--covers-only` writes just those |
+| `src/console/launcher/` | The new disk launcher (GAM-32), DOM-free so the native apps can run it. So far `cover.ts`: the 2-bit cover codec, shrinking a capture and painting a cover in the theme's colours |
 
 Useful places:
 
@@ -176,22 +177,22 @@ Every game is one folder, `src/games/<folder>/`, plus a few files outside it. [`
 
 | File | Status | What it holds |
 | --- | --- | --- |
-| `src/games/<folder>/disk.ts` | required | `disk: GameDisk`: id, order, slug, page title and description, title, file and size, `loadSecs` (≤ 5, unique) and `steps`, blurb, verb, `tap`, `controls`, `buttons`, game-over keys, `manual`, `strings`, `drawLoad`. Loaded up front, so it stays light (only `strings.ts`, `art.ts` and `kit/play/sprite`). |
+| `src/games/<folder>/disk.ts` | required | `disk: GameDisk`: id, order, slug, `genre`, `players`, page title and description, title, file and size, `loadSecs` (≤ 5, unique) and `steps`, blurb, verb, `tap`, `controls`, `buttons`, game-over keys, `manual`, `strings`, `drawLoad`. Loaded up front, so it stays light (only `strings.ts`, `art.ts` and `kit/play/sprite`). |
 | `src/games/<folder>/game.ts` | required | Default export `create(api)` → `{ start, update, draw, onPalette?, debug? }`. Fetched while the drive reads. |
 | `src/games/<folder>/strings.ts` | expected | `strings: Strings` in `en`, `zh-hant`, `zh-hans`: the name, instructions, button labels and game-over words. Keys carry a game prefix (`dHow`); the table is shared and a test fails on clashing keys. |
 | `src/games/<folder>/art.ts` | expected | Original sprites and drawing helpers, drawn only through colour roles (`api.col(role)`). Used by both the loading screen and the game, so no game state. |
 | `src/games/<folder>/rules.ts` and similar | as needed | Pure rules (generation, weapons, scoring) with no canvas or `api`, unit-tested in `tests/unit/`. |
-| `src/games/<folder>/cover.ts` | generated, with GAM-32 | The launcher cover: 128 × 96, one palette index (0 to 3) per pixel, base64. Made by `make.cjs --covers`. A disk may draw its own with `drawCover` instead. |
-| `src/games/<folder>/preview.ts` | generated, optional, with GAM-32 | A 6 to 8 frame flipbook preview in the same format, for disks without `drawPreview`. Made by `make.cjs --previews`. |
+| `src/games/<folder>/cover.ts` | required, generated | The launcher cover: 128 × 96, one palette index (0 to 3) per pixel, base64. Written by `make.cjs --covers` from the game's `play(…)` capture; `covers.test.ts` fails without it. A disk may also draw its own with `drawCover`. |
+| `src/games/<folder>/preview.ts` | optional, generated | A flipbook preview in the same format (`{ w, h, fps, frames }`), for disks without `drawPreview`. The registry attaches it; no tool writes it yet. |
 | `public/og-<slug>.png` | required | Share image for the game's page, 1200 × 630, full colour, made by `tools/share-images/make.cjs`. Never drawn on the tube; kept out of the offline precache. |
 | `docs/screens/load-<short>.png`, `play-<short>.png` | expected | README screenshots, 720 px wide, made by the same script. |
-| `tools/share-images/make.cjs` | edit | An `IMAGES` entry, the capture steps and the screenshot names for the game. |
+| `tools/share-images/make.cjs` | edit | An `IMAGES` entry, the capture steps (`shot('load-…')`, and `play('play-…', '<folder>')`, which also makes the cover) and the screenshot names for the game. |
 | `tests/flow.cjs` | edit | Checks for anything game-specific; the generic play-through covers the rest. |
 | `tests/unit/<game>*.test.ts` | as needed | Tests for the rules modules. `disks.test.ts` checks every disk's fields, strings, share image and imports. |
 | `tools/autopilot/<game>.mjs` | optional | A headless bot for tuning difficulty. |
 | `README.md`, `AGENTS.md` | edit | A Games table row and screenshots; a numbered requirement section here. |
 
-Launcher fields coming with GAM-32 (see the [Web launcher build spec](https://linear.app/stealth-company/document/web-launcher-build-spec-gam-32-88a4c25140c8)): `genre` (upper case, ≤ 8 characters), `players`, optional `year`, and optional `drawCover(api, x, y, w, h, t)` and `drawPreview(api, x, y, w, h, t)`. The launcher tries `drawCover`, then `cover.ts`, then the title on a floppy label; for the preview, `drawPreview`, then `preview.ts`, then the cover held still. Covers are data painted with `fillRect` in the theme's colours, never `<img>`, so they work on every phosphor and in the native apps.
+Launcher fields on every disk (GAM-32, see the [Web launcher build spec](https://linear.app/stealth-company/document/web-launcher-build-spec-gam-32-88a4c25140c8)): `genre` (upper case, ≤ 8 characters) and `players` (a unit test checks both), optional `year`, and optional `drawCover(api, x, y, w, h, t)` and `drawPreview(api, x, y, w, h, t)`. `cover` and `preview` are attached by the registry; never set them in `disk.ts`. The launcher tries `drawCover`, then `cover.ts`, then the title on a floppy label; for the preview, `drawPreview`, then `preview.ts`, then the cover held still. Covers are data painted with `fillRect` in the theme's colours, never `<img>`, so they work on every phosphor and in the native apps.
 
 ## How the console should keep behaving
 
@@ -203,7 +204,7 @@ Launcher fields coming with GAM-32 (see the [Web launcher build spec](https://li
 - **Languages.** The page chrome and instructions come in English, Traditional Chinese and Simplified Chinese (`I18N`, chosen by `#en`, `#zh-hant` or `#zh-hans`). On-tube text stays English in the pixel font.
 - **High scores.** Local only, per device, one table per game (`gg-board-<id>`).
 - **Keyboard focus.** After a pointer click or tap on the set's buttons, the console drops focus (`blur`), so Space and Enter go to the game instead of pressing the button again (it used to switch the set off mid-jump). Keep that for any new button on the set.
-- **Share images.** Every game page needs `public/og-<slug>.png` (a unit test checks). Re-run `tools/share-images/make.cjs` after visible changes to the set, the menu or a game, and add new games to its `IMAGES` list. Share images stay out of the offline precache.
+- **Share images and covers.** Every game page needs `public/og-<slug>.png` (a unit test checks). Re-run `tools/share-images/make.cjs` after visible changes to the set, the menu or a game, and add new games to its `IMAGES` list. Run it with `--covers` when a game's look changes, so its launcher cover follows; a new game adds its `play(…)` capture there too. Every disk also declares `genre` (upper case, at most 8 characters) and `players` for the launcher. Share images stay out of the offline precache.
 - **Analytics.** Vercel Web Analytics custom events through `track(name, data)`. The account is on Vercel Pro, which allows **at most two properties per event**, and values must be strings, numbers, booleans or null. When there are several games, put the game id in the event properties and drop a less useful one to stay within two. Keep the README's event table up to date.
 
 ## Working conventions

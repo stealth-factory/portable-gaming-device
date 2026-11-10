@@ -13,13 +13,13 @@ src/games/<folder>/
 ├── strings.ts     expected   every word for the page and the instructions, in en, zh-hant and zh-hans
 ├── art.ts         expected   the sprites and drawing helpers, in colour roles
 ├── rules.ts …     as needed  pure game rules (weapons, scoring, level generation), unit-tested
-├── cover.ts       generated  launcher cover, 2-bit (coming with GAM-32)
-└── preview.ts     generated  launcher flipbook preview, optional (coming with GAM-32)
+├── cover.ts       generated  launcher cover, 2-bit, made by make.cjs --covers
+└── preview.ts     generated  launcher flipbook preview, optional (no tool writes it yet)
 
 public/og-<slug>.png                     required   share image for the game's page, 1200 × 630
 docs/screens/load-<short>.png            expected   README screenshot of the loading screen
 docs/screens/play-<short>.png            expected   README screenshot of play
-tools/share-images/make.cjs              edit       an IMAGES entry and the capture steps for the game
+tools/share-images/make.cjs              edit       an IMAGES entry and the capture steps (a play(…) capture makes the cover)
 tests/unit/<game>*.test.ts               as needed  tests for rules.ts and friends
 tests/flow.cjs                           edit       game-specific checks (the generic play-through covers the rest)
 tools/autopilot/<game>.mjs               optional   a headless bot for tuning difficulty
@@ -51,8 +51,9 @@ It exports `disk: GameDisk` (see [`types.ts`](types.ts) for every field):
 | `overKey`, `againKey` | The game-over card's title and button. |
 | `manual`, `strings` | The Operating Instructions and every string they use. |
 | `drawLoad(api, p, t)` | The themed loading screen. |
-| `genre`, `players`, `year` | Launcher details (coming with GAM-32). |
-| `drawCover`, `drawPreview` | Optional hand-drawn launcher cover and preview loop (coming with GAM-32). |
+| `genre`, `players`, `year` | Launcher details: `genre` upper case and at most 8 characters (`DIG`, `BAT+BALL`), `players` a whole number of 1 or more, `year` optional. A unit test checks the first two. |
+| `drawCover`, `drawPreview` | Optional hand-drawn launcher cover and preview loop, `(api, x, y, w, h, t)`, for when the captured cover reads badly at carousel size. |
+| `cover`, `preview` | Never set these in `disk.ts`: the registry attaches them from the folder's generated `cover.ts` and `preview.ts`. |
 
 ### `game.ts` (required)
 
@@ -82,9 +83,11 @@ The game's sprites and drawing helpers: original pixel art built from rectangles
 
 Anything with rules worth testing on their own goes in its own pure module: `bricks/rules.ts` (wall generation and capsules), `invader-force/weapons.ts`, `i-invade/cluster.ts`. No canvas, no `api`; plain inputs and outputs, so `tests/unit/` can check them.
 
-### `cover.ts` and `preview.ts` (generated, coming with GAM-32)
+### `cover.ts` (generated, required today) and `preview.ts` (optional)
 
-The launcher's cover and optional flipbook preview, as data the console paints in whatever phosphor is on. `tools/share-images/make.cjs --covers` (and `--previews`) captures them from the game; never draw or edit them by hand. Each frame is 128 × 96 pixels, one palette index (0 to 3) per pixel, stored as base64. A disk can instead draw its own with `drawCover` and `drawPreview` on the disk. The launcher tries `drawCover`, then `cover.ts`, then the title on a floppy label. The full design is in the [Web launcher build spec](https://linear.app/stealth-company/document/web-launcher-build-spec-gam-32-88a4c25140c8).
+The launcher's cover, as data the console paints in whatever phosphor is on: `export const cover: Cover = { w: 128, h: 96, data: '<base64>' }`, one palette index (0 = `bg` to 3 = brightest) per pixel, four pixels a byte. `tools/share-images/make.cjs --covers` writes it from the low-res buffer at the same moment as the game's `play-<short>.png` capture (no scanlines or bloom), so never draw or edit it by hand. `covers.test.ts` checks that every disk has one and that it decodes. The codec and painter live in `src/console/launcher/cover.ts`.
+
+`preview.ts` is an optional flipbook in the same format (`{ w, h, fps, frames }`). The registry already attaches one if it exists, but no tool writes it yet. A disk can instead draw its own art with `drawCover` and `drawPreview`. The launcher tries `drawCover`, then `cover.ts`, then the title on a floppy label. The full design is in the [Web launcher build spec](https://linear.app/stealth-company/document/web-launcher-build-spec-gam-32-88a4c25140c8).
 
 ## Artwork and images
 
@@ -94,7 +97,7 @@ A game shows up in five places. Each one has its own art, and all of it is origi
 | --- | --- | --- | --- |
 | The game | Sprites and playfield | `art.ts`, drawn every frame | 4 phosphor colours, through roles |
 | The loading screen | Title art, a scene and the sector bar | `drawLoad` in `disk.ts` (end it with `api.diskInfo`) | 4 phosphor colours |
-| The launcher (GAM-32) | Cover and preview | `cover.ts` / `preview.ts` from the capture tool, or `drawCover` / `drawPreview` | 4 phosphor colours |
+| The launcher | Cover and preview | `cover.ts` from `make.cjs --covers` (and `preview.ts`), or `drawCover` / `drawPreview` | 4 phosphor colours |
 | The game's page and link previews | `public/og-<slug>.png`, 1200 × 630 | `tools/share-images/make.cjs` | Full colour |
 | The README | `docs/screens/load-<short>.png`, `play-<short>.png`, 720 px wide | `tools/share-images/make.cjs` | Full colour |
 
@@ -102,7 +105,7 @@ Anything on the tube goes through the palette quantiser, so it looks right on gr
 
 The share image and screenshots are never drawn by hand. To make them for a new game:
 
-1. Add the capture steps to `make.cjs`: load the disk, wait for a good moment on the loading screen and in play, and `shot('load-<short>.png')` and `shot('play-<short>.png')`. Add `load-<short>` and `play-<short>` (without `.png`; the script adds it) to the README screenshots list near the end of the script.
+1. Add the capture steps to `make.cjs`: load the disk, wait for a good moment on the loading screen and in play, and `shot('load-<short>.png')` for the loading screen and `play('play-<short>.png', '<folder>')` for play. `play()` takes the screenshot and, with `--covers`, writes the game's `cover.ts` from the same frame. Add `load-<short>` and `play-<short>` (without `.png`; the script adds it) to the README screenshots list near the end of the script.
 2. Add an `IMAGES` entry: `out: 'og-<slug>.png'`, the play capture as `tv`, the title, the `<small>on the Game Guy 3000 Deluxe</small>` line, a one-sentence tagline and a fan of two floppies.
 3. Run it against a preview build:
 
@@ -111,10 +114,10 @@ The share image and screenshots are never drawn by hand. To make them for a new 
    npm run build &&
      { npm run preview & } &&   # serves http://localhost:4173
      until curl -sf http://localhost:4173 >/dev/null; do sleep 1; done &&   # wait for it to listen
-     NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
+     NODE_PATH=$(npm root -g) node tools/share-images/make.cjs --covers
    ```
 
-Share images stay out of the offline precache; players never download them.
+`--covers` also writes every game's `cover.ts`; `--covers-only` writes just the covers and skips the share images. Share images stay out of the offline precache; players never download them.
 
 ## Outside the folder
 
@@ -143,8 +146,8 @@ Share images stay out of the offline precache; players never download them.
 3. Write the instructions in all three languages.
 4. Draw the loading screen and check it on all four phosphors and every layout (desk, console, phone and tablet, portrait and landscape).
 5. Split testable rules into their own modules and test them.
-6. Add the capture steps and `IMAGES` entry to `make.cjs`, run it, and commit `public/og-<slug>.png` and the two screenshots.
-7. Once GAM-32 lands: fill in `genre` and `players`, run `make.cjs --covers`, and commit `cover.ts`.
+6. Fill in `genre` and `players`.
+7. Add the capture steps and `IMAGES` entry to `make.cjs`, run it with `--covers`, and commit `public/og-<slug>.png`, the two screenshots and `cover.ts`.
 8. Add game-specific checks to `tests/flow.cjs`.
 9. Update the README and `AGENTS.md`.
 10. Run `npm run build`, `npm test`, then `tests/flow.cjs`, `tests/pages.cjs`, `tests/stick.cjs` and `tests/haptics.cjs` against `npm run preview`.
@@ -158,7 +161,7 @@ import type { ConsoleAPI, GameDisk } from '../types';
 import { strings } from './strings';
 
 export const disk: GameDisk = {
-  id: 'pong', order: 6, slug: 'paddle-ball',
+  id: 'pong', order: 6, slug: 'paddle-ball', genre: 'BAT+BALL', players: 2,   // the launcher's details line
   page: { title: 'Paddle Ball', description: 'Bat the blip past the other paddle.' },
   title: 'PADDLE BALL', nameKey: 'pbName', file: 'PADDLE.COM', size: 6144, loadSecs: 1.2,
   steps: [[0, 0], [0.3, 0.4], [0.5, 0.45], [1, 1]],
