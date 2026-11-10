@@ -178,7 +178,7 @@ NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
 
 It switches the set on, captures the menu, each game's loading screen and some play (Dino Run on autopilot, caught mid-jump). It then lays each capture out beside the name and a fan of floppy disks (`tools/share-images/share.css`) at 1200 × 630.
 
-- **Launcher covers:** add `--covers` to also write each game's cover for the disk launcher (`src/games/<folder>/cover.ts`) from the same moment as its play capture, or `--covers-only` to write just the covers. Covers are read from the low-res buffer before the CRT pass and stored as palette indices, so the launcher can paint them in any phosphor.
+- **Launcher covers:** add `--covers` to also write each game's cover for the disk launcher (`src/games/<folder>/cover.ts`) from the same moment as its play capture, or `--covers-only` to write just the covers. Add `--previews` for each game's flipbook preview too (`preview.ts`: the cover's frame and seven more over 2 s), which the launcher plays after 0.8 s on a disk. Covers are read from the low-res buffer before the CRT pass and stored as palette indices, so the launcher can paint them in any phosphor.
 - **A new game:** add an entry to `IMAGES` in the script, and a `play(…)` capture for its cover.
 - **The test that checks it:** the unit tests fail if a game's page has no share image.
 - **Kept out of the offline cache:** share images are only for link previews, so players never download them.

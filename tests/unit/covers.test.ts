@@ -109,3 +109,19 @@ describe('launcher fields on every disk', () => {
     for (const d of DISKS) expect(d.cover, d.id).toBeTruthy();
   });
 });
+
+describe('flipbook previews', () => {
+  it('loadPreviews attaches each folder\'s preview.ts to its disk', async () => {
+    const { loadPreviews } = await import('../../src/games/registry');
+    await loadPreviews();
+    const files = gameDirs.filter(dir => existsSync(join(GAMES_DIR, dir, 'preview.ts'))).length;
+    expect(DISKS.filter(d => d.preview).length).toBe(files);
+    for (const d of DISKS.filter(d => d.preview)) {
+      const p = d.preview!;
+      expect(p.fps).toBeGreaterThan(0);
+      expect(p.frames.length).toBeGreaterThanOrEqual(2);
+      for (const f of p.frames) expect(decodeCover(f, p.w, p.h).length).toBe(p.w * p.h);
+      if (d.cover) expect(p.frames[0], `${d.id} starts on its cover`).toBe(d.cover.data);
+    }
+  });
+});
