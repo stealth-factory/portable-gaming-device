@@ -132,7 +132,7 @@ Make a folder in `src/games/` with two files. Nothing else needs editing: the di
 import type { ConsoleAPI, GameDisk } from '../types';
 
 export const disk: GameDisk = {
-  id: 'pong', order: 3, slug: 'paddle-ball',
+  id: 'pong', order: 3, slug: 'paddle-ball', genre: 'BAT+BALL', players: 2,   // the launcher's details line
   page: { title: 'Paddle Ball', description: 'Bat the blip past the other paddle.' },
   title: 'PADDLE BALL', nameKey: 'pbName', file: 'PADDLE.COM', size: 6144, loadSecs: 1.2,
   steps: [[0, 0], [0.3, 0.4], [0.5, 0.45], [1, 1]],
@@ -161,6 +161,7 @@ Rules (the unit tests check them):
 - **No console imports:** a game never imports from `src/console`; everything comes through `ConsoleAPI`.
 - **No side effects:** loading a game's modules must not do anything (no canvases or listeners at the top level); do that in `create()`.
 - **Loads within 5 seconds:** `loadSecs` is 5 or less, and different from every other game's.
+- **Launcher details:** `genre` is upper case and at most 8 characters, and `players` is a whole number. A launcher cover (`cover.ts`) is optional but expected: make it with `make.cjs --covers`.
 - **Three languages:** the name and instructions come in `en`, `zh-hant` and `zh-hans`.
 - **Original work:** characters, art and sound are your own, even for a tribute.
 
