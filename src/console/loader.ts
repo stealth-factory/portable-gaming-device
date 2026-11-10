@@ -7,7 +7,7 @@ import {
 } from './core';
 import { I18N } from './i18n';
 import { createLauncher, type Launcher, type LauncherSystem } from './launcher';
-import { DISKS as GAMES } from '../games/registry';
+import { DISKS as GAMES, loadPreviews } from '../games/registry';
 import type { GameDisk } from '../games/types';
 import { useButtons } from './buttons';
 import { BOOT_BUTTONS, MENU_BUTTONS } from './console-buttons';
@@ -142,6 +142,7 @@ export function enterMenu(){
   bests.clear();
   if (S.menuSel == null) { const i = Math.max(0, GAMES.findIndex(d => d.id === lastId())); S.menuSel = i; }
   launcher().enter(S.menuSel);
+  loadPreviews();
   overlay.hidden = true; setGame(null); setManual('console'); useButtons(MENU_BUTTONS);
 }
 
