@@ -52,7 +52,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  id: 'bricks', order: 5, slug: 'bricks',
+  id: 'bricks', order: 5, slug: 'bricks', genre: 'BAT+BALL', players: 1,
   page: {
     title: 'Bricks',
     description: 'Serve an ember into a wall of clay, kiln, glass and cinder bricks and clear them with one bat, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.',

@@ -132,7 +132,7 @@ Make a folder in `src/games/` with two files. Nothing else needs editing: the di
 import type { ConsoleAPI, GameDisk } from '../types';
 
 export const disk: GameDisk = {
-  id: 'pong', order: 3, slug: 'paddle-ball',
+  id: 'pong', order: 3, slug: 'paddle-ball', genre: 'BAT+BALL', players: 2,   // the launcher's details line
   page: { title: 'Paddle Ball', description: 'Bat the blip past the other paddle.' },
   title: 'PADDLE BALL', nameKey: 'pbName', file: 'PADDLE.COM', size: 6144, loadSecs: 1.2,
   steps: [[0, 0], [0.3, 0.4], [0.5, 0.45], [1, 1]],
@@ -161,6 +161,7 @@ Rules (the unit tests check them):
 - **No console imports:** a game never imports from `src/console`; everything comes through `ConsoleAPI`.
 - **No side effects:** loading a game's modules must not do anything (no canvases or listeners at the top level); do that in `create()`.
 - **Loads within 5 seconds:** `loadSecs` is 5 or less, and different from every other game's.
+- **Launcher details:** `genre` is upper case and at most 8 characters, and `players` is a whole number. A launcher cover (`cover.ts`) is optional but expected: make it with `make.cjs --covers`.
 - **Three languages:** the name and instructions come in `en`, `zh-hant` and `zh-hans`.
 - **Original work:** characters, art and sound are your own, even for a tribute.
 
@@ -175,7 +176,8 @@ NODE_PATH=$(npm root -g) node tools/share-images/make.cjs
 
 It switches the set on, captures the menu, each game's loading screen and some play (Dino Run on autopilot, caught mid-jump). It then lays each capture out beside the name and a fan of floppy disks (`tools/share-images/share.css`) at 1200 × 630.
 
-- **A new game:** add an entry to `IMAGES` in the script.
+- **Launcher covers:** add `--covers` to also write each game's cover for the disk launcher (`src/games/<folder>/cover.ts`) from the same moment as its play capture, or `--covers-only` to write just the covers. Covers are read from the low-res buffer before the CRT pass and stored as palette indices, so the launcher can paint them in any phosphor.
+- **A new game:** add an entry to `IMAGES` in the script, and a `play(…)` capture for its cover.
 - **The test that checks it:** the unit tests fail if a game's page has no share image.
 - **Kept out of the offline cache:** share images are only for link previews, so players never download them.
 

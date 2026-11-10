@@ -52,7 +52,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  id: 'invader', order: 3, slug: 'invader-force',
+  id: 'invader', order: 3, slug: 'invader-force', genre: 'SHOOTER', players: 1,
   page: { title: 'Invader Force', description: 'Hold the line against a marching alien formation: shoot them down before they land, duck behind the walls and grab the mystery saucer, catch weapon capsules, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.' },
   title: 'INVADER FORCE', nameKey: 'ifName', file: 'INVFORCE.EXE', size: 28672, loadSecs: 3.1,
   steps: [[0, 0], [0.08, 0.04], [0.2, 0.22], [0.3, 0.24], [0.45, 0.48], [0.52, 0.5], [0.66, 0.7], [0.74, 0.72], [0.9, 0.96], [1, 1]],

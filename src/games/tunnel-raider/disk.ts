@@ -48,7 +48,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  id: 'tunnel', order: 1, slug: 'tunnel-raider',
+  id: 'tunnel', order: 1, slug: 'tunnel-raider', genre: 'DIG', players: 1,
   page: { title: 'Tunnel Raider', description: 'Dig for emeralds, drop sacks of gold on the grubs and outwit smarter monsters every level, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.' }, title: 'TUNNEL RAIDER', nameKey: 'trName', file: 'TUNNEL.EXE', size: 47104, loadSecs: 4.4,
   steps: [[0, 0], [0.1, 0.06], [0.18, 0.06], [0.3, 0.27], [0.4, 0.31], [0.5, 0.31], [0.63, 0.58], [0.71, 0.63], [0.8, 0.63], [0.92, 0.94], [1, 1]],
   blurb: 'DIG · DROP · SURVIVE', verb: 'DIG', buttons: { fire: { label: 'spark' }, boost: { label: 'boost' } }, overKey: 'over', againKey: 'again',
