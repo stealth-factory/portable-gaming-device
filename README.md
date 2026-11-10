@@ -32,9 +32,10 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
 
 - **Nameplate:** Game Guy and the phosphor in use, with the release version stamped on its own line under the plate. The version is the one in `package.json`, so it moves with the release.
 - **POWER** switches the set on (or press <kbd>Enter</kbd>). It runs a memory test, beeps, spins up the drive and boots the disk menu.
-- **Disk menu:**
-  - **Choose a game:** stick, arrow keys or <kbd>1</kbd>–<kbd>9</kbd>.
-  - **Load it:** FIRE, <kbd>Space</kbd>, <kbd>Enter</kbd> or a tap on the disk.
+- **Disk menu (the cover carousel):** the front disk's cover sits in the middle with its title, blurb, best score, genre and controls under it, and its neighbours either side. A numbered tick strip and an `nn/NN` counter show where you are in the box.
+  - **Choose a game:** stick or arrow keys (held, it repeats), a tap on a side cover, a tick or the ◀ ▶ arrows.
+  - **Load it:** FIRE, <kbd>Space</kbd>, <kbd>Enter</kbd>, a tap on the front cover, or <kbd>1</kbd>–<kbd>9</kbd> for that disk.
+  - **The old list:** add `?menu=list` to the address for the previous disk list, kept for one release.
 - **Loading:** every disk shows a loading screen themed to its game and plays the drive (motor, head recalibrating, track steps, head parking) for exactly as long as it takes to read. Load times differ per game and never exceed 5 seconds.
 - **<kbd>G</kbd>** warm-boots back to the disk menu from any game. (A SELECT key for this is built but hidden on the set for now.)
 - **RESET** (wine-red key) restarts the whole console from the BIOS.
@@ -104,7 +105,8 @@ Both scripts load pages with `?test`, which exposes a small `window.__gg` hook f
 - **The leaflet** (`Manual.tsx`) is the one live React island. It follows the engine's language and loaded game through a tiny shared store (`src/console/bus.ts`).
 - **The console engine** (`src/console/`) runs the 60 fps loop:
   - **`core.ts`:** CRT picture, input, sound, switches, scores and the API games get.
-  - **`loader.ts`:** boot screens, disk menu, loading and drive sounds.
+  - **`loader.ts`:** boot screens, loading and drive sounds, and the launcher's wiring.
+  - **`launcher/`:** the disk menu (cover carousel). DOM-free, so the native apps can run it: `state.ts` and `layout.ts` are pure and unit-tested, `draw.ts` paints through the console API, and `system.ts` is what it asks of the console.
   - **`i18n.ts`:** every string, in three languages.
   - **`pwa.ts`:** install button and offline and update prompts.
 - **Games** (`src/games/`) plug in through `types.ts`. `registry.ts` finds them on its own.
@@ -142,7 +144,7 @@ npm run build &&
 
 It switches the set on, captures the menu, each game's loading screen and some play (Dino Run on autopilot, caught mid-jump). It then lays each capture out beside the name and a fan of floppy disks (`tools/share-images/share.css`) at 1200 × 630.
 
-- **Launcher covers:** add `--covers` to also write each game's cover for the disk launcher (`src/games/<folder>/cover.ts`) from the same moment as its play capture, or `--covers-only` to write just the covers. Covers are read from the low-res buffer before the CRT pass and stored as palette indices, so the launcher can paint them in any phosphor.
+- **Launcher covers:** add `--covers` to also write each game's cover for the disk launcher (`src/games/<folder>/cover.ts`) from the same moment as its play capture, or `--covers-only` to write just the covers. Add `--previews` for each game's flipbook preview too (it captures the covers as well) (`preview.ts`: the cover's frame and seven more over 2 s), which the launcher plays after 0.8 s on a disk. Covers are read from the low-res buffer before the CRT pass and stored as palette indices, so the launcher can paint them in any phosphor.
 - **A new game:** add an entry to `IMAGES` in the script, and a `play(…)` capture for its cover.
 - **The test that checks it:** the unit tests fail if a game's page has no share image.
 - **Kept out of the offline cache:** share images are only for link previews, so players never download them.
