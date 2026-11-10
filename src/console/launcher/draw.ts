@@ -5,7 +5,7 @@ import type { LauncherState } from './state';
 import { previewing, previewT, cursorOn } from './state';
 import type { Layout, Card, Line, Rect } from './layout';
 import { LINE } from './layout';
-import { paintCover, paintPixels, decodeCover } from './cover';
+import { paintCover, paintPixels, decodeCover, cropTo } from './cover';
 import { stateIcon, coverOverlay, stateLine, DIM_NEAR, DIM_FAR, DIM_MISSING, ICON_W } from './states';
 
 type Api = Pick<ConsoleAPI, 'g' | 'col' | 'txt' | 'LW' | 'LH' | 'palette'>;
@@ -53,7 +53,7 @@ function paintCard(a: Api, d: GameDisk, c: Card, s: LauncherState, sys: Launcher
   if (live && d.drawPreview) d.drawPreview(a as ConsoleAPI, c.x, c.y, c.w, c.h, pt);
   else if (live && d.preview && d.preview.frames.length) {
     const p = d.preview, f = p.frames[Math.floor(pt * p.fps) % p.frames.length];
-    paintPixels(a.g, pal, decodeFrame(f, p.w, p.h), p.w, p.h, c.x, c.y, c.w, c.h, { map });
+    paintPixels(a.g, pal, decodeFrame(f, p.w, p.h), p.w, p.h, c.x, c.y, c.w, c.h, { src: cropTo(p.w, p.h, c.w / c.h), map }); // cropped like the still cover
   }
   else if (d.drawCover) d.drawCover(a as ConsoleAPI, c.x, c.y, c.w, c.h, front ? s.t : 0);
   else if (d.cover) paintCover(a.g, pal, d.cover, c.x, c.y, c.w, c.h, map);

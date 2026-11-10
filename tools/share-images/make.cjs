@@ -11,8 +11,9 @@ const fs = require('fs'), path = require('path');
 const ROOT = path.resolve(__dirname, '../..'), BASE = process.env.BASE || 'http://localhost:4173';
 const TMP = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gg-share-'));
 const SCREENS = path.join(ROOT, 'docs/screens');
-const COVERS = process.argv.includes('--covers') || process.argv.includes('--covers-only');
 const PREVIEWS = process.argv.includes('--previews');
+// a flipbook starts on its cover, so --previews captures covers too
+const COVERS = PREVIEWS || process.argv.includes('--covers') || process.argv.includes('--covers-only');
 const SHARE = !process.argv.includes('--covers-only');
 
 const FONTS = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Spectral:ital,wght@0,400;1,400&family=IBM+Plex+Mono:wght@600&family=Permanent+Marker&family=Noto+Sans+TC:wght@500&display=swap';

@@ -120,7 +120,7 @@ describe('flipbook previews', () => {
       const p = d.preview!;
       expect(p.fps).toBeGreaterThan(0);
       expect(p.frames.length).toBeGreaterThanOrEqual(2);
-      for (const f of p.frames) expect(decodeCover(f, p.w, p.h).length).toBe(p.w * p.h);
+      for (const f of p.frames) expect(atob(f).length).toBe(Math.ceil(p.w * p.h / 4));
       if (d.cover) expect(p.frames[0], `${d.id} starts on its cover`).toBe(d.cover.data);
     }
   });
