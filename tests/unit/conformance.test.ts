@@ -53,6 +53,30 @@ describe('the Node disk conformance runner', () => {
     expect(drawing(a.stream)).not.toBe(drawing(b.stream));
   }, 60000);
 
+  it('drops BOOST and optional-slot countdown presses while retaining FIRE and held state', () => {
+    const result = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { makeHost, parseScript } from './tools/conformance/host.mjs';
+      const palette = { pal: ['#000000', '#111111', '#222222', '#333333'], roles: { bg: 0 } };
+      const ids = ['fire', 'boost', 'fireL', 'fireR', 'pad1', 'pad2', 'pad3', 'pad4', 'pad5', 'pad6'];
+      for (const mode of ['ready', 'dying', 'clear', 'paused', 'play']) for (const path of ['buttons', 'press']) {
+        const { api, input } = makeHost({ disk: { buttons: Object.fromEntries(ids.map(id => [id, { label: id }])) },
+          script: parseScript({}), palette, measurePixelText: () => ({ width: 0 }) });
+        api.S.mode = mode;
+        input(path === 'buttons' ? { buttons: Object.fromEntries(ids.map(id => [id, true])) } : { press: ids });
+        for (const id of ids) {
+          const state = api.button(id);
+          if (state.queued !== (id === 'fire' || mode === 'play')) throw new Error(mode + ' ' + path + ' queued ' + id);
+          if (state.held !== (path === 'buttons')) throw new Error(mode + ' ' + path + ' held ' + id);
+        }
+        input({ buttons: Object.fromEntries(ids.map(id => [id, false])) });
+        api.S.mode = 'play';
+        if (mode !== 'play' && ids.slice(1).some(id => api.button(id).queued)) throw new Error('Countdown press leaked into play');
+      }
+      process.stdout.write('ok');
+    `], { cwd: ROOT, encoding: 'utf8' });
+    expect(result).toBe('ok');
+  });
+
   it('keeps the previous palette ink for legacy unmapped sprite roles', () => {
     const result = execFileSync(process.execPath, ['--input-type=module', '-e', `
       import { makeHost, parseScript } from './tools/conformance/host.mjs';

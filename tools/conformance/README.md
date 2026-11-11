@@ -31,7 +31,7 @@ An event needs a zero-based `frame` and may set:
 - `press`: slot names whose queued flag is set for the game to consume, without holding them down. This supports repeated presses without release events.
 - `tap`: `{ "held": true, "x": 180 }`; a false-to-true transition queues a tap for disks with `tap: true`. `x` is in low-res pixels.
 
-Omitted fields retain their values. Unknown fields, invalid values and out-of-order frames fail before loading a disk. The host starts the disk using the web's ready countdown, advances time by exactly `1 / 60` second, then updates and draws once per frame. It stops updating after `finishGame` and continues drawing the final game picture; name entry and the score table belong to the system disk.
+Omitted fields retain their values. As on the web, BOOST and optional-slot presses queue only during `play`; FIRE may queue during the ready countdown. Held button state is still updated outside `play`. Both `buttons` and `press` follow those rules, so a released countdown press cannot spend a shield when play starts. Unknown fields, invalid values and out-of-order frames fail before loading a disk. The host starts the disk using the web's ready countdown, advances time by exactly `1 / 60` second, then updates and draws once per frame. It stops updating after `finishGame` and continues drawing the final game picture; name entry and the score table belong to the system disk.
 
 ## Stream format 1
 

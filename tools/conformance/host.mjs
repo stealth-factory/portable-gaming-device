@@ -69,6 +69,8 @@ export function makeHost({ disk, script, palette, measurePixelText }) {
     if (!buttons[id]) buttons[id] = { label: '', enabled: false, held: false, queued: false };
     return buttons[id];
   };
+  // The web keeps FIRE's countdown press; BOOST and optional slots only queue during play.
+  const queuePress = id => { const button = B(id); if (button.enabled) button.queued = id === 'fire' || S.mode === 'play'; };
   for (const id of SLOTS) { const spec = disk.buttons[id]; Object.assign(B(id), spec ? { label: spec.label, enabled: spec.enabled ?? true } : { label: '', enabled: false }); }
   const txt = (text, x, y, role = 'text', align = 'left', size = 8) => {
     g.font = `${size}px Silkscreen, "Courier New", monospace`; g.fillStyle = col(role);
@@ -112,8 +114,8 @@ export function makeHost({ disk, script, palette, measurePixelText }) {
     input(event) {
       if (event.held !== undefined) held = [...event.held];
       if (event.stickDir !== undefined) stickDir = event.stickDir;
-      for (const [id, down] of Object.entries(event.buttons ?? {})) { const button = B(id); if (!button.enabled) continue; if (down && !button.held) button.queued = true; button.held = down; }
-      for (const id of event.press ?? []) if (B(id).enabled) B(id).queued = true;
+      for (const [id, down] of Object.entries(event.buttons ?? {})) { const button = B(id); if (!button.enabled) continue; if (down && !button.held) queuePress(id); button.held = down; }
+      for (const id of event.press ?? []) queuePress(id);
       if (event.tap && disk.tap) { if (event.tap.held && !tapHeld) tapQueued = true; tapHeld = event.tap.held; tapX = event.tap.x; }
     },
     step(runtime) {
