@@ -2,7 +2,7 @@
 
 Every game on the PGD-01 Portable Gaming Device is a **disk**: one folder in `src/games/`. The console finds it on its own (`registry.ts`), so there is no list to edit. The disk menu, its page (`/<slug>`), its instructions, its high-score table and the offline cache all pick it up.
 
-This page lists every file a game needs, in its folder and outside it, what goes in each, and how to check it. [`AGENTS.md`](../../AGENTS.md#game-folders) has the same list in short; the rules for how a game may talk to the console are in [Plug-in rules](#plug-in-rules) below.
+This page lists every file a game needs, in its folder and outside it, what goes in each, and how to check it. It also covers how a game [chooses its buttons](#controls-and-buttons) and [how it shows up on the menu and the loading screen](#on-the-menu-and-the-loading-screen). [`AGENTS.md`](../../AGENTS.md#game-folders) has the same list in short; the rules for how a game may talk to the console are in [Plug-in rules](#plug-in-rules) below.
 
 ## At a glance
 
@@ -89,6 +89,116 @@ The launcher's cover, as data the console paints in whatever phosphor is on: `ex
 
 `preview.ts` is an optional flipbook in the same format (`{ w, h, fps, frames }`): the cover's frame and seven more over 2 s, which the launcher plays after 0.8 s on a disk. `make.cjs --previews` writes it (and the cover with it), and `loadPreviews()` in the registry fetches it lazily. `covers.test.ts` checks that a preview's first frame is its cover, so whenever a game's capture changes, regenerate both together with `--previews`; `--covers` alone would leave a stale preview and fail the test. A disk can instead draw its own art with `drawCover` and `drawPreview`. The launcher tries `drawCover`, then `cover.ts`, then the title on a floppy label. The full design is in the [Web launcher build spec](https://linear.app/stealth-company/document/web-launcher-build-spec-gam-32-88a4c25140c8).
 
+## Controls and buttons
+
+A game doesn't draw or place its own buttons. The set has a fixed row of physical buttons, and the layout detector decides where they sit for each screen. A game chooses three things: **which buttons are lit**, **what each one is called**, and **whether it uses the stick or the button pad**. It then reads presses through the `ConsoleAPI`.
+
+### The slots
+
+Every physical button is a **slot** with an id and its own keys (`src/console/buttons.ts`, defined in `core.ts`).
+
+| Slot | On the set | Keys | Notes |
+| --- | --- | --- | --- |
+| `fire` | The big red button | <kbd>Space</kbd>, <kbd>Z</kbd>, <kbd>X</kbd> | Always there. Hidden on screen while the button pad is up, but <kbd>Space</kbd> still presses it. |
+| `boost` | The second button | <kbd>Shift</kbd>, <kbd>B</kbd> | Always there. |
+| `fireL`, `fireR` | Extra keys either side of FIRE, sharing its row | <kbd>Z</kbd>, <kbd>V</kbd> | **Optional:** hidden, with their keys left to `fire`, unless the game maps them. With all three showing each is about 32 px wide on a small phone, so keep labels to three letters or fewer. |
+| `pad1` … `pad6` | The button pad, in the stick's place | `pad1` <kbd>←</kbd> <kbd>Z</kbd>, `pad2` <kbd>↑</kbd> <kbd>X</kbd>, `pad3` <kbd>→</kbd> <kbd>C</kbd>, `pad4` <kbd>A</kbd>, `pad5` <kbd>S</kbd>, `pad6` <kbd>D</kbd> | **Optional,** and only with `controls: 'pad'`. Two rows of three: `pad1`–`pad3` red on top, `pad4`–`pad6` amber underneath. Leave `pad6` out and `pad4` and `pad5` share the bottom row. The pad takes its keys only while the game is up; the console gets them back for the menu, name entry and the tables. |
+
+The console's own controls aren't slots and a game can't take them: POWER, RESET, the dial, the four switches, <kbd>G</kbd> (back to the menu), <kbd>P</kbd> / <kbd>Esc</kbd> (HOLD), <kbd>M</kbd> (SOUND), <kbd>F</kbd> (FULL) and <kbd>C</kbd> (the phosphor; with the pad up, <kbd>C</kbd> is `pad3` instead).
+
+### Choosing them: `buttons` in `disk.ts`
+
+`buttons` maps a slot id to an I18N key for its label and, optionally, `enabled: false`:
+
+```ts
+buttons: { fire: { label: 'jump' }, boost: { label: 'duck' } },                    // Dino Run
+buttons: { fire: { label: 'serve' } },                                            // Bricks: BOOST left out, so it's dark
+buttons: { fire: { label: 'spark' }, boost: { label: 'shield' } },                // Invader Force
+```
+
+- **Slots left out go dark** and ignore presses. An optional slot left out stays hidden.
+- **`enabled: false`** shows the button greyed and with its label, for one that will light up later (I Invade's METEORS, dimmed until charged).
+- **Labels** are I18N keys, so put the words in `strings.ts` in all three languages. The console's own keys (`spark` for FIRE, `boost`) are there to reuse. Keep labels short: FIRE and BOOST fit about six letters on a phone, the pad keys fewer.
+- **The launcher** lists every lit slot except the pad's as a chip under the cover (`[JUMP] [DUCK]`), so the map doubles as the game's control summary.
+
+### Reading presses in `game.ts`
+
+```ts
+const fire = api.button('fire');            // { label, enabled, queued, held }
+if (fire.queued) { shoot(); api.clearButton('fire'); }   // one shot per press
+if (api.button('boost').held) shield();     // as long as it's down
+```
+
+- **`queued`** is a press not yet handled. It stays set until you clear it, so handle it once and call `clearButton(id)`. Presses outside `play` are dropped for every slot but `fire`, so a game in `ready` should clear `fire` itself (Dino Run calls `api.clearFire()` while counting down) to stop a press on the menu firing the first shot.
+- **`held`** is true while the button or any of its keys is down.
+- **Shorthands** for the common pair: `api.fireQueued`, `api.fireHeld`, `api.boostQueued`, `api.boostHeld`, `api.clearFire()`, `api.clearBoost()`.
+- **<kbd>Enter</kbd>** presses `fire` only in Bricks (whose FIRE reads SERVE) and Martian Storm, because their leaflets promise it (`serveKey()` in `core.ts`). Anywhere else it is POWER, or a new game from the game-over card. A new game that wants it has to be added there for now.
+
+### Changing them mid-game
+
+`api.setButtons(patch)` changes slots for now. Each entry is a new label and/or `enabled`, or `null` to go back to what `disk.ts` declared:
+
+```ts
+api.setButtons({ boost: { label: 'nuke' } });     // Invader Force: an atomic bomb is ready
+api.setButtons({ pad5: { enabled: true } });      // I Invade: the meteor swarm has charged
+api.setButtons({ boost: null });                  // back to SHIELD
+```
+
+Slots the set doesn't have are ignored, so asking for one is safe. The console puts the declared map back at the start of every new game.
+
+### Taps and the stick
+
+- **Taps on the screen:** set `tap: true` on the disk and read `api.tapQueued`, `api.tapHeld` and `api.clearTap()`. Taps count only in `ready` and `play`. `api.tapX` is where the last tap landed, in low-res pixels across the tube (I Invade fires the nearest bomb bay). Without `tap`, a tap on the screen does nothing in a game.
+- **The stick (`controls: 'stick'`, the default):** `api.wantDir()` is the step to move now (`{ dx, dy }` or `null`), taking the on-screen stick first, then the newest arrow or WASD key. `api.stickDir` and `api.held` give the raw sources: the stick is 4-way, and only the keyboard can hold a diagonal (Martian Storm combines `api.held`).
+- **The pad (`controls: 'pad'`):** for a game with no use for the stick. While the game is up the stick and the FIRE row step aside for the pad, so map the pad slots you need and read them with `api.button('pad1')` and so on. The arrows, <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> and <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> become pad keys, so don't steer with `wantDir()` in a pad game.
+
+### Where they sit on each layout
+
+The layout detector picks the arrangement (`src/styles/console.css`); the game has no say in it.
+
+| Layout | Stick or pad | FIRE and BOOST |
+| --- | --- | --- |
+| Desk | In the controls column on the right of the tube | Under the stick |
+| Console (phone sideways) | Left of the tube | Right of the tube, under the dial and the plate |
+| Tall console (tablet or foldable sideways) | Full height, left of the tube | Bottom right, under the dial and the switches |
+| Phone portrait, tablet portrait | Under the tube, on the left | Under the tube, on the right |
+
+On desk and the portrait layouts the pad keeps its two rows inside the stick's box. On the sideways console layouts it is split up for I Invade: `pad1`–`pad3` on the right with `pad4` under them, and `boost` above `pad5` on the left. Those places are named for I Invade's keys in `console.css` (`bays`, `clus`, `ufo`, `met`), and `pad6` has none, so a second pad game with a different set of keys needs that block of CSS revisited. Check every layout with the [browser checks](#outside-the-folder) and screenshots.
+
+Adding a new physical button is console work, not game work: one more `defineSlot()` in `core.ts`, the button in `src/components/ActionButtons.tsx`, and its place in every layout in `console.css`. Games that don't map it never see it.
+
+## On the menu and the loading screen
+
+A disk is on the menu as soon as its folder has a `disk.ts`; `registry.ts` finds it, sorts by `order` and attaches its cover. Here is where each field shows up.
+
+### The launcher (the cover carousel)
+
+| What the player sees | Comes from |
+| --- | --- |
+| Position in the box, the tick strip and the `nn/NN` counter, and the <kbd>1</kbd>–<kbd>9</kbd> key that loads it | `order`, sorted. Keep it unique and add a new disk after the last. |
+| The big picture in the middle | `drawCover`, else the generated `cover.ts`, else the title on a floppy label |
+| What plays after 0.8 s on the disk (never with reduced motion) | `drawPreview`, else the generated `preview.ts` flipbook, else the cover held still |
+| The label strip under the cover | `title`, then `file` and `size` (or the disk's state, such as a load that failed offline) |
+| The details lines (one on a short tube, three on a wide one) | `blurb` with this device's best; the best again with `genre`, `players` (`1P`) and `year` (wide tubes only); the controls glyph (`STICK` or `PAD`, plus `+ TAP` with `tap: true`) and a chip for each lit button |
+
+The launcher fits each line to the tube and drops trailing chips when they don't fit, so put the most important button first in `buttons`.
+
+### Its own page
+
+`slug` makes `/<slug>`, which boots straight into the disk; `page.title` and `page.description` are its `<title>` and link preview, and `public/og-<slug>.png` its share image. The header, the leaflet and the offline cache follow without any other change.
+
+### The loading screen and the drive
+
+When the player loads the disk, the console runs `drawLoad(api, p, t)` every frame for `loadSecs` seconds (capped at 5), while it fetches `game.ts` in the background.
+
+- **`p`** goes from 0 to 1 along `steps`, a list of `[fraction of the time, fraction loaded]` points from `[0, 0]` to `[1, 1]`. Flat stretches are the drive seeking; steep ones are sectors coming off, so make it uneven.
+- **`t`** is seconds since the drive started, for animation.
+- **End with `api.diskInfo(y, p, t, disk)`**, which draws the shared sector bar and `LOADING <file>` line and returns the y below them. Draw the title art and scene above it.
+- **The drive sound** (motor, recalibrating, track steps, head parking) is played by the console for exactly `loadSecs`, so the disk needs no sound code. If `game.ts` is late, the bar waits at its last sector until it arrives.
+- **The instructions** in the leaflet switch to the disk's `manual` as it loads.
+
+Pick a `loadSecs` no other disk uses (`disks.test.ts` checks): around 1.5 s for a small game, up to 5 s for a big one.
+
 ## Artwork and images
 
 A game shows up in five places. Each one has its own art, and all of it is original.
@@ -146,8 +256,8 @@ The share image and screenshots are never drawn by hand. To make them for a new 
 3. Write the instructions in all three languages.
 4. Draw the loading screen and check it on all four phosphors and every layout (desk, console, phone and tablet, portrait and landscape).
 5. Split testable rules into their own modules and test them.
-6. Fill in `genre` and `players`.
-7. Add the capture steps and `IMAGES` entry to `make.cjs`, run it with `--covers`, and commit `public/og-<slug>.png`, the two screenshots and `cover.ts`.
+6. Fill in `genre` and `players`, and choose the buttons (see [Controls and buttons](#controls-and-buttons) and [On the menu and the loading screen](#on-the-menu-and-the-loading-screen)).
+7. Add the capture steps and `IMAGES` entry to `make.cjs`, run it with `--previews`, and commit `public/og-<slug>.png`, the two screenshots, `cover.ts` and `preview.ts`.
 8. Add game-specific checks to `tests/flow.cjs`.
 9. Update the README and `AGENTS.md`.
 10. Run `npm run build`, `npm test`, then `tests/flow.cjs`, `tests/pages.cjs`, `tests/stick.cjs` and `tests/haptics.cjs` against `npm run preview`.
