@@ -119,7 +119,7 @@ buttons: { fire: { label: 'spark' }, boost: { label: 'shield' } },              
 - **Slots left out go dark** and ignore presses. An optional slot left out stays hidden.
 - **`enabled: false`** shows the button greyed and with its label, for one that will light up later (I Invade's METEORS, dimmed until charged).
 - **Labels** are I18N keys, so put the words in `strings.ts` in all three languages. The console's own keys (`spark` for FIRE, `boost`) are there to reuse. Keep labels short: FIRE and BOOST fit about six letters on a phone, the pad keys fewer.
-- **The launcher** lists every lit slot except the pad's as a chip under the cover (`[JUMP] [DUCK]`), so the map doubles as the game's control summary.
+- **The launcher** on a wide tube (desk, and a sideways console or tablet with room to spare) lists every lit slot except the pad's as a chip under the cover (`[JUMP] [DUCK]`), so the map doubles as the game's control summary there. Portrait and short tubes don't show the chips, so the leaflet's controls list still matters.
 
 ### Reading presses in `game.ts`
 
@@ -179,9 +179,9 @@ A disk is on the menu as soon as its folder has a `disk.ts`; `registry.ts` finds
 | The big picture in the middle | `drawCover`, else the generated `cover.ts`, else the title on a floppy label |
 | What plays after 0.8 s on the disk (never with reduced motion) | `drawPreview`, else the generated `preview.ts` flipbook, else the cover held still |
 | The label strip under the cover | `title`, then `file` and `size` (or the disk's state, such as a load that failed offline) |
-| The details lines (one on a short tube, three on a wide one) | `blurb` with this device's best; the best again with `genre`, `players` (`1P`) and `year` (wide tubes only); the controls glyph (`STICK` or `PAD`, plus `+ TAP` with `tap: true`) and a chip for each lit button |
+| The details lines | **Wide:** `blurb`; then this device's best with `genre`, `players` (`1P`) and `year`; then the controls glyph (`STICK` or `PAD`, plus `+ TAP` with `tap: true`) and a chip for each lit button. **Portrait:** the first two of those, no controls line. **Short:** one line, `blurb` and the best. |
 
-The launcher fits each line to the tube and drops trailing chips when they don't fit, so put the most important button first in `buttons`.
+The launcher fits each line to the tube and drops trailing chips when they don't fit, so put the most important button first in `buttons`. The tiers come from the tube's shape (`src/console/launcher/layout.ts`).
 
 ### Its own page
 
