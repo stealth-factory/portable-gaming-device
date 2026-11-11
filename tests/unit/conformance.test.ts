@@ -77,6 +77,41 @@ describe('the Node disk conformance runner', () => {
     expect(result).toBe('ok');
   });
 
+  it('ignores blocked taps and preserves queued tap data across releases', () => {
+    const result = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { makeHost, parseScript } from './tools/conformance/host.mjs';
+      const palette = { pal: ['#000000', '#111111', '#222222', '#333333'], roles: { bg: 0 } };
+      const make = tap => makeHost({ disk: { buttons: {}, tap }, script: parseScript({}), palette,
+        measurePixelText: () => ({ width: 0 }) });
+      for (const mode of ['dying', 'clear', 'paused', 'over']) {
+        const { api, input } = make(true);
+        input({ tap: { held: true, x: 33 } });
+        input({ tap: { held: false, x: 34 } });
+        api.S.mode = mode;
+        input({ tap: { held: true, x: 123 } });
+        if (!api.tapQueued || api.tapHeld || api.tapX !== 33) throw new Error(mode + ' changed an accepted tap');
+        api.clearTap();
+        api.S.mode = 'play';
+        input({ tap: { held: true, x: 124 } });
+        if (api.tapQueued || api.tapHeld || api.tapX !== 33) throw new Error(mode + ' leaked an ignored down edge into play');
+        input({ tap: { held: false, x: 125 } });
+        if (api.tapQueued || api.tapHeld || api.tapX !== 33) throw new Error('Release changed tap data');
+        input({ tap: { held: true, x: 150 } });
+        if (!api.tapQueued || !api.tapHeld || api.tapX !== 150) throw new Error('New play tap was ignored');
+        api.S.mode = mode;
+        input({ tap: { held: false, x: 151 } });
+        if (!api.tapQueued || api.tapHeld || api.tapX !== 150) throw new Error('Release outside play changed queued tap or x');
+      }
+      const { api, input } = make(false);
+      api.S.mode = 'play';
+      input({ tap: { held: true, x: 200 } });
+      input({ tap: { held: false, x: 201 } });
+      if (api.tapQueued || api.tapHeld || api.tapX !== 0) throw new Error('A disk without taps accepted screen input');
+      process.stdout.write('ok');
+    `], { cwd: ROOT, encoding: 'utf8' });
+    expect(result).toBe('ok');
+  });
+
   it('keeps the previous palette ink for legacy unmapped sprite roles', () => {
     const result = execFileSync(process.execPath, ['--input-type=module', '-e', `
       import { makeHost, parseScript } from './tools/conformance/host.mjs';

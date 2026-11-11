@@ -48,7 +48,7 @@ export function makeHost({ disk, script, palette, measurePixelText }) {
     sun: { active: false, used: false, x: W - 2, y: 1 }, bonusT: 0, bonusChain: 0, sirenT: 0, sirenHi: false,
     charge: 1, streak: 0, lastGem: -9, player: null, distT: 0, boost: 1, boostT: 0, bestAtStart: 0 };
   let commands = [], fillStyle = palette.pal[0], font = '8px Silkscreen, "Courier New", monospace';
-  let held = [], stickDir = null, tapQueued = false, tapHeld = false, tapX = 0, nextLayer = 0;
+  let held = [], stickDir = null, tapDown = false, tapQueued = false, tapHeld = false, tapX = 0, nextLayer = 0;
   const stack = [], layers = new WeakMap(), buttons = {};
   const record = (name, ...args) => commands.push([name, ...args]);
   const colourIndex = colour => { const n = palette.pal.indexOf(colour); if (n < 0) throw new Error(`Colour outside palette: ${colour}`); return n; };
@@ -116,7 +116,12 @@ export function makeHost({ disk, script, palette, measurePixelText }) {
       if (event.stickDir !== undefined) stickDir = event.stickDir;
       for (const [id, down] of Object.entries(event.buttons ?? {})) { const button = B(id); if (!button.enabled) continue; if (down && !button.held) queuePress(id); button.held = down; }
       for (const id of event.press ?? []) queuePress(id);
-      if (event.tap && disk.tap) { if (event.tap.held && !tapHeld) tapQueued = true; tapHeld = event.tap.held; tapX = event.tap.x; }
+      if (event.tap) {
+        const pressed = event.tap.held && !tapDown;
+        tapDown = event.tap.held;
+        if (!tapDown) tapHeld = false;
+        else if (pressed && disk.tap && (S.mode === 'play' || S.mode === 'ready')) { tapQueued = true; tapHeld = true; tapX = event.tap.x; }
+      }
     },
     step(runtime) {
       S.time += DT;

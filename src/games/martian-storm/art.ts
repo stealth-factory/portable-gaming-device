@@ -143,6 +143,49 @@ const HEART_EMPTY: Sprite = [
   '  #  ',
 ];
 
+/** A bomb left, on the status line and in its pickup. 5×5. */
+export const BOMB_ICON: Sprite = [
+  '   # ',
+  ' ### ',
+  '#####',
+  '#####',
+  ' ### ',
+];
+/** A speed pickup on board: two chevrons pointing up the screen. 5×5. */
+export const SPEED_ICON: Sprite = [
+  '  #  ',
+  ' # # ',
+  '# # #',
+  ' # # ',
+  '#   #',
+];
+
+/** A bomb going off: two rings racing out from where the skiff was, `k` from 0 to 1, reaching `reach` px,
+    clipped to the playfield below the HUD. */
+export function drawBlast(api: ConsoleAPI, cx: number, cy: number, k: number, reach: number, hud: number): void {
+  const g = api.g;
+  g.save();
+  g.beginPath();
+  g.rect(0, hud, api.LW, api.LH - hud);
+  g.clip();
+  const x = Math.round(cx), y = Math.round(cy);
+  const ring = (radius: number, width: number, role: 'spark' | 'gold') => {
+    const outer = radius + width / 2, inner = Math.max(0, radius - width / 2);
+    g.fillStyle = api.col(role);
+    g.beginPath();
+    g.moveTo(x + outer, y);
+    g.arc(x, y, outer, 0, Math.PI * 2);
+    if (inner > 0) {
+      g.moveTo(x + inner, y);
+      g.arc(x, y, inner, 0, Math.PI * 2, true);
+    }
+    g.fill();
+  };
+  ring(Math.max(1, k * reach), 3, 'spark');
+  ring(Math.max(1, k * reach * 0.6), 2, 'gold');
+  g.restore();
+}
+
 /** Three-by-five letters for the capsules. */
 const LETTER: Record<CapsuleWeapon, string[]> = {
   spread: ['###', '#  ', '###', '  #', '###'],
@@ -174,6 +217,10 @@ export function drawPickup(api: ConsoleAPI, x: number, y: number, kind: PickupKi
     g.fillRect(x0 + 2, y0 + 3, 3, 1); g.fillRect(x0 + 3, y0 + 4, 1, 1);
   } else if (kind === 'life') {
     drawSprite(api, SKIFF_MINI, x0 + 1, y0 + 2, 'cart');
+  } else if (kind === 'bomb') {
+    drawSprite(api, BOMB_ICON, x0 + 1, y0 + 1, 'spark');
+  } else if (kind === 'speed') {
+    drawSprite(api, SPEED_ICON, x0 + 1, y0 + 1, 'text');
   } else {
     g.fillStyle = api.col('spark');
     g.fillRect(x0 + 3, y0 + 1, 1, 1);

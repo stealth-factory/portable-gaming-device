@@ -3,6 +3,16 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.13.0] - 2026-11-11
+
+### Bug Fixes
+
+- Point the site's github link at the stealth-factory repo (GAM-61) (#106)
+
+### Features
+
+- **martian-storm**: Stacking guns, bombs, speed-ups and a warp between legs (GAM-60) (#103)
+
 ## [0.12.0] - 2026-11-11
 
 ### Features

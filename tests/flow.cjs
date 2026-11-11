@@ -64,6 +64,25 @@ async function holdOnHide(p){
   const held = s => s.mode === 'paused' && s.led === 'true' && s.overlay;
   return { ok: held(hidden) && held(back) && resumed.mode === was && resumed.led === 'false' && sound.cut && sound.fresh, was, hidden, back, resumed, sound };
 }
+// Count columns observed during the sweep, rather than only shots that survive to one snapshot.
+async function clusterSweep(p){
+  const probe = await p.evaluateHandle(() => ({
+    result: new Promise((resolve, reject) => {
+      const seen = new Set(), end = __gg.S.time + 0.65, deadline = performance.now() + 5000;
+      function sample(){
+        for (const b of __gg.runtime.debug.state().bombs) if (b.k === 'cluster') seen.add(b.x);
+        if (__gg.S.time >= end) { resolve([...seen]); return; }
+        if (performance.now() >= deadline) { reject(new Error('Cluster sweep did not advance 0.65 simulation seconds')); return; }
+        requestAnimationFrame(sample);
+      }
+      sample();
+    }),
+  }));
+  try {
+    await p.keyboard.press('a');
+    return await probe.evaluate(p => p.result);
+  } finally { await probe.dispose(); }
+}
 // one pass per disk: boot is already done; choose it on the menu, play, qualify for the table, then G home
 async function playEveryDisk(p, tag){
   await backToMenu(p);
@@ -150,6 +169,8 @@ async function playEveryDisk(p, tag){
       if (!steerOk) errs.push(tag + ' bricks stick: ' + JSON.stringify({ steer, keyed }));
       console.log(tag, 'bricks stick', { stick: Math.round(steer.stick.speed), bow: steer.bow, key: Math.round(keyed.speed) });
       const caught = await p.evaluate(async () => {
+        // Keep capsule observations independent of an ember missing or spending Sear on the wall.
+        __gg.runtime.start(); __gg.S.mode = 'play'; __gg.S.modeT = 0;
         const dbg = __gg.runtime.debug;
         const baseW = dbg.state().bw;
         const take = (kind) => new Promise(resolve => {
@@ -208,6 +229,22 @@ async function playEveryDisk(p, tag){
       const sprayOk = spray.weapon === 'spread' && spray.level === 3 && spray.shots >= 7;
       if (!heartOk || !sprayOk) errs.push(tag + ' martian storm hearts/weapons: ' + JSON.stringify({ hit, hurt, spray: { weapon: spray.weapon, level: spray.level, shots: spray.shots } }));
       console.log(tag, 'martian storm hearts/weapons', { hearts: hurt.state.hearts, lives: hurt.state.lives, shots: spray.shots });
+      // GAM-60: guns stack (a laser joins the spread), and the BOMB key beside FIRE (or V) spends a bomb
+      await p.waitForTimeout(400);
+      await p.evaluate(() => __gg.runtime.debug.arm('laser', 3));
+      await p.keyboard.down('Space');
+      await p.waitForTimeout(250);
+      const stack = await p.evaluate(() => __gg.runtime.debug.state());
+      await p.keyboard.up('Space');
+      const bombKey = await p.evaluate(() => { const b = document.querySelector('#fireRBtn'); return { shown: !!b && !b.hidden, text: b?.textContent || '' }; });
+      const beforeBomb = await p.evaluate(() => __gg.runtime.debug.state().bombs);
+      await p.keyboard.press('KeyV');
+      await p.waitForTimeout(100);
+      const afterBomb = await p.evaluate(() => ({ state: __gg.runtime.debug.state(), mode: __gg.S.mode }));
+      const stackOk = stack.guns.spread === 3 && stack.guns.laser === 3 && stack.shots >= 10;
+      const bombOk = bombKey.shown && /BOMB/.test(bombKey.text) && afterBomb.state.bombs === beforeBomb - 1 && afterBomb.mode === 'play';
+      if (!stackOk || !bombOk) errs.push(tag + ' martian storm stack/bomb: ' + JSON.stringify({ guns: stack.guns, shots: stack.shots, bombKey, beforeBomb, afterBomb: afterBomb.state.bombs, mode: afterBomb.mode }));
+      console.log(tag, 'martian storm stack/bomb', { guns: stack.guns, shots: stack.shots, bombs: [beforeBomb, afterBomb.state.bombs], key: bombKey.text });
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
@@ -358,9 +395,24 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
     const after = await ii(), b = after.bombs[0], bay = k[0] === 'S' ? 'M' : k[0];
     bays[k] = !!b && b.bay === bay && Math.abs(b.x - before.bays[bay].x) <= 4;
     if (k === 'R' && b) {   // a second press on the same bay while its bomb is up does nothing, and the bomb is rising
-      await p.waitForTimeout(450); await p.keyboard.press('c'); await p.waitForTimeout(60);
-      const now = await ii();
-      one = now.bombs.filter(q => q.bay === 'R').length === 1; up = now.bombs.length > 0 && now.bombs[0].y < b.y;
+      const flight = await p.evaluateHandle(() => {
+        const bomb = __gg.runtime.debug.state().bombs.find(q => q.bay === 'R');
+        if (!bomb) throw new Error('Right-bay bomb disappeared before the repeat-press check');
+        // Give the original bomb clearance from walls and tanks while its real bay cooldown expires.
+        bomb.y = __gg.LH - 8;
+        return { bomb, y: bomb.y };
+      });
+      try {
+        await p.waitForFunction(() => __gg.runtime.debug.state().bayCD.R <= 0, null, { timeout: 2000 });
+        await p.keyboard.press('c');
+        const time = await p.evaluate(() => __gg.S.time);
+        await p.waitForFunction(t => __gg.S.time > t, time, { timeout: 2000 });
+        const checked = await flight.evaluate(({ bomb, y }) => {
+          const right = __gg.runtime.debug.state().bombs.filter(q => q.bay === 'R');
+          return { one: right.length === 1 && right[0] === bomb, up: bomb.y < y };
+        });
+        one = checked.one; up = checked.up;
+      } finally { await flight.dispose(); }
     }
   }
   // a tap on a pad key fires its bay and leaves the keyboard where it was (Space still bombs, nothing is focused)
@@ -371,8 +423,8 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const focus = await p.evaluate(() => document.activeElement?.id || '');
   // the cluster sweep arms a moment into the wave: shots leave several columns, not one bomb from the middle
   await p.waitForFunction(() => __gg.runtime.debug.state().clusterCD <= 0, null, { timeout: 8000 });
-  await clearSky(); await holdFire(); await p.keyboard.press('a'); await p.waitForTimeout(650);
-  const volley = (await ii()).bombs.filter(b => b.k === 'cluster').map(b => b.x);
+  await clearSky(); await holdFire();
+  const volley = await clusterSweep(p);
   const xs = [...new Set(volley)].sort((a, b) => a - b);
   const cluster = xs.length >= 3 && xs[xs.length - 1] - xs[0] >= 16;
   await p.evaluate(() => __gg.runtime.debug.stopCluster());

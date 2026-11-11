@@ -6,6 +6,7 @@ const kb = (k: string) => `<kbd>${k}</kbd>`;
 export const CONSOLE_STRINGS: Strings = {
   en: {
     menuSel: 'SELECT',
+    fontError: 'Display unavailable', fontErrorText: 'The display could not load. Check your connection and retry.', fontRetry: 'Retry',
     tag: 'An old home computer on a glowing phosphor monitor. Switch it on, pick a disk, play.',
     model: 'Model PGD-01 · 12″ phosphor monitor',
     diskFor: 'Game disk for the PGD-01 Portable Gaming Device',
@@ -24,6 +25,7 @@ export const CONSOLE_STRINGS: Strings = {
   },
   'zh-hant': {
     menuSel: '選擇',
+    fontError: '顯示器無法載入', fontErrorText: '請檢查連線，然後重試。', fontRetry: '重試',
     tag: '一部舊式家用電腦，配一部發光的螢光顯示器。開機、選碟、開玩。',
     model: '型號 PGD-01 · 12 吋螢光顯示器',
     diskFor: 'PGD-01 遊戲磁碟',
@@ -42,6 +44,7 @@ export const CONSOLE_STRINGS: Strings = {
   },
   'zh-hans': {
     menuSel: '选择',
+    fontError: '显示器无法载入', fontErrorText: '请检查连接，然后重试。', fontRetry: '重试',
     tag: '一台老式家用电脑，配一台发光的荧光显示器。开机、选盘、开玩。',
     model: '型号 PGD-01 · 12 英寸荧光显示器',
     diskFor: 'PGD-01 游戏磁盘',
