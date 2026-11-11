@@ -284,3 +284,40 @@ TEST("resize clears the picture and the drawing state") {
   r.fillRect(0, 0, 1, 1);
   CHECK_EQ(int(r.at(0, 0)), 1);
 }
+
+TEST("shapes far larger than the picture are clipped, not lost") {
+  Raster r(8, 8);
+  r.setFill(1);
+  r.fillRect(-1e12, -1e12, 2e12, 2e12);
+  CHECK_EQ(count(r, 1), 64);
+  Raster s(8, 4);
+  s.setFill(2);
+  s.fillRect(0, 0, 1e10, 4);
+  CHECK_EQ(count(s, 2), 32);
+  Raster p(8, 8);
+  p.setFill(3);
+  p.beginPath(); p.moveTo(-1e12, -1e12); p.lineTo(1e12, -1e12); p.lineTo(1e12, 1e12); p.lineTo(-1e12, 1e12); p.fillPath();
+  CHECK_EQ(count(p, 3), 64);
+}
+
+TEST("a circle stretched one way keeps its curve") {
+  Raster e(240, 40);
+  e.setFill(1);
+  e.scale(10, 1);
+  e.beginPath();
+  e.arc(12, 20, 10, 0, 2 * kPi);   // an ellipse 200 by 20
+  e.fillPath();
+  const int n = count(e, 1);
+  CHECK(std::abs(n - int(kPi * 100 * 10)) <= 40);   // pi a b, within the rim's pixels
+  CHECK_EQ(int(e.at(120, 20)), 1);
+  CHECK_EQ(int(e.at(21, 20)), 1);    // near the left tip, still inside
+  CHECK_EQ(int(e.at(25, 12)), 0);    // outside the curve near the end, where a few long chords would cut across
+}
+
+TEST("stamp ignores a layer whose pixels don't fill its size") {
+  Layer l(4, 4);
+  l.px.clear();
+  Raster r(8, 8);
+  r.stamp(l, 0, 0);
+  CHECK_EQ(count(r, 0), 64);
+}

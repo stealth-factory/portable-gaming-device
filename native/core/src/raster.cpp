@@ -9,8 +9,13 @@ namespace {
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kTau = 2 * kPi;
 bool finite(double v) { return std::isfinite(v); }
-/** First pixel whose centre is at or after `edge`. */
-int firstCentre(double edge) { return static_cast<int>(std::ceil(edge - 0.5)); }
+/** First pixel whose centre is at or after `edge`, kept within [0, limit] so a coordinate far off the
+    picture never overflows the conversion to int. */
+int firstCentre(double edge, int limit) {
+  const double c = std::ceil(edge - 0.5);
+  if (!(c > 0)) return 0;
+  return c >= limit ? limit : static_cast<int>(c);
+}
 }  // namespace
 
 Affine Affine::then(const Affine& m) const {
@@ -52,8 +57,8 @@ void Raster::fillRect(double x, double y, double w, double h) {
   if (m.axisAligned()) {
     // The common case (nearly every draw a disk makes): straight to spans, no polygon.
     const Point p = m.apply(x, y), q = m.apply(x + w, y + h);
-    const int x0 = std::max(0, firstCentre(std::min(p.x, q.x))), x1 = std::min(w_, firstCentre(std::max(p.x, q.x)));
-    const int y0 = std::max(0, firstCentre(std::min(p.y, q.y))), y1 = std::min(h_, firstCentre(std::max(p.y, q.y)));
+    const int x0 = firstCentre(std::min(p.x, q.x), w_), x1 = firstCentre(std::max(p.x, q.x), w_);
+    const int y0 = firstCentre(std::min(p.y, q.y), h_), y1 = firstCentre(std::max(p.y, q.y), h_);
     if (x0 >= x1 || y0 >= y1) return;
     const Mask* clip = st_.clip.get();
     for (int yy = y0; yy < y1; ++yy) {
@@ -88,7 +93,7 @@ void Raster::scan(const std::vector<SubPath>& paths, Span span) const {
     }
   }
   if (edges.empty()) return;
-  const int r0 = std::max(0, firstCentre(ymin)), r1 = std::min(h_, firstCentre(ymax));
+  const int r0 = firstCentre(ymin, h_), r1 = firstCentre(ymax, h_);
   std::vector<std::pair<double, int>> xs;
   for (int row = r0; row < r1; ++row) {
     const double yc = row + 0.5;
@@ -103,7 +108,7 @@ void Raster::scan(const std::vector<SubPath>& paths, Span span) const {
     for (std::size_t i = 0; i + 1 < xs.size(); ++i) {
       wind += xs[i].second;
       if (wind == 0) continue;
-      const int a = std::max(0, firstCentre(xs[i].first)), b = std::min(w_, firstCentre(xs[i + 1].first));
+      const int a = firstCentre(xs[i].first, w_), b = firstCentre(xs[i + 1].first, w_);
       if (a < b) span(row, a, b);
     }
   }
@@ -192,8 +197,10 @@ void Raster::arc(double x, double y, double r, double start, double end, bool cc
     else { sweep = std::fmod(sweep, kTau); if (sweep < 0) sweep += kTau; }
     sweep = -sweep;
   }
-  // enough segments that no chord strays more than about a tenth of a pixel from the true curve
-  const double scale = std::sqrt(std::fabs(st_.m.a * st_.m.d - st_.m.b * st_.m.c));
+  // enough segments that no chord strays more than about a tenth of a pixel from the true curve, sized for the
+  // transform's largest stretch (the Frobenius norm bounds it from above, so a squashed circle is never short)
+  const Affine& t = st_.m;
+  const double scale = std::sqrt(t.a * t.a + t.b * t.b + t.c * t.c + t.d * t.d);
   const double rd = std::max(0.5, r * scale);
   const double step = 2 * std::acos(std::max(-1.0, 1 - 0.1 / rd));
   const int n = std::max(1, static_cast<int>(std::ceil(std::fabs(sweep) / std::max(step, 1e-3))));
@@ -257,12 +264,13 @@ void Raster::setTransform(double a, double b, double c, double d, double e, doub
 
 void Raster::stamp(const Layer& layer, double x, double y) {
   if (layer.w <= 0 || layer.h <= 0 || !finite(x) || !finite(y) || !st_.m.invertible()) return;
+  if (layer.px.size() < static_cast<std::size_t>(layer.w) * static_cast<std::size_t>(layer.h)) return;   // a layer whose pixels don't fill it
   const Affine& m = st_.m;
   const Point c[4] = { m.apply(x, y), m.apply(x + layer.w, y), m.apply(x + layer.w, y + layer.h), m.apply(x, y + layer.h) };
   double minx = c[0].x, maxx = c[0].x, miny = c[0].y, maxy = c[0].y;
   for (const Point& p : c) { minx = std::min(minx, p.x); maxx = std::max(maxx, p.x); miny = std::min(miny, p.y); maxy = std::max(maxy, p.y); }
-  const int x0 = std::max(0, firstCentre(minx)), x1 = std::min(w_, firstCentre(maxx));
-  const int y0 = std::max(0, firstCentre(miny)), y1 = std::min(h_, firstCentre(maxy));
+  const int x0 = firstCentre(minx, w_), x1 = firstCentre(maxx, w_);
+  const int y0 = firstCentre(miny, h_), y1 = firstCentre(maxy, h_);
   const Affine inv = m.inverse();
   const Mask* clip = st_.clip.get();
   for (int yy = y0; yy < y1; ++yy) {
