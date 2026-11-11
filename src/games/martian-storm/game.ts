@@ -321,7 +321,8 @@ function noteSpore(craft: Craft, how: 'hit' | 'left') {
   const result = onSporeGone(flight, how);
   flights.set(craft.flight, result.flight);
   if (!offerToken(capsuleFalling(), result.drop)) return;
-  drop('weapon', craft.x, craft.y);
+  // earned by a clean flight, so it is never turned away by the cap
+  drop('weapon', craft.x, craft.y, true);
 }
 
 /** One shot (or a ram) lands on a craft. True when it is destroyed. */
