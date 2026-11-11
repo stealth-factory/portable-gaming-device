@@ -177,7 +177,11 @@ left behind ("Your account has reached the maximum number of certificates").
 
 ### Setting it up (owner)
 
-In **Settings → Secrets and variables → Actions** on this repository:
+In **Settings → Secrets and variables → Actions**, either on this repository
+or at the stealth-factory organisation (where they live today). An
+organisation secret or variable reaches this repository only if its access is
+*All repositories*, or *Selected repositories* with this one ticked. *Private
+repositories* leaves it out, because this repository is public.
 
 | Name | Kind | Value |
 |---|---|---|
@@ -185,13 +189,13 @@ In **Settings → Secrets and variables → Actions** on this repository:
 | `APP_STORE_ISSUER_ID` | secret | the issuer id shown above the keys list |
 | `APP_STORE_KEY_P8_BASE64` | secret | `base64 -i AuthKey_<id>.p8` (the file downloads once) |
 | `APPLE_TEAM_ID` | variable | the 10-character team id (developer.apple.com → Membership) |
-| `IOS_BUNDLE_ID` | variable | the app's bundle identifier (owner decision, GAM-40) |
 | `PGD_CATALOGUE_URL` | variable, optional | the disk catalogue address baked into the app |
 | `TESTFLIGHT_EXTERNAL_GROUP` | variable, optional | the external group's name; default `Public beta` |
 | `TESTFLIGHT_LOCALE` | variable, optional | the "What to Test" localisation; default `en-US` |
 
-The team and bundle ids are variables, not commits, as the iOS spec asks:
-CI writes them into `native/ios/Config/Local.xcconfig` (ignored by git) and a
+The bundle id, `co.stealth-factory.portable-gaming-device` (GAM-40), is set
+in the workflow itself. The team id is a variable, not a commit, as the iOS
+spec asks: CI writes both into `native/ios/Config/Local.xcconfig` (ignored by git) and a
 temporary `ExportOptions.plist`. On a Mac, copy `Local.xcconfig.example` to
 `Local.xcconfig` and fill it in.
 

@@ -29,9 +29,8 @@ name: TestFlight
 # workflow can revoke the development certificate it makes):
 #   APP_STORE_KEY_ID, APP_STORE_ISSUER_ID,
 #   APP_STORE_KEY_P8_BASE64 (base64 of the AuthKey_<id>.p8 file).
-# Repository variables (kept out of the repo, as the iOS spec asks):
+# Variables (repository or organisation level, like the secrets):
 #   APPLE_TEAM_ID     the 10-character Apple Developer team id;
-#   IOS_BUNDLE_ID     the app's bundle identifier;
 #   PGD_CATALOGUE_URL optional, the disk catalogue address baked into the app;
 #   TESTFLIGHT_EXTERNAL_GROUP optional, default "Public beta";
 #   TESTFLIGHT_LOCALE optional "What to Test" localisation, default en-US.
@@ -70,6 +69,8 @@ env:
   # The uncommitted settings file the app's configurations include
   # (`#include? "Local.xcconfig"`); CI writes it from the variables above.
   IOS_LOCAL_XCCONFIG: native/ios/Config/Local.xcconfig
+  # The owner's choice (GAM-40), registered in the developer account.
+  IOS_BUNDLE_ID: co.stealth-factory.portable-gaming-device
 
 jobs:
   plan:
@@ -107,7 +108,6 @@ jobs:
           APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
           APP_STORE_KEY_P8_BASE64: ${{ secrets.APP_STORE_KEY_P8_BASE64 }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
         run: |
           set -euo pipefail
           echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
@@ -131,7 +131,7 @@ jobs:
             skip "there is no iOS project in $IOS_DIR yet (GAM-37)."
           fi
           missing=""
-          for name in APP_STORE_KEY_ID APP_STORE_ISSUER_ID APP_STORE_KEY_P8_BASE64 APPLE_TEAM_ID IOS_BUNDLE_ID; do
+          for name in APP_STORE_KEY_ID APP_STORE_ISSUER_ID APP_STORE_KEY_P8_BASE64 APPLE_TEAM_ID; do
             [ -n "${!name}" ] || missing="$missing $name"
           done
           [ -z "$missing" ] || skip "repository secrets or variables not set:$missing. See docs/releasing.md, \"TestFlight\"."
@@ -236,11 +236,11 @@ jobs:
             exit 1
           fi
 
-      # The bundle id and team id are not committed (iOS spec, section 9).
+      # The team id is not committed (iOS spec, section 9). The bundle id is
+      # written too, so the archive has it even if the project leaves it out.
       - name: Write the local settings
         env:
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
           PGD_CATALOGUE_URL: ${{ vars.PGD_CATALOGUE_URL }}
         working-directory: .
         run: |
@@ -286,7 +286,6 @@ jobs:
 
       - name: Check the archive
         env:
-          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
           VERSION: ${{ needs.plan.outputs.version }}
         run: |
           set -euo pipefail
@@ -377,7 +376,7 @@ jobs:
         env:
           APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
           APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
-          BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+          BUNDLE_ID: ${{ env.IOS_BUNDLE_ID }}
           VERSION: ${{ needs.plan.outputs.version }}
           UPLOADED_AFTER: ${{ needs.plan.outputs.started }}
           # Only the build this run uploaded, never another upload of the same version.
