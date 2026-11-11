@@ -24,7 +24,7 @@ name: TestFlight
 # Signing happens here only, on a GitHub-hosted Mac. The self-hosted Macs run
 # unsigned build and test jobs and never see a key or certificate.
 #
-# Repository secrets, from an App Store Connect Team API key (Users and Access
+# Secrets (repository or organisation level), from an App Store Connect Team API key (Users and Access
 # → Integrations → Team Keys, Admin role, so Xcode can manage signing and this
 # workflow can revoke the development certificate it makes):
 #   APP_STORE_KEY_ID, APP_STORE_ISSUER_ID,
