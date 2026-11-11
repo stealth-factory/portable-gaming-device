@@ -194,6 +194,8 @@ jobs:
     # image carries Xcode 27.x; the step below insists on 27.1 or later.
     runs-on: xcode-27
     timeout-minutes: 60
+    outputs:
+      build_number: ${{ steps.build.outputs.number }}
     defaults:
       run:
         working-directory: ${{ env.IOS_DIR }}
@@ -217,7 +219,11 @@ jobs:
       # 2026), so every upload, re-runs of older runs included, is higher than
       # the last.
       - name: Work out build number
-        run: echo "BUILD_NUMBER=$(( $(date -u +%s) / 60 ))" >> "$GITHUB_ENV"
+        id: build
+        run: |
+          number=$(( $(date -u +%s) / 60 ))
+          echo "BUILD_NUMBER=$number" >> "$GITHUB_ENV"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
 
       - name: Check Xcode
         run: |
@@ -374,6 +380,8 @@ jobs:
           BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
           VERSION: ${{ needs.plan.outputs.version }}
           UPLOADED_AFTER: ${{ needs.plan.outputs.started }}
+          # Only the build this run uploaded, never another upload of the same version.
+          BUILD_NUMBER: ${{ needs.upload.outputs.build_number }}
           EXTERNAL_GROUP: ${{ vars.TESTFLIGHT_EXTERNAL_GROUP || 'Public beta' }}
           # One universal iOS archive; no macOS, tvOS or visionOS build.
           PLATFORMS: IOS

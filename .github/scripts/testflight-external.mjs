@@ -14,6 +14,9 @@
 //   BUNDLE_ID          the app's bundle id
 //   VERSION            marketing version, e.g. 0.2.0
 //   UPLOADED_AFTER     ISO time; older builds of the same version are ignored
+//   BUILD_NUMBER       optional, the build number this run uploaded; any other
+//                      build of the version (one uploaded from a Mac meanwhile)
+//                      is ignored
 //   EXTERNAL_GROUP     the external TestFlight group's name
 //   WHATS_NEW_FILE     optional, text for "What to Test"
 //   WHATS_NEW_LOCALE   optional, its localisation, default en-US
@@ -37,6 +40,9 @@ const uploadedAfter = new Date(env("UPLOADED_AFTER"));
 const groupName = env("EXTERNAL_GROUP");
 const platforms = env("PLATFORMS", "IOS,MAC_OS").split(",");
 const locale = process.env.WHATS_NEW_LOCALE || "en-US";
+const buildNumber = process.env.BUILD_NUMBER || "";
+// Seconds between polls of App Store Connect. Tests set it near zero.
+const pollMs = Number(process.env.POLL_SECONDS ?? 30) * 1000;
 // TestFlight caps "What to Test" at 4,000 characters.
 const whatsNew = process.env.WHATS_NEW_FILE
   ? readFileSync(process.env.WHATS_NEW_FILE, "utf8").trim().slice(0, 4000)
@@ -74,19 +80,20 @@ async function asc(method, path, body) {
       });
     } catch (error) {
       if (attempt >= attempts) throw error;
-      await sleep(5_000 * attempt);
+      await sleep(retryMs * attempt);
       continue;
     }
     const text = await response.text();
     if (response.ok) return text ? JSON.parse(text) : {};
     if ((response.status === 429 || response.status >= 500) && attempt < attempts) {
-      await sleep(5_000 * attempt);
+      await sleep(retryMs * attempt);
       continue;
     }
     throw new Error(`${method} ${path} → ${response.status}: ${text}`);
   }
 }
 
+const retryMs = Number(process.env.ASC_RETRY_MS ?? 5_000);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const deadline = Date.now() + Number(process.env.WAIT_MINUTES || 75) * 60_000;
 
@@ -98,12 +105,17 @@ async function findBuild(appId, platform) {
     sort: "-uploadedDate",
     limit: "5",
   });
+  if (buildNumber) query.set("filter[version]", buildNumber);
   // An upload takes a few minutes to appear and processing can take tens of
   // minutes. The deadline is shared by every platform, so two slow builds
   // cannot add up past the job's timeout.
   while (Date.now() < deadline) {
     const { data } = await asc("GET", `/v1/builds?${query}`);
-    const build = data.find((b) => new Date(b.attributes.uploadedDate) >= uploadedAfter);
+    const build = data.find(
+      (b) =>
+        new Date(b.attributes.uploadedDate) >= uploadedAfter &&
+        (!buildNumber || b.attributes.version === buildNumber),
+    );
     if (build) {
       const state = build.attributes.processingState;
       if (state === "VALID") return build;
@@ -114,7 +126,7 @@ async function findBuild(appId, platform) {
     } else {
       console.log(`${platform}: no ${version} build uploaded since ${uploadedAfter.toISOString()} yet`);
     }
-    await sleep(30_000);
+    await sleep(pollMs);
   }
   throw new Error(`${platform}: no processed ${version} build before the deadline`);
 }
@@ -179,7 +191,7 @@ async function submitForReview(build, platform) {
       throw new Error(`${platform} build ${build.attributes.version} is ${state}, which cannot be submitted`);
     }
     console.log(`${platform}: beta state ${state}`);
-    await sleep(30_000);
+    await sleep(pollMs);
   }
 }
 
