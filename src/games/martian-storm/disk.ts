@@ -56,7 +56,7 @@ const MANUAL: GameDisk['manual'] = [
     { k: 'msPoints', v: 'msPointsV' }, { k: 'msTuckLeft', v: 'msTuckLeftV' }, { k: 'msLeg', v: 'msLegV' },
   ] },
   { h: 'ctlH', keys: true, list: [
-    { k: 'msk1', v: 'msk1v' }, { k: 'msk2', v: 'msk2v' }, { k: 'msk3', v: 'msk3v' },
+    { k: 'msk1', v: 'msk1v' }, { k: 'msk2', v: 'msk2v' }, { k: 'msk3', v: 'msk3v' }, { k: 'msk4', v: 'msk4v' },
     { k: 'k3', v: 'k3v' }, { k: 'c3', v: 'c3v' },
   ] },
   { h: 'aboutH', p: 'msCred' },
@@ -66,12 +66,12 @@ export const disk: GameDisk = {
   id: 'martian-storm', order: 6, slug: 'martian-storm', genre: 'SHOOTER', players: 1,
   page: {
     title: 'Martian Storm',
-    description: 'Fly a skiff through a Martian dust storm, catch new guns, tuck past the shots and clear each leg, on the PGD-01 Portable Gaming Device: a 1983-style console in your browser.',
+    description: 'Fly a skiff through a Martian dust storm, stack up guns, bomb the sky clear, tuck past the shots and clear each leg, on the PGD-01 Portable Gaming Device: a 1983-style console in your browser.',
   },
   title: 'MARTIAN STORM', nameKey: 'msName', file: 'STORM.EXE', size: 30720, loadSecs: 3.8,
   steps: [[0, 0], [0.12, 0.1], [0.24, 0.22], [0.4, 0.28], [0.55, 0.5], [0.68, 0.66], [0.8, 0.72], [0.92, 0.9], [1, 1]],
   blurb: 'FLY · TUCK · LAND', verb: 'FLY', tap: true,
-  buttons: { fire: { label: 'spark' }, boost: { label: 'msLoop' } },
+  buttons: { fire: { label: 'spark' }, boost: { label: 'msLoop' }, fireR: { label: 'msBomb' } },
   overKey: 'msOver', againKey: 'msAgain',
   manual: MANUAL, strings, drawLoad,
 };
