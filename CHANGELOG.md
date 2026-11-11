@@ -3,6 +3,16 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.14.0] - 2026-11-11
+
+### Bug Fixes
+
+- Unstick production promotion after a pr merged into production (GAM-62) (#109)
+
+### Features
+
+- **contract**: Define portable disk contract v1 (GAM-33) (#96)
+
 ## [0.13.0] - 2026-11-11
 
 ### Bug Fixes
