@@ -1,4 +1,4 @@
-/* The disk launcher (GAM-32): the cover carousel. `loader.ts` calls these where it used to call the old menu's
+/* The disk launcher (GAM-32): the cover carousel. `program/loader.ts` calls these where it used to call the old menu's
    enterMenu, updateMenu, drawMenu, menuKey and menuTap. DOM-free: everything comes through the ConsoleAPI and the
    LauncherSystem, so the native apps can run it as their built-in system disk. */
 import type { ConsoleAPI, Dir } from '../../games/types';

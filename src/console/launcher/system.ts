@@ -1,4 +1,4 @@
-/* What the launcher may ask of the console. The web console builds one in loader.ts; the native apps build theirs
+/* What the launcher may ask of the console. The web console builds one in program/loader.ts; the native apps build theirs
    in their shell. Nothing in src/console/launcher/ touches the DOM, storage or the window: it all comes through here
    or through the ConsoleAPI. */
 import type { GameDisk } from '../../games/types';

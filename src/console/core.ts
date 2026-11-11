@@ -9,8 +9,11 @@ import { Stick } from "./stick";
 import { makeHaptics, type Haptic } from "../kit/platform/haptics";
 import { DEFAULTS, scoreKeys, SETTINGS_EVENT } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
-import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame, launcherTargets } from "./loader";
-import { bindHost } from "./host";
+import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame, launcherTargets } from "./program/loader";
+import { bindHost } from "./program/host";
+import { makeWebPlatform } from "./web/platform";
+import { ac, muted, setMuted, ensureAudio, hush, tone, audioOut } from "./web/audio";
+export { ac, muted, ensureAudio, hush, tone };
 import { makeScreen2D } from "./screen";
 import { makePixelFont } from "./font";
 import pixelFontURL from "../../tools/fonts/Silkscreen-Regular.ttf?url";
@@ -210,29 +213,7 @@ export const boardRank = (sc: number) => { const i = board.findIndex(e => sc > e
 export const qualifies = (sc: number) => sc > 0 && boardRank(sc) < BOARD_MAX;
 export const ordinal = (n: number) => n + (n === 1 ? 'ST' : n === 2 ? 'ND' : n === 3 ? 'RD' : 'TH');
 
-/* ---------- audio (PC-speaker style square waves) ---------- */
-export let ac: AudioContext | null = null, muted = false;
-export function ensureAudio(){
-  if (!ac) { try { const Ctx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext; ac = Ctx ? new Ctx() : null; } catch (e) { ac = null; } }
-  if (ac && ac.state === 'suspended') ac.resume().catch(()=>{});
-}
-/* every sound goes out through one gain node, so hush() can cut whatever is still ringing or already scheduled
-   (the drive, a game's effects) by dropping it; the next sound makes a fresh one */
-let outNode: GainNode | null = null;
-export function out(){ if (!outNode) { outNode = ac!.createGain(); outNode.connect(ac!.destination); } return outNode; }
-export function hush(){
-  if (!outNode) return;
-  const b = outNode; outNode = null;
-  try { b.gain.cancelScheduledValues(0); b.gain.value = 0; b.disconnect(); } catch (_) {}
-}
-export function tone(f: number, dur: number, vol = 0.045, slide = 0, delay = 0){
-  if (!ac || muted) return;
-  const t0 = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
-  o.type = 'square'; o.frequency.setValueAtTime(f, t0);
-  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), t0 + dur);
-  g.gain.setValueAtTime(vol, t0); g.gain.setValueAtTime(vol, t0 + dur * 0.85); g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g).connect(out()); o.start(t0); o.stop(t0 + dur + 0.02);
-}
+/* ---------- audio: PC-speaker square waves and the floppy drive, in web/audio.ts ---------- */
 
 /* ---------- haptics: buzzes on phones that can vibrate, silent with SOUND off (rules in src/kit/platform/haptics.ts) ---------- */
 const haptics = makeHaptics({
@@ -274,7 +255,7 @@ addEventListener('keydown', e => {
   if ((e.target as Element)?.closest?.('.manual')) return;   // keys pressed on the leaflet's own buttons (Settings) are theirs, not the game's
   if (S.mode === 'entry' && !e.metaKey && !e.ctrlKey && !e.altKey) { if (entryKey(e)) e.preventDefault(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (S.mode === 'menu' && menuKey(e)) { e.preventDefault(); return; }
+  if (S.mode === 'menu' && menuKey(e.code)) { e.preventDefault(); return; }
   if (e.code === 'KeyG') { pressSelect(); e.preventDefault(); return; }
   { const sl = Btn.slotForKey(e.code); if (sl?.optional && inGame()) { if (Btn.press(sl.id) && S.mode !== 'play') Btn.clearQueued(sl.id); e.preventDefault(); return; } }   // an extra button the game maps takes its keys first while it plays (I Invade's pad: arrows, Z X C, A S)
   const d = KEYMAP[e.code];
@@ -517,7 +498,7 @@ $('pauseBtn').addEventListener('click', () => togglePause());
 $('muteBtn').addEventListener('click', () => toggleMute());
 $('fxBtn').addEventListener('click', () => setFx(!fx));
 document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode((b as HTMLElement).dataset.mode!)));
-export function toggleMute(){ muted = !muted; $('muteBtn').setAttribute('aria-pressed', String(!muted)); }
+export function toggleMute(){ setMuted(!muted); $('muteBtn').setAttribute('aria-pressed', String(!muted)); }
 /* ---------- the leaflet's reset buttons: the set back to factory settings, and (separately) this device's scores wiped ---------- */
 export function resetSettings(){
   if (modeKey !== DEFAULTS.mode) setMode(DEFAULTS.mode);
@@ -622,18 +603,6 @@ $('selectBtn').addEventListener('pointerdown', e => { e.preventDefault(); buzz('
 $('selectBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressSelect(); } });
 $('resetBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); $('resetBtn').dispatchEvent(new PointerEvent('pointerdown')); } });
 
-/* ---------- cold boot: POST beep, then the floppy drive spins up, recalibrates and reads ---------- */
-export let noiseBuf: AudioBuffer | null = null;
-export function noise(){
-  if (!noiseBuf) { noiseBuf = ac!.createBuffer(1, ac!.sampleRate, ac!.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
-  const s = ac!.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s;
-}
-export function headClick(t: number, vol = 0.22, freq = 2600){
-  const s = noise(), f = ac!.createBiquadFilter(), g = ac!.createGain();
-  f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 2.5;
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
-  s.connect(f).connect(g).connect(out()); s.start(t, Math.random()); s.stop(t + 0.03);
-}
 /* ---------- main update ---------- */
 export function update(dt: number){
   S.time += dt;
@@ -1051,7 +1020,7 @@ export function clearTap(){ tapQueued = false; }
 export function setAccReset(){ accReset = true; }
 
 /* test hook for the Playwright checks; only with ?test in the address */
-if (/[?&]test\b/.test(location.search)) (window as any).__gg = { S, get board(){ return board; }, get keyRects(){ return keyRects; }, NKEYS, cv, get LW(){ return LW; }, get LH(){ return LH; }, overlay, killPlayer: (c?: string) => runtime?.debug?.kill?.(c), loadGame, DISKS, get game(){ return game; }, get runtime(){ return runtime; }, finishGame, get audioOut(){ return outNode; }, tone, lowres, cover: captureCover, launcherTargets, setGrid };
+if (/[?&]test\b/.test(location.search)) (window as any).__gg = { S, get board(){ return board; }, get keyRects(){ return keyRects; }, NKEYS, cv, get LW(){ return LW; }, get LH(){ return LH; }, overlay, killPlayer: (c?: string) => runtime?.debug?.kill?.(c), loadGame, DISKS, get game(){ return game; }, get runtime(){ return runtime; }, finishGame, get audioOut(){ return audioOut(); }, tone, lowres, cover: captureCover, launcherTargets, setGrid };
 
 /** Test builds: the low-res buffer as it was last shown, one palette index (0 to 3) per pixel, before the CRT pass. */
 function lowres(){
@@ -1094,15 +1063,14 @@ export const api: ConsoleAPI = {
 
 /* The loader reads the console through this seam (see host.ts). It has to be bound before the first
    frame, and the requestAnimationFrame above does not run until this module has finished. */
+const platform = makeWebPlatform({ track, layoutName, reducedMotion: reduceMotion, overlay });
 bindHost({
-  S, g, col, txt, overlay, $, age, api,
-  tone, noise, headClick, out, ensureAudio,
-  setAccReset, track, layoutName, startGame, setGame, readBest, readBoard, setManual, clearInput,
-  fetchRuntime, runtimeReady, reduceMotion,
+  platform,
+  S, g, col, txt, age, api,
+  setAccReset, startGame, setGame, readBest, readBoard, setManual, clearInput,
+  fetchRuntime, runtimeReady,
   get LW(){ return LW; },
   get LH(){ return LH; },
-  get ac(){ return ac; },
-  get muted(){ return muted; },
   get stickDir(){ return stickDir; },
   get tvOn(){ return tvOn; },
   get game(){ return game; },

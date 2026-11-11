@@ -1,26 +1,45 @@
-import { describe, it, expect, vi } from 'vitest';
-import { bindHost, host, type ConsoleHost } from '../../src/console/host';
-import { loadGame, progress } from '../../src/console/loader';
+import { describe, it, expect } from 'vitest';
+import { bindHost, host, type ConsoleHost } from '../../src/console/program/host';
+import type { Platform } from '../../src/console/program/platform';
+import { loadGame, playDisk, pressSelect, progress, startConsole } from '../../src/console/program/loader';
 
-// loader.ts reads the address and listens for the network at load time. Vitest's node
-// environment has neither; the browser always does, so this only exists for the test.
-vi.hoisted(() => {
-  const g = globalThis as { location?: { search: string }; addEventListener?: (...args: unknown[]) => void };
-  if (typeof g.location === 'undefined') g.location = { search: '' };
-  if (typeof g.addEventListener !== 'function') g.addEventListener = () => {};
-});
-
-/* Enough of an audio node for the drive to connect and schedule, and nothing more. */
-function node(){
-  return {
-    connect(){ return this; },
-    start(){},
-    stop(){},
-    type: '',
-    frequency: { value: 0, setValueAtTime(){}, linearRampToValueAtTime(){} },
-    gain: { setValueAtTime(){}, exponentialRampToValueAtTime(){} },
-    Q: { value: 0 },
+/** A platform that records what the program asks of it. `sounding` turns on at the first wakeAudio. */
+function fakePlatform(over: Partial<Platform> = {}){
+  const calls: string[] = [], tones: number[] = [], clicks: number[] = [], motors: [number, number][] = [], stored: Record<string, string> = {};
+  let awake = false, clock = 1000;
+  const P: Platform = {
+    now: () => clock,
+    store: { get: k => stored[k] ?? null, set: (k, v) => { stored[k] = v; }, remove: k => { delete stored[k]; }, keys: () => Object.keys(stored) },
+    wakeAudio(){ awake = true; },
+    get sounding(){ return awake; },
+    tone(f){ tones.push(f); },
+    click(delay){ clicks.push(delay); },
+    motor(start, dur){ motors.push([start, dur]); },
+    track(name){ calls.push('track:' + name); },
+    layoutName: () => 'desk',
+    reducedMotion: false,
+    hideCard(){ calls.push('hideCard'); },
+    showHold(on){ calls.push('hold:' + on); },
+    flash(c){ calls.push('flash:' + c); },
+    autoloadId: () => null,
+    oldList: false,
+    onOnline(){ calls.push('onOnline'); },
+    onSettings(){ calls.push('onSettings'); },
+    ...over,
   };
+  return { P, calls, tones, clicks, motors, stored, tick(ms: number){ clock += ms; } };
+}
+
+function bind(P: Platform, extra: Partial<ConsoleHost> = {}){
+  bindHost({
+    platform: P,
+    S: {},
+    age: { dipLeft: 0 },
+    setAccReset(){}, setGame(){}, setManual(){}, clearInput(){},
+    fetchRuntime(){ return Promise.resolve(); },
+    get tvOn(){ return true; },
+    ...extra,
+  } as unknown as ConsoleHost);
 }
 
 describe('console host', () => {
@@ -32,32 +51,71 @@ describe('console host', () => {
     expect(host.LW).toBe(240);
   });
 
-  it('hears a context that ensureAudio has just created', () => {
-    const tones: number[] = [];
-    const created = {
-      currentTime: 0,
-      createBiquadFilter: () => node(),
-      createGain: () => node(),
-      createOscillator: () => node(),
-    };
-    let ac: typeof created | null = null;
-    bindHost({
-      S: {},
-      ensureAudio(){ ac = created; },
-      get ac(){ return ac; },
-      get muted(){ return false; },
-      tone(freq: number){ tones.push(freq); },
-      noise: () => node(),
-      headClick(){},
-      out: () => node(),
-      setGame(){},
-      fetchRuntime(){ return Promise.resolve(); },
-      clearInput(){},
-      track(){},
-      layoutName(){ return 'desk'; },
-    } as unknown as ConsoleHost);
+  it('hears sound that wakeAudio has just made possible', () => {
+    const f = fakePlatform();
+    bind(f.P);
     loadGame(0);
-    expect(tones).toContain(1200);
+    expect(f.tones).toContain(1200);
+  });
+});
+
+describe('the loader on its platform', () => {
+  it('remembers the disk, times the load on the platform clock and runs the drive for the load', () => {
+    const f = fakePlatform();
+    const S: any = {};
+    bind(f.P, { S } as Partial<ConsoleHost>);
+    loadGame(0);
+    expect(S.mode).toBe('load');
+    expect(S.loadAt).toBe(1000);
+    expect(Object.keys(f.stored)).toEqual(['gg-last']);
+    expect(f.motors).toEqual([[0.05, S.loadLen - 0.05]]);
+    expect(f.calls).toContain('track:game_load');
+  });
+
+  it('keeps the drive quiet when nothing can be heard', () => {
+    const f = fakePlatform({ wakeAudio(){} });
+    bind(f.P);
+    playDisk(0, 3);
+    expect(f.motors).toEqual([]);
+    expect(f.clicks).toEqual([]);
+  });
+
+  it('clicks the head inside the motor run and parks it 0.2 s before the end', () => {
+    const f = fakePlatform();
+    bind(f.P);
+    f.P.wakeAudio();
+    playDisk(0.5, 2);
+    expect(f.motors).toEqual([[0.5, 2]]);
+    expect(Math.min(...f.clicks)).toBeGreaterThanOrEqual(0.5);
+    expect(f.clicks[f.clicks.length - 1]).toBeCloseTo(2.3);
+  });
+
+  it('boots by taking the card down, letting go of HOLD and listening once for the network and settings', () => {
+    const f = fakePlatform();
+    const S: any = {};
+    bind(f.P, { S } as Partial<ConsoleHost>);
+    startConsole('cold');
+    startConsole('warm');
+    expect(S.mode).toBe('boot');
+    expect(f.calls.filter(c => c === 'hideCard').length).toBe(2);
+    expect(f.calls).toContain('hold:false');
+    expect(f.calls.filter(c => c === 'onOnline').length).toBe(1);
+    expect(f.calls.filter(c => c === 'onSettings').length).toBe(1);
+  });
+
+  it('flashes SELECT on a press and warm-boots only with the set on', () => {
+    const f = fakePlatform();
+    const S: any = { mode: 'menu' };
+    let on = false;
+    bind(f.P, { S } as Partial<ConsoleHost>);
+    bindHost({ get tvOn(){ return on; } } as ConsoleHost);   // after bind: a spread would freeze the getter
+    pressSelect();
+    expect(f.calls).toContain('flash:select');
+    expect(S.mode).toBe('menu');
+    on = true;
+    pressSelect();
+    expect(S.mode).toBe('boot');
+    expect(S.bootKind).toBe('warm');
   });
 });
 

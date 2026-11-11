@@ -1,13 +1,17 @@
-/* The loader's view of the console.
+/* The loader's view of the console, while the console program is being split out of core.ts (GAM-39).
 
    loader.ts must not import core.ts: the loader only needs this surface, and core binds it once,
    at the end of its own module, before any screen runs. Values that change later (the tube size,
-   the audio context, the loaded disk) are getters, so each read sees the current one. Read one of
-   those after a call that may have changed it (ensureAudio creates the context); a local copy
-   taken before that call stays stale. */
-import type { ConsoleAPI, Dir, GameDisk } from '../games/types';
+   the loaded disk) are getters, so each read sees the current one.
+
+   Everything that belongs to the machine (sound, storage, the clock, the cards over the tube) comes
+   through `host.platform` (see platform.ts). The rest is console state that is still in core.ts and
+   moves into this folder piece by piece. */
+import type { ConsoleAPI, Dir, GameDisk } from '../../games/types';
+import type { Platform } from './platform';
 
 export interface ConsoleHost {
+  readonly platform: Platform;
   /** The console's state bag. Still untyped: core owns the fields, the loader only reads and writes them. */
   readonly S: any;
   readonly g: CanvasRenderingContext2D;
@@ -15,27 +19,15 @@ export interface ConsoleHost {
   txt(s: string, x: number, y: number, role: string, align?: 'left' | 'center' | 'right', size?: number): void;
   readonly LW: number;
   readonly LH: number;
-  readonly ac: AudioContext | null;
-  readonly muted: boolean;
-  tone(freq: number, dur: number, vol?: number, slide?: number, delay?: number): void;
-  noise(): AudioBufferSourceNode;
-  headClick(t: number, vol?: number, freq?: number): void;
-  out(): GainNode;
-  ensureAudio(): void;
   readonly stickDir: Dir | null;
-  readonly overlay: HTMLElement;
-  $(id: string): HTMLElement | null;
   readonly tvOn: boolean;
   readonly age: { dipLeft: number };
   setAccReset(): void;
-  track(name: string, data?: Record<string, string | number | boolean | null>): void;
-  layoutName(): string;
   startGame(): void;
   setGame(disk: GameDisk | null): void;
   readonly game: GameDisk;
   readBest(id: string): number;
   readBoard(id: string): { n: string; s: number; l: number }[];
-  readonly reduceMotion: boolean;
   setManual(ctx: string): void;
   clearInput(): void;
   readonly api: ConsoleAPI;
