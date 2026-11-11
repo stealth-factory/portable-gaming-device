@@ -125,12 +125,13 @@ buttons: { fire: { label: 'spark' }, boost: { label: 'shield' } },              
 
 ```ts
 const fire = api.button('fire');            // { label, enabled, queued, held }
-if (fire.queued) { shoot(); api.clearButton('fire'); }   // one shot per press
+if (fire.queued) { shoot(); api.clearButton('fire'); }   // one shot per queued press (a held key auto-repeats, see below)
 if (api.button('boost').held) shield();     // as long as it's down
 ```
 
 - **`queued`** is a press not yet handled. It stays set until you clear it, so handle it once and call `clearButton(id)`. Presses outside `play` are dropped for every slot but `fire`, so a game in `ready` should clear `fire` itself (Dino Run calls `api.clearFire()` while counting down) to stop a press on the menu firing the first shot.
 - **`held`** is true while the button or any of its keys is down.
+- **A held key repeats.** The browser's key auto-repeat queues the slot again while a key stays down, so the snippet above fires again on each repeat (the on-screen button doesn't repeat). For strictly one action per press, act on `held` going from false to true and keep the last value yourself.
 - **Shorthands** for the common pair: `api.fireQueued`, `api.fireHeld`, `api.boostQueued`, `api.boostHeld`, `api.clearFire()`, `api.clearBoost()`.
 - **<kbd>Enter</kbd>** presses `fire` only in Bricks (whose FIRE reads SERVE) and Martian Storm, because their leaflets promise it (`serveKey()` in `core.ts`). Anywhere else it is POWER, or a new game from the game-over card. A new game that wants it has to be added there for now.
 
@@ -176,7 +177,7 @@ A disk is on the menu as soon as its folder has a `disk.ts`; `registry.ts` finds
 | What the player sees | Comes from |
 | --- | --- |
 | Position in the box, the tick strip and the `nn/NN` counter, and the <kbd>1</kbd>–<kbd>9</kbd> key that loads it | `order`, sorted. Keep it unique and add a new disk after the last. |
-| The big picture in the middle | `drawCover`, else the generated `cover.ts`, else the title on a floppy label |
+| The big picture in the middle | `drawCover`, else the generated `cover.ts`, else the title on a floppy label. `drawCover` gets the seconds the disk has been at the front as `t` (0 for side covers), even with reduced motion on, so a cover that animates on `t` keeps moving: keep it still or check the setting yourself. |
 | What plays after 0.8 s on the disk (never with reduced motion) | `drawPreview`, else the generated `preview.ts` flipbook, else the cover held still |
 | The label strip under the cover | `title`, then `file` and `size` (or the disk's state, such as a load that failed offline) |
 | The details lines | **Wide:** `blurb`; then this device's best with `genre`, `players` (`1P`) and `year`; then the controls glyph (`STICK` or `PAD`, plus `+ TAP` with `tap: true`) and a chip for each lit button. **Portrait:** the first two of those, no controls line. **Short:** one line, `blurb` and the best. |
@@ -189,7 +190,7 @@ The launcher fits each line to the tube and drops trailing chips when they don't
 
 ### The loading screen and the drive
 
-When the player loads the disk, the console runs `drawLoad(api, p, t)` every frame for `loadSecs` seconds (capped at 5), while it fetches `game.ts` in the background.
+When the player loads the disk, the console runs `drawLoad(api, p, t)` every frame while it fetches `game.ts` in the background. The bar takes `loadSecs` seconds (capped at 5); the screen then stays up at least another 0.35 s, and longer if the code hasn't arrived, so `t` can run past `loadSecs`. Make any animation loop or hold rather than end at `loadSecs`.
 
 - **`p`** goes from 0 to 1 along `steps`, a list of `[fraction of the time, fraction loaded]` points from `[0, 0]` to `[1, 1]`. Flat stretches are the drive seeking; steep ones are sectors coming off, so make it uneven.
 - **`t`** is seconds since the drive started, for animation.
