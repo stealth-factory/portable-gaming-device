@@ -78,7 +78,7 @@ export default defineConfig({
     ]
   },
       generateSW: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,ttf}'],
         globIgnores: ['manifest.webmanifest', 'og-*.png'],   // the plugin adds the manifest itself; share images are only for link previews
         navigateFallback: '/',
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^test$/],
