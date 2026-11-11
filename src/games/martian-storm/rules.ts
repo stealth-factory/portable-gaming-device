@@ -2,8 +2,11 @@
    Legs are generated from a seed. Nothing here is a stage table from another shooter. */
 
 export const SKIFF_SPEED = 80;
-/** Every shot of the skiff's in the air at once, across all weapons. Plenty, so a level 3 spread fills the sky. */
-export const SHOT_CAP = 72;
+/** Speed pickups stack to three: 80, 100, 120, then 140 px/s. A lost skiff takes them with it. */
+export const SPEED_MAX = 3;
+export const SPEED_STEP = 20;
+/** Every shot of the skiff's in the air at once, across all its guns. Plenty, so a full stack fills the sky. */
+export const SHOT_CAP = 120;
 export const TUCK_SECS = 0.6;
 export const TUCKS_START = 3;
 export const TUCK_CAP = 5;
@@ -13,6 +16,8 @@ export const SLAB_WAIT = 6;
 export const MAX_CRAFT = 16;
 export const FLIGHT_TRIES = 20;
 export const SPORE_GAP = 16;
+/** Shoot this many of a flight's four spores and the one that makes it drops a weapon capsule. */
+export const FLIGHT_EARN = 3;
 export const CAPSULE_PERIOD = 0.5;
 export const CLEAR_SECS = 1.6;
 export const HEARTS_START = 3;
@@ -27,26 +32,39 @@ export const PICKUP_CAP = 4;
 export const SPORE_HP = 1;
 export const BARB_HP = 3;
 export const SLAB_HP = 14;
+/** Bombs: two with each new skiff, up to five. One wipes out every spore and barb on screen, clears the sky of
+    pellets, and does BOMB_DMG to anything tougher (a slab takes two, or one and a few shots). */
+export const BOMBS_START = 2;
+export const BOMB_CAP = 5;
+export const BOMB_DMG = 8;
+/** How long the blast lasts on screen; the skiff can't be hurt while it does. */
+export const BOMB_SECS = 0.6;
 
 export type Axis = 'up' | 'down' | 'left' | 'right';
 export type Weapon = 'blaster' | 'spread' | 'laser' | 'missile' | 'wave';
 /** The guns a capsule can hold. The blaster is what every skiff starts with, so it is never on a capsule. */
 export type CapsuleWeapon = Exclude<Weapon, 'blaster'>;
-export type PickupKind = 'weapon' | 'heart' | 'life' | 'tuck';
+export type PickupKind = 'weapon' | 'heart' | 'life' | 'tuck' | 'speed' | 'bomb';
 export type ShotKind = 'bolt' | 'beam' | 'missile' | 'wave';
 export type BeatKind = 'flight' | 'barb' | 'slab' | 'gap';
 export type FlightShape = 'v' | 'file';
 
-export interface FlightState { left: number; escaped: boolean }
+/** A flight of four spores: how many are still out, and how many the skiff has shot. */
+export interface FlightState { left: number; hits: number }
 export interface Beat { kind: BeatKind; t: number }
 
 export const CAPSULE_ORDER: readonly CapsuleWeapon[] = ['spread', 'laser', 'missile', 'wave'];
 
+/** The skiff's top speed with `boosts` speed pickups on board (0 to SPEED_MAX). */
+export function skiffSpeed(boosts: number): number {
+  return SKIFF_SPEED + Math.max(0, Math.min(SPEED_MAX, boosts)) * SPEED_STEP;
+}
+
 /** Keyboard diagonals share one speed with a single axis. A stick direction wins, and it is only ever one axis. */
-export function skiffVelocity(held: readonly Axis[], stick: Axis | null): { vx: number; vy: number } {
+export function skiffVelocity(held: readonly Axis[], stick: Axis | null, speed = SKIFF_SPEED): { vx: number; vy: number } {
   if (stick) {
-    const vx = stick === 'left' ? -SKIFF_SPEED : stick === 'right' ? SKIFF_SPEED : 0;
-    const vy = stick === 'up' ? -SKIFF_SPEED : stick === 'down' ? SKIFF_SPEED : 0;
+    const vx = stick === 'left' ? -speed : stick === 'right' ? speed : 0;
+    const vy = stick === 'up' ? -speed : stick === 'down' ? speed : 0;
     return { vx, vy };
   }
   const horizontal = [...held].reverse().find(d => d === 'left' || d === 'right');
@@ -58,7 +76,7 @@ export function skiffVelocity(held: readonly Axis[], stick: Axis | null): { vx: 
     x *= scale;
     y *= scale;
   }
-  return { vx: x * SKIFF_SPEED, vy: y * SKIFF_SPEED };
+  return { vx: x * speed, vy: y * speed };
 }
 
 /** Keep the whole skiff inside the playfield. It does not wrap. */
@@ -81,6 +99,12 @@ export function touchBox(x: number, y: number, w: number, h: number): { x: numbe
 }
 
 /** One tuck per press. At zero the press is still consumed, and nothing starts. */
+/** One bomb a press, while there is one left. */
+export function spendBomb(bombs: number): { ok: boolean; bombs: number } {
+  if (bombs <= 0) return { ok: false, bombs: 0 };
+  return { ok: true, bombs: bombs - 1 };
+}
+
 export function spendTuck(tucks: number): { ok: boolean; tucks: number } {
   if (tucks <= 0) return { ok: false, tucks: 0 };
   return { ok: true, tucks: tucks - 1 };
@@ -193,13 +217,13 @@ export function flightVelocity(shape: FlightShape, sign: -1 | 1, scroll: number)
 export function onSporeGone(flight: FlightState, how: 'hit' | 'left'): { flight: FlightState; drop: boolean } {
   const next: FlightState = {
     left: Math.max(0, flight.left - 1),
-    escaped: flight.escaped || how === 'left',
+    hits: flight.hits + (how === 'hit' ? 1 : 0),
   };
-  const drop = how === 'hit' && next.left === 0 && !next.escaped;
+  const drop = how === 'hit' && next.hits === FLIGHT_EARN;
   return { flight: next, drop };
 }
 
-/** A second capsule does not drop while one is already falling. A spoiled flight never drops one. */
+/** A second capsule does not drop while one is already falling. */
 export function offerToken(capsuleOnScreen: boolean, clean: boolean): boolean {
   return clean && !capsuleOnScreen;
 }
@@ -210,20 +234,41 @@ export function capsuleWeapon(age: number, first = 0): CapsuleWeapon {
   return CAPSULE_ORDER[i] ?? 'spread';
 }
 
-/** Catch your own gun and it goes up a level (200 points at the top). Catch another and you switch to it at the
-    level you had, as the colour-changing capsules of the arcade shooters did. */
-export function catchWeapon(weapon: Weapon, level: number, got: CapsuleWeapon): { weapon: Weapon; level: number; points: number } {
-  if (got === weapon) {
-    if (level >= WEAPON_MAX) return { weapon, level: WEAPON_MAX, points: 200 };
-    return { weapon, level: level + 1, points: 0 };
-  }
-  return { weapon: got, level: Math.max(1, Math.min(WEAPON_MAX, level)), points: 0 };
+/** The guns on board and the level of each. Every gun in it fires together; an empty arsenal is the blaster. */
+export type Arsenal = Partial<Record<CapsuleWeapon, number>>;
+
+/** Catch a gun you don't have and it joins the ones you do, at level 1. Catch one you have and it goes up a
+    level (200 points at the top). The whole stack is kept until the skiff is lost. */
+export function catchGun(arsenal: Arsenal, got: CapsuleWeapon): { arsenal: Arsenal; level: number; points: number } {
+  const had = arsenal[got] ?? 0;
+  if (had >= WEAPON_MAX) return { arsenal: { ...arsenal }, level: WEAPON_MAX, points: 200 };
+  return { arsenal: { ...arsenal, [got]: had + 1 }, level: had + 1, points: 0 };
 }
 
-/** A heart up to five, a tuck up to five, a skiff up to nine. A gift you can't hold is 200 points instead. */
-export function catchGift(kind: Exclude<PickupKind, 'weapon'>, have: { hearts: number; tucks: number; lives: number }): { hearts: number; tucks: number; lives: number; points: number } {
+/** The guns that fire, in capsule order, each with its level. With none caught yet, the blaster. */
+export function gunsOf(arsenal: Arsenal): { weapon: Weapon; level: number }[] {
+  const out = CAPSULE_ORDER.filter(w => (arsenal[w] ?? 0) > 0).map(w => ({ weapon: w as Weapon, level: arsenal[w] ?? 1 }));
+  return out.length ? out : [{ weapon: 'blaster', level: 1 }];
+}
+
+/** The HUD's short name for the stack: BLAST, or each gun's letter and level, such as S3M2W1. */
+export function arsenalLabel(arsenal: Arsenal): string {
+  const guns = gunsOf(arsenal);
+  if (guns[0]?.weapon === 'blaster') return WEAPON_NAME.blaster;
+  // no gaps: four guns read S3L3M3W3, eight characters, no wider than MISSILE 3 was, so the badge fits a 240 px tube
+  return guns.map(g => WEAPON_NAME[g.weapon].charAt(0) + g.level).join('');
+}
+
+/** What the skiff holds that a pickup can add to. */
+export interface Gifts { hearts: number; tucks: number; lives: number; speed: number; bombs: number }
+
+/** A heart up to five, a tuck up to five, a skiff up to nine, a speed level up to three, a bomb up to five.
+    A gift you can't hold is 200 points instead. */
+export function catchGift(kind: Exclude<PickupKind, 'weapon'>, have: Gifts): Gifts & { points: number } {
   const out = { ...have, points: 0 };
   if (kind === 'heart') { if (have.hearts >= HEART_CAP) out.points = 200; else out.hearts += 1; }
+  else if (kind === 'speed') { if (have.speed >= SPEED_MAX) out.points = 200; else out.speed += 1; }
+  else if (kind === 'bomb') { if (have.bombs >= BOMB_CAP) out.points = 200; else out.bombs += 1; }
   else if (kind === 'tuck') { if (have.tucks >= TUCK_CAP) out.points = 200; else out.tucks += 1; }
   else if (kind === 'life') { if (have.lives >= LIFE_CAP) out.points = 200; else out.lives += 1; }
   else { const never: never = kind; return never; }
@@ -231,17 +276,22 @@ export function catchGift(kind: Exclude<PickupKind, 'weapon'>, have: { hearts: n
 }
 
 /** What a destroyed barb or a broken slab leaves behind, from one roll in [0, 1). Spores drop nothing on
-    their own: a clean flight of four drops a weapon capsule. Slabs always leave something. */
+    their own: the third spore shot from a flight drops a weapon capsule. Four barbs in five leave something,
+    a weapon capsule most often, and slabs always do. */
 export function dropFor(kind: 'barb' | 'slab', roll: number): PickupKind | null {
   if (kind === 'barb') {
     if (roll < 0.05) return 'life';
-    if (roll < 0.27) return 'heart';
-    if (roll < 0.37) return 'tuck';
-    if (roll < 0.45) return 'weapon';
+    if (roll < 0.2) return 'heart';
+    if (roll < 0.28) return 'tuck';
+    if (roll < 0.38) return 'speed';
+    if (roll < 0.45) return 'bomb';
+    if (roll < 0.8) return 'weapon';
     return null;
   }
-  if (roll < 0.18) return 'life';
-  if (roll < 0.55) return 'heart';
+  if (roll < 0.12) return 'life';
+  if (roll < 0.32) return 'heart';
+  if (roll < 0.46) return 'speed';
+  if (roll < 0.58) return 'bomb';
   return 'weapon';
 }
 

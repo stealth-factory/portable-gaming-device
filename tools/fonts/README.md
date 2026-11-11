@@ -19,5 +19,9 @@ regular face as a local hashed asset, preloads it, and waits for it before
 booting the console, so text drawing and measurement agree without Google Fonts.
 An early POWER or Enter press initialises audio immediately and queues the full
 boot until the font is ready. POWER can cancel that queue. The boot clock starts
-only when the font is usable. The vendored font also supplies the source for
+only when the font is usable.
+
+Each load attempt has a ten-second deadline. A failed or empty font response shows
+a translated Retry card; POWER and Enter can also retry. Each attempt creates a
+fresh face, and an old attempt cannot start a late boot after failure or cancellation. The vendored font also supplies the source for
 the native bitmap atlas in GAM-35.

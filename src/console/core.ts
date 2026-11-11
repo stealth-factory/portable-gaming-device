@@ -12,9 +12,15 @@ import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover"
 import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame, launcherTargets } from "./loader";
 import { bindHost } from "./host";
 import { makeScreen2D } from "./screen";
+import { makePixelFont } from "./font";
+import pixelFontURL from "../../tools/fonts/Silkscreen-Regular.ttf?url";
 import { layer, makeStamp } from "./layers";
 // Inputs and audio stay synchronous; only booting waits for the pinned drawing face.
-let pixelFontReady = false, powerQueued = false;
+let powerQueued = false;
+const pixelFont = makePixelFont(pixelFontURL, {
+  ready(){ buildBurn(); if (powerQueued) powerOn(); },
+  failed(){ powerQueued = false; $('powerBtn').setAttribute('aria-checked', 'false'); showOverlay('font'); },
+});
 export let W = 15, H = 10;
 export const C = 32, CELL = 24, HUD = 20, K = CELL / C;   // game units per cell, low-res pixels per cell
 export let LW = W * CELL, LH = H * CELL + HUD;              // low-res frame buffer, like a 1980s graphics mode; resized to fit the screen
@@ -50,7 +56,7 @@ export const dust = document.createElement('canvas'); dust.width = 720; dust.hei
   d.moveTo(hx, hy); d.bezierCurveTo(hx + 20, hy + 30, hx - 15, hy + 50, hx + 12, hy + 80); d.stroke();   // a stray hair on the glass
 })();
 export function buildBurn(){
-  if (!pixelFontReady) return;
+  if (pixelFont.state !== 'ready') return;
   // years of the same title screen wore the phosphor: those spots now glow a little less
   burn = document.createElement('canvas'); burn.width = LW; burn.height = LH;
   const b = burn.getContext('2d')!;
@@ -414,7 +420,7 @@ export const overlay = $('overlay');
 /* ---------- languages: English (default) and Traditional Chinese, carried in the link as #en / #zh-hant ---------- */
 import { I18N, LANGS, LANG_ALIAS, hashLang, kb } from './i18n';
 export { I18N, LANGS, LANG_ALIAS, hashLang, kb };
-export let lang = 'en', ovKind: 'title' | 'paused' | 'over' = 'title', ovVars: any = {};
+export let lang = 'en', ovKind: 'title' | 'paused' | 'over' | 'font' = 'title', ovVars: any = {};
 Btn.setTranslator(k => I18N[lang][k] ?? k);
 /* ---------- instructions: the console's while the menu is up, the loaded game's otherwise (rendered by the React leaflet) ---------- */
 export let manCtx = 'console';
@@ -429,10 +435,10 @@ export function setGame(d: GameDisk | null){
 export function setBoostLabel(key: string | null){ Btn.setButtons({ boost: key ? { label: key } : null }); }
 export function renderOverlay(){
   const T = I18N[lang];
-  const v = { title: ['TUNNEL RAIDER', T.titleText, T.start], paused: [T.paused, T.pausedText, T.resume], over: [T[game.overKey], T.overText(ovVars.n, ovVars.s), T[game.againKey]] }[ovKind];
+  const v = { font: [T.fontError, T.fontErrorText, T.fontRetry], title: ['TUNNEL RAIDER', T.titleText, T.start], paused: [T.paused, T.pausedText, T.resume], over: [T[game.overKey], T.overText(ovVars.n, ovVars.s), T[game.againKey]] }[ovKind];
   $('ovTitle').textContent = v[0]; $('ovText').innerHTML = v[1]; $('ovBtn').innerHTML = '<span class="blink">▶</span> ' + v[2];
 }
-export function showOverlay(kind: 'title' | 'paused' | 'over', vars: any = {}){ ovKind = kind; ovVars = vars; renderOverlay(); overlay.hidden = false; }
+export function showOverlay(kind: 'title' | 'paused' | 'over' | 'font', vars: any = {}){ ovKind = kind; ovVars = vars; renderOverlay(); overlay.hidden = false; }
 export function applyLang(l: string | null | undefined, writeHash: boolean){
   lang = l && LANGS.includes(l) ? l : 'en';
   const htmlLang: Record<string, string> = { en: 'en', 'zh-hant': 'zh-Hant', 'zh-hans': 'zh-Hans' };
@@ -506,7 +512,7 @@ $('fullBtn').addEventListener('click', () => setFull(!full));
 document.querySelectorAll('.rocker').forEach(b => b.addEventListener('pointerdown', () => { ensureAudio(); if (ac) tone(1700, 0.012, 0.05); buzz('tick'); }));   // switch clack
 $('exitFull').addEventListener('click', () => setFull(false));
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && full) setFull(false); });
-$('ovBtn').addEventListener('click', () => { ensureAudio(); if (S.mode === 'paused') togglePause(); else startGame(); });
+$('ovBtn').addEventListener('click', () => { ensureAudio(); if (pixelFont.state === 'failed') powerOn(); else if (S.mode === 'paused') togglePause(); else startGame(); });
 $('pauseBtn').addEventListener('click', () => togglePause());
 $('muteBtn').addEventListener('click', () => toggleMute());
 $('fxBtn').addEventListener('click', () => setFx(!fx));
@@ -575,7 +581,11 @@ export function powerOff(){
   if (ac && !muted) { tone(90, 0.09, 0.06, -40); tone(12000, 0.5, 0.008, -11000); }
 }
 export function powerOn(){
-  if (!pixelFontReady) { powerQueued = true; $('powerBtn').setAttribute('aria-checked', 'true'); return; }
+  if (pixelFont.state !== 'ready') {
+    powerQueued = true; $('powerBtn').setAttribute('aria-checked', 'true');
+    if (pixelFont.state === 'failed') { overlay.hidden = true; pixelFont.load(); }
+    return;
+  }
   powerQueued = false;
   document.documentElement.removeAttribute('data-off');
   tvOn = true; warmT = 0; age.dg = 0; accReset = true;
@@ -1030,11 +1040,7 @@ setMode(modeKey); setFx(fx);
 sizeTv();
 fitGrid();
 resize();
-void document.fonts.load('16px Silkscreen').then(faces => {
-  if (!faces.length) throw new Error('The console pixel font did not load');
-  pixelFontReady = true; buildBurn();
-  if (powerQueued) powerOn();
-});
+pixelFont.load();
 requestAnimationFrame(frame);
 
 /* setters for state the game modules change (an imported binding can't be assigned from outside its module) */

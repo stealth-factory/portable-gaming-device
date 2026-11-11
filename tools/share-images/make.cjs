@@ -47,7 +47,7 @@ const IMAGES = [
     tag: 'Serve an ember, bounce it off one bat, and clear the wall.',
     disks: disk('c2', 'Bricks', 'BRICKS.EXE · 18K', 40, -4, 2) + disk('c4', 'Dino Run', 'DINORUN.COM', 190, 7, 1) },
   { out: 'og-martian-storm.png', tv: 'play-storm.png', h1: 'Martian Storm', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
-    tag: 'Fly a skiff through a Martian dust storm, catch new guns, tuck past the shots and land each leg.',
+    tag: 'Fly a skiff through a Martian dust storm, stack up guns, tuck past the shots and land each leg.',
     disks: disk('c3', 'Martian Storm', 'STORM.EXE · 30K', 40, -4, 2) + disk('c4', 'Bricks', 'BRICKS.EXE', 190, 7, 1) },
 ];
 
@@ -164,7 +164,7 @@ const IMAGES = [
   await until(() => __gg.S.mode === 'play');
   // hold fire until a flight of spores is well down the tube, so the cover shows what you shoot at;
   // the skiff can't be hit, so the flipbook after it keeps playing instead of losing a life
-  await p.evaluate(() => { __gg.runtime.debug.untouchable(true); __gg.runtime.debug.arm('spread', 3); });
+  await p.evaluate(() => { __gg.runtime.debug.untouchable(true); __gg.runtime.debug.arm('spread', 3); __gg.runtime.debug.arm('laser', 2); });
   await p.keyboard.down('Space');
   await until(() => __gg.S.mode === 'play' && __gg.runtime.debug.state().craft >= 4, 20000).catch(() => {});
   await p.waitForTimeout(500);
