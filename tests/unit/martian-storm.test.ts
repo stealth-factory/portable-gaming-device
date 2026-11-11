@@ -4,8 +4,8 @@ import { strings } from '../../src/games/martian-storm/strings';
 import { disk } from '../../src/games/martian-storm/disk';
 import type { ConsoleAPI, Dir } from '../../src/games/types';
 import {
-  BARB_HP, HEART_CAP, HEARTS_START, LEG_CLOCK, LIFE_CAP, SHOT_CAP, SKIFF_SPEED, SLAB_HP, SLAB_WAIT, TUCK_CAP, TUCK_SECS,
-  WEAPON_MAX, barbCount, beatFits, beatGap, beatSchedule, capsuleWeapon, catchGift, catchWeapon, damage, dropFor,
+  BARB_HP, BOMB_CAP, BOMB_DMG, BOMBS_START, SPEED_MAX, HEART_CAP, HEARTS_START, LEG_CLOCK, LIFE_CAP, SHOT_CAP, SKIFF_SPEED, SLAB_HP, SLAB_WAIT, TUCK_CAP, TUCK_SECS,
+  WEAPON_MAX, barbCount, beatFits, beatGap, beatSchedule, capsuleWeapon, arsenalLabel, catchGift, catchGun, damage, dropFor, gunsOf, skiffSpeed, spendBomb,
   flightCount, flightOffsets, flightVelocity, hpFor, landingBonus, legReward, missileSalvo, offerToken, onSporeGone,
   pelletSpeed, scrollSpeed, insetBox, skiffVelocity, slabCount, spendTuck, steerMissile, takeHit, touchBox, tuckCovers,
   volley, volleyFits,
@@ -58,7 +58,8 @@ function harness() {
   const releaseBoost = () => { if (buttons.boost) { buttons.boost.held = false; buttons.boost.queued = false; } };
   const repeatBoost = () => { if (buttons.boost) buttons.boost.queued = true; };
   const tapFire = () => { buttons.fire = { label: 'spark', enabled: true, queued: true, held: false }; };
-  return { api, S, runtime, held, pressBoost, releaseBoost, repeatBoost, tapFire, setStick: (d: Dir | null) => { stick = d; } };
+  const tapBomb = () => { buttons.fireR = { label: 'msBomb', enabled: true, queued: true, held: false }; };
+  return { api, S, runtime, held, pressBoost, releaseBoost, repeatBoost, tapFire, tapBomb, setStick: (d: Dir | null) => { stick = d; } };
 }
 
 function play(runtime: ReturnType<typeof harness>['runtime'], S: { mode: string; modeT: number }) {
@@ -75,6 +76,14 @@ describe('skiff movement', () => {
     expect(diagonal.vy).toBeCloseTo(-SKIFF_SPEED / Math.SQRT2);
     expect(Math.hypot(diagonal.vx, diagonal.vy)).toBeCloseTo(SKIFF_SPEED);
     expect(skiffVelocity(['down'], null)).toEqual({ vx: 0, vy: SKIFF_SPEED });
+  });
+
+  it('flies faster with each speed pickup, up to three', () => {
+    expect(skiffSpeed(0)).toBe(SKIFF_SPEED);
+    expect(skiffSpeed(1)).toBeGreaterThan(SKIFF_SPEED);
+    expect(skiffSpeed(SPEED_MAX + 2)).toBe(skiffSpeed(SPEED_MAX));
+    expect(skiffVelocity(['left'], null, 120)).toEqual({ vx: -120, vy: 0 });
+    expect(skiffVelocity([], 'up', 120)).toEqual({ vx: 0, vy: -120 });
   });
 
   it('lets the 4-way stick win, one axis at a time', () => {
@@ -191,29 +200,29 @@ describe('a flight of four', () => {
     expect(flightVelocity('file', -1, 20)).toEqual({ vx: -20, vy: 56 });
   });
 
-  it('drops a token only when all four were hit, and only if none is already falling', () => {
-    let flight: FlightState = { left: 4, escaped: false };
-    let drop = false;
-    for (let i = 0; i < 4; i++) {
+  it('drops a capsule on the third spore shot from a flight, and only if none is already falling', () => {
+    let flight: FlightState = { left: 4, hits: 0 };
+    flight = onSporeGone(flight, 'left').flight;
+    const drops: boolean[] = [];
+    for (let i = 0; i < 3; i++) {
       const step = onSporeGone(flight, 'hit');
       flight = step.flight;
-      drop = step.drop;
+      drops.push(step.drop);
     }
-    expect(drop).toBe(true);
+    expect(drops).toEqual([false, false, true]);
     expect(offerToken(false, true)).toBe(true);
     expect(offerToken(true, true)).toBe(false);
 
-    let spoiled: FlightState = { left: 4, escaped: false };
-    spoiled = onSporeGone(spoiled, 'left').flight;
+    let thin: FlightState = { left: 4, hits: 0 };
+    thin = onSporeGone(thin, 'left').flight;
+    thin = onSporeGone(thin, 'left').flight;
     let late = false;
-    for (let i = 0; i < 3; i++) {
-      const step = onSporeGone(spoiled, 'hit');
-      spoiled = step.flight;
+    for (let i = 0; i < 2; i++) {
+      const step = onSporeGone(thin, 'hit');
+      thin = step.flight;
       late = late || step.drop;
     }
-    expect(spoiled.escaped).toBe(true);
     expect(late).toBe(false);
-    expect(offerToken(false, false)).toBe(false);
   });
 });
 
@@ -227,11 +236,17 @@ describe('weapons (GAM-59)', () => {
     expect(capsuleWeapon(0, 2)).toBe('missile');
   });
 
-  it('levels up your own gun and switches to another at the same level', () => {
-    expect(catchWeapon('blaster', 1, 'spread')).toEqual({ weapon: 'spread', level: 1, points: 0 });
-    expect(catchWeapon('spread', 1, 'spread')).toEqual({ weapon: 'spread', level: 2, points: 0 });
-    expect(catchWeapon('spread', 2, 'laser')).toEqual({ weapon: 'laser', level: 2, points: 0 });
-    expect(catchWeapon('laser', WEAPON_MAX, 'laser')).toEqual({ weapon: 'laser', level: WEAPON_MAX, points: 200 });
+  it('stacks a new gun beside the others and levels up one you have', () => {
+    expect(gunsOf({})).toEqual([{ weapon: 'blaster', level: 1 }]);
+    let a = catchGun({}, 'spread');
+    expect(a).toEqual({ arsenal: { spread: 1 }, level: 1, points: 0 });
+    a = catchGun(a.arsenal, 'laser');
+    a = catchGun(a.arsenal, 'spread');
+    expect(a.arsenal).toEqual({ spread: 2, laser: 1 });
+    expect(gunsOf(a.arsenal)).toEqual([{ weapon: 'spread', level: 2 }, { weapon: 'laser', level: 1 }]);
+    expect(arsenalLabel({})).toBe('BLAST');
+    expect(arsenalLabel({ wave: 1, spread: 3, missile: 2 })).toBe('S3 M2 W1');
+    expect(catchGun({ laser: WEAPON_MAX }, 'laser')).toEqual({ arsenal: { laser: WEAPON_MAX }, level: WEAPON_MAX, points: 200 });
   });
 
   it('sprays more with each level, and fits under the shot cap', () => {
@@ -257,6 +272,16 @@ describe('weapons (GAM-59)', () => {
     expect(Math.atan2(v.vy, v.vx)).toBeCloseTo(-Math.PI / 2 + 0.1);
   });
 
+  it('fires every gun in the stack at once', () => {
+    const { S, runtime, tapFire } = harness();
+    play(runtime, S);
+    runtime.debug!.arm('spread', 3);
+    runtime.debug!.arm('laser', 3);
+    tapFire();
+    runtime.update(1 / 60);
+    expect(runtime.debug!.state().shots).toBe(7 + 3);
+  });
+
   it('puts a whole volley in the air from the game', () => {
     const { S, runtime, tapFire } = harness();
     play(runtime, S);
@@ -274,12 +299,22 @@ describe('hearts, lives and pickups (GAM-59)', () => {
   });
 
   it('caps hearts at five, tucks at five and skiffs at nine', () => {
-    const have = { hearts: 2, tucks: 3, lives: 3 };
+    const have = { hearts: 2, tucks: 3, lives: 3, speed: 0, bombs: 2 };
     expect(catchGift('heart', have)).toEqual({ ...have, hearts: 3, points: 0 });
     expect(catchGift('heart', { ...have, hearts: HEART_CAP })).toEqual({ ...have, hearts: HEART_CAP, points: 200 });
     expect(catchGift('tuck', { ...have, tucks: TUCK_CAP }).points).toBe(200);
     expect(catchGift('life', have).lives).toBe(4);
     expect(catchGift('life', { ...have, lives: LIFE_CAP })).toEqual({ ...have, lives: LIFE_CAP, points: 200 });
+  });
+
+  it('caps speed at three and bombs at five', () => {
+    const have = { hearts: 3, tucks: 3, lives: 3, speed: 0, bombs: BOMBS_START };
+    expect(catchGift('speed', have).speed).toBe(1);
+    expect(catchGift('speed', { ...have, speed: SPEED_MAX }).points).toBe(200);
+    expect(catchGift('bomb', have).bombs).toBe(BOMBS_START + 1);
+    expect(catchGift('bomb', { ...have, bombs: BOMB_CAP }).points).toBe(200);
+    expect(spendBomb(1)).toEqual({ ok: true, bombs: 0 });
+    expect(spendBomb(0)).toEqual({ ok: false, bombs: 0 });
   });
 
   it('gives a skiff for each leg cleared, up to nine', () => {
@@ -290,8 +325,15 @@ describe('hearts, lives and pickups (GAM-59)', () => {
   it('has a slab always leave something, and a barb sometimes', () => {
     for (let r = 0; r < 1; r += 0.01) expect(dropFor('slab', r)).not.toBeNull();
     expect(dropFor('barb', 0.01)).toBe('life');
-    expect(dropFor('barb', 0.2)).toBe('heart');
+    expect(dropFor('barb', 0.1)).toBe('heart');
     expect(dropFor('barb', 0.9)).toBeNull();
+    // four barbs in five leave something, a weapon capsule most often
+    const n = 1000, got = Array.from({ length: n }, (_, i) => dropFor('barb', i / n));
+    expect(got.filter(k => k !== null).length / n).toBeCloseTo(0.8, 2);
+    expect(got.filter(k => k === 'weapon').length / n).toBeGreaterThan(0.3);
+    for (const k of ['speed', 'bomb', 'tuck'] as const) expect(got).toContain(k);
+    const slab = Array.from({ length: n }, (_, i) => dropFor('slab', i / n));
+    for (const k of ['speed', 'bomb', 'weapon', 'heart', 'life'] as const) expect(slab).toContain(k);
   });
 
   it('catches a heart and a 1UP in the game', () => {
@@ -305,6 +347,75 @@ describe('hearts, lives and pickups (GAM-59)', () => {
     runtime.update(1 / 60);
     expect(runtime.debug!.state().hearts).toBe(HEARTS_START);
     expect(S.lives).toBe(4);
+  });
+
+  it('sets off a bomb per press, sweeps the pellets and keeps the skiff safe while it lasts', () => {
+    const { S, runtime, tapBomb } = harness();
+    play(runtime, S);
+    expect(runtime.debug!.state().bombs).toBe(BOMBS_START);
+    runtime.debug!.pellet();
+    tapBomb();
+    runtime.update(1 / 60);
+    let st = runtime.debug!.state();
+    expect([st.bombs, st.bombing, st.hearts]).toEqual([BOMBS_START - 1, true, HEARTS_START]);
+    runtime.debug!.pellet();
+    runtime.update(1 / 60);
+    expect(runtime.debug!.state().hearts).toBe(HEARTS_START);
+    for (let i = 0; i < 60; i++) runtime.update(1 / 60);
+    tapBomb();
+    runtime.update(1 / 60);
+    tapBomb();
+    for (let i = 0; i < 60; i++) runtime.update(1 / 60);
+    tapBomb();
+    runtime.update(1 / 60);
+    st = runtime.debug!.state();
+    expect(st.bombs).toBe(0);
+    expect(BOMB_DMG).toBeGreaterThanOrEqual(BARB_HP);
+  });
+
+  it('catches SPEED and BOMB in the game, and loses speed with the skiff', () => {
+    const { S, runtime } = harness();
+    play(runtime, S);
+    runtime.debug!.give('speed');
+    runtime.debug!.give('bomb');
+    runtime.update(1 / 60);
+    let st = runtime.debug!.state();
+    expect([st.speed, st.bombs]).toEqual([1, BOMBS_START + 1]);
+    for (let n = 0; n < HEARTS_START; n++) {
+      runtime.debug!.unblink();
+      runtime.debug!.pellet();
+      runtime.update(1 / 60);
+    }
+    for (let i = 0; i < 80; i++) runtime.update(1 / 60);
+    st = runtime.debug!.state();
+    expect([st.speed, st.bombs]).toEqual([0, BOMBS_START]);
+  });
+
+  it('carries guns, speed, bombs and extra tucks into the next leg, through a warp', () => {
+    const { S, runtime } = harness();
+    play(runtime, S);
+    runtime.debug!.untouchable(true);
+    runtime.debug!.arm('spread', 2);
+    runtime.debug!.arm('wave', 1);
+    runtime.debug!.give('speed');
+    runtime.debug!.give('bomb');
+    runtime.debug!.give('tuck');
+    runtime.debug!.give('tuck');
+    runtime.update(1 / 60);
+    let warped = 0;
+    for (let i = 0; i < 60 * 40 && S.level === 1; i++) {
+      runtime.update(1 / 60);
+      if (S.mode === 'clear') warped = Math.max(warped, runtime.debug!.state().warp);
+    }
+    expect(S.level).toBe(2);
+    expect(S.mode).toBe('ready');
+    expect(warped).toBeGreaterThan(0.8);
+    expect(runtime.debug!.state().warp).toBeGreaterThan(0.5);
+    const st = runtime.debug!.state();
+    expect(st.guns).toEqual({ spread: 2, wave: 1 });
+    expect([st.speed, st.bombs, st.tucks]).toEqual([1, BOMBS_START + 1, 5]);
+    for (let i = 0; i < 90; i++) runtime.update(1 / 60);
+    expect([S.mode, runtime.debug!.state().warp]).toEqual(['play', 0]);
   });
 
   it('gives craft hit points so the bigger guns have work to do', () => {
