@@ -162,7 +162,9 @@ const IMAGES = [
   await p.evaluate(() => { __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'martian-storm')); __gg.S.loadLen = 4.2; });
   await until(() => __gg.S.loadT > 1.6); await shot('load-storm.png');
   await until(() => __gg.S.mode === 'play');
-  // hold fire until a flight of spores is well down the tube, so the cover shows what you shoot at
+  // hold fire until a flight of spores is well down the tube, so the cover shows what you shoot at;
+  // the skiff can't be hit, so the flipbook after it keeps playing instead of losing a life
+  await p.evaluate(() => __gg.runtime.debug.untouchable(true));
   await p.keyboard.down('Space');
   await until(() => __gg.S.mode === 'play' && __gg.runtime.debug.state().craft >= 4, 20000).catch(() => {});
   await p.waitForTimeout(500);

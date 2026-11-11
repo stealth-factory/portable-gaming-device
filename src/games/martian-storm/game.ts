@@ -64,6 +64,8 @@ let done = false;
 let side: 0 | 1 = 0;
 let landFrom = { x: 0, y: 0 };
 let legRng: () => number = () => 0;
+/** Set only by debug.untouchable, so a capture can run on without losing the skiff. */
+let untouchable = false;
 
 const CLEAR_JINGLE = { notes: [392, 523, 659], dur: 0.09, vol: 0.045, gap: 0.1 };
 const EXTRA_JINGLE = { notes: [523, 659, 784, 1046], dur: 0.08, vol: 0.045, gap: 0.08 };
@@ -291,7 +293,7 @@ function strike(craft: Craft) {
 }
 
 function hurt() {
-  if (api.S.mode !== 'play' || settled) return;
+  if (api.S.mode !== 'play' || settled || untouchable) return;
   api.tone(440, 0.25, 0.05, -400);
   api.track('life_lost', { game: 'martian-storm', level: api.S.level });
   tuckLeft = 0;
@@ -547,6 +549,8 @@ const create: CreateGame = a => {
         /** craft wholly on screen below the HUD, so a capture can wait for something to look at */
         craft: enemies.filter(e => e.alive && e.y > a.HUD + 4).length,
       }),
+      /** Keep the skiff from being hit, for the share capture's flipbook. */
+      untouchable: (on: boolean) => { untouchable = on; },
       /** Hang an enemy pellet on the skiff so the next frame can overlap it. */
       pellet: () => { pellets.push({ x: x + SKIFF_W / 2 - 1, y: y + SKIFF_H / 2 - 1, vx: 0, vy: 8 }); },
     },
