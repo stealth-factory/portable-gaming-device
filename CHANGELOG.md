@@ -3,6 +3,21 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.11.0] - 2026-11-11
+
+### Documentation
+
+- Explain a game's buttons, layout and launcher listing (GAM-56) (#91)
+
+### Features
+
+- Rebrand the console as the PGD-01 Portable Gaming Device (GAM-55) (#88)
+- Put a PGD plate on the app icons (GAM-58) (#95)
+
+### Miscellaneous
+
+- **skills**: Pull in private skills mac-first rule (GAM-57) (#93)
+
 ## [0.10.0] - 2026-11-11
 
 ### Features
