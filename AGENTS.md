@@ -68,6 +68,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
   - **On the tube:** the BIOS banner (`PGD-01 GAMING DEVICE   BIOS 1.0`) and `STARTING PGD-DOS...` in `src/console/boot.ts`, the launcher header (`src/console/launcher/draw.ts`), the old list menu (`loader.ts`) and the burnt-in title (`buildBurn()` in `core.ts`).
   - **Instructions:** the `model` and `diskFor` strings in `src/console/strings.ts`, all three languages.
   - **App identity:** `<title>`, `apple-mobile-web-app-title` (`PGD`), share tags and images (`tools/share-images/make.cjs`), the PWA manifest name and short name (`astro.config.mjs`), each disk's page description, README.
+  - **Icons:** the app icons carry a silver `PGD` plate under the tube, and the favicon's tube spells PGD in 3 × 5 pixel letters (GAM-58). All of them come from `tools/icons/make.cjs`; edit the drawing there and re-run it, never the PNGs.
 - **Kept on purpose:** storage keys (`gg-best-<id>`, `gg-board-<id>`, `gg-name` and the rest), the `gg:settings` event and the `__gg` test hook keep their `gg` prefix, so nobody loses their scores or settings.
 - Game names (Tunnel Raider and the rest) appear only inside their own game: its loading screen, instructions and title.
 
@@ -162,6 +163,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 | `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
 | `src/kit/platform/` | Console services as DOM-free rules the core wires to the page. `haptics.ts` (GAM-5) is the first: named buzz patterns, the SOUND-off rule and which buzz wins, with the core supplying the vibrate call; button slots, gamepad and pause are to follow. See the [Shared game kit spec](https://linear.app/stealth-company/document/shared-game-kit-spec-338041de484b) |
 | `public/` | Icons, favicon, share images (`og-image.png`, `og-<slug>.png` per game) |
+| `tools/icons/` | `make.cjs` draws the app icons, maskable icons, Apple touch icon and favicon (`public/icons/`, `public/favicon.svg`) from one SVG drawing |
 | `tools/share-images/` | `make.cjs` captures the console and renders the share images and `docs/screens/`; `share.css` is their layout. `--covers` also writes each game's launcher cover (`src/games/<folder>/cover.ts`, generated, never edited by hand) from its play capture; `--covers-only` writes just those; `--previews` adds each game's flipbook (`preview.ts`, fetched lazily by `loadPreviews()` in the registry) |
 | `src/console/launcher/` | The disk launcher (GAM-32), DOM-free so the native apps can run it: `system.ts` (the `LauncherSystem` it asks the console for, built in `loader.ts`), `state.ts` and `layout.ts` (pure, unit-tested), `cover.ts` (the 2-bit cover codec and painter), `states.ts` (disk-state floppies), `draw.ts`, `index.ts` (`createLauncher`). `tests/flow.cjs` taps what `__gg.launcherTargets()` publishes |
 
