@@ -41,6 +41,7 @@ It exports `disk: GameDisk` (see [`types.ts`](types.ts) for every field):
 | Field | What it is |
 | --- | --- |
 | `id`, `order`, `slug` | Storage and analytics id, place on the menu, and the page path. All three are unique. |
+| `contract`, `version`, `rating` | `contract: 1`; a positive whole-number revision, increased whenever the disk's built files change; the lowest App Store age band it suits (all six currently `4+`). |
 | `page` | English title and description for the game's page and its link preview. |
 | `title`, `nameKey` | The title in the pixel font, and the I18N key for it in the leaflet. |
 | `file`, `size` | The file the drive "reads" (`DINORUN.COM`) and its size in bytes. |
@@ -62,10 +63,10 @@ The game itself, fetched while the drive reads the disk. It default-exports `cre
 - `start()`: a new game. Reset the field and the score.
 - `update(dt)`: every step while the mode is `ready`, `play`, `dying` or `clear`.
 - `draw()`: draw the playfield and HUD into the low-res buffer.
-- `onPalette()` (optional): the phosphor changed; rebuild anything cached in colour.
+- `onPalette()` (optional): the phosphor changed; rebuild cached layer indices when a colour-role mapping changes, such as mono to CGA. A palette colour change alone needs no rebuild.
 - `debug` (optional): hooks the Playwright checks call through `__gg`. Every game has one; expose what the tests need to read or set up (`state()`, a way to skip to a wave).
 
-Make canvases, listeners and state inside `create()`, never at the top of the module.
+Allocate state and palette-index layers inside `create()` or `start()`, never while the module loads. Games run as JavaScript on web and native hosts; they never create browser canvases or listeners.
 
 ### `strings.ts` (expected)
 
@@ -240,10 +241,13 @@ The share image and screenshots are never drawn by hand. To make them for a new 
 
 ## Plug-in rules
 
-`disks.test.ts` checks the first (no `src/console` imports in any game file). The rest are checked in review, so a passing test run doesn't mean a `disk.ts` import is light enough.
+`disks.test.ts` checks imports and metadata. `tests/unit/kit/contract.test.ts` checks banned globals and the drawing surface. Review still checks side effects and whether a `disk.ts` import is light enough.
 
 - **No console imports.** A game never imports from `src/console`. Everything comes through the `ConsoleAPI` it is handed. If a game needs something new, add it to `ConsoleAPI` in `types.ts` and to `api` in `core.ts`.
-- **No side effects.** Loading a game's modules does nothing; make canvases and listeners in `create()`.
+- **No side effects.** Loading a game's modules does nothing; allocate state and layers in `create()` or `start()`.
+- **No browser globals.** Games and the play kit never use `window`, `document`, `navigator`, `localStorage`, `sessionStorage`, `location`, timers, animation frames, `fetch`, `performance`, `Date` or dynamic `import()`. `Math.random` is allowed; the host supplies it and can seed it for repeatable runs.
+- **Portable drawing.** `api.g` exposes only `Screen2D`: filled rectangles and paths, clipping, transforms, a save stack, `font` and `measureText`. Set `fillStyle` only from `api.col(role)` or `api.palette.pal`; other colours fail in development and are ignored in release. Draw text through `api.txt`; `font` supports regular Silkscreen at 8 or 16 px, and measurement uses the shared metrics table.
+- **Cached pictures.** `api.layer(w, h)` returns `{ w, h, px: Uint8Array }`: one palette index (0 to 3) per pixel in row order, initially zero. Write its pixels and call `api.stamp(layer, x, y)` to copy it onto the screen using the current transform and clip. Every index is opaque. Colours follow the current palette when stamped; when roles change indices, rebuild the layer in `onPalette()` to keep the same appearance. Neither `document` nor `drawImage` belongs in a disk.
 - **The kit is the exception.** Games may import `src/kit/play/` (`import { makeFx } from '../../kit/play'`) and types from `src/kit/platform/`. A `disk.ts` may import only `kit/play/sprite`.
 - **Read the API live.** `api.LW`, `api.S` and the rest change with the tube's shape and the mode; read them each frame.
 - **Haptics.** Buzz through `api.buzz()`: `'fire'` as a shot leaves, `'lose'` for a life, `'pickup'` on a catch.
@@ -263,6 +267,13 @@ The share image and screenshots are never drawn by hand. To make them for a new 
 9. Update the README and `AGENTS.md`.
 10. Run `npm run build`, `npm test`, then `tests/flow.cjs`, `tests/pages.cjs`, `tests/stick.cjs` and `tests/haptics.cjs` against `npm run preview`.
 
+For a repeatable headless recording, run
+`node tools/conformance/run.mjs <folder> tools/conformance/play.json /tmp/disk.jsonl`.
+It uses a fixed 1/60 s step and seeded `Math.random`; the same disk and script
+produce identical commands. See [`tools/conformance/README.md`](../../tools/conformance/README.md)
+for input events and the replay format. This records game play; the system
+disk's boot and launcher coverage follows GAM-39.
+
 ## A minimal disk
 
 `disk.ts`:
@@ -272,6 +283,7 @@ import type { ConsoleAPI, GameDisk } from '../types';
 import { strings } from './strings';
 
 export const disk: GameDisk = {
+  contract: 1, version: 1, rating: '4+',
   id: 'pong', order: 7, slug: 'paddle-ball', genre: 'BAT+BALL', players: 2,   // the launcher's details line
   page: { title: 'Paddle Ball', description: 'Bat the blip past the other paddle.' },
   title: 'PADDLE BALL', nameKey: 'pbName', file: 'PADDLE.COM', size: 6144, loadSecs: 1.2,
