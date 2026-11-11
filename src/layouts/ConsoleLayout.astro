@@ -3,6 +3,7 @@
    React components render to static HTML at build time; the console engine (src/main.ts) brings them to life.
    The instructions leaflet is the one live React island. */
 import '../styles/console.css';
+import pixelFont from '../../tools/fonts/Silkscreen-Regular.ttf?url';
 import { Header } from '../components/Header';
 import { ConsoleSet } from '../components/ConsoleSet';
 import { ManualBar } from '../components/ManualBar';
@@ -60,9 +61,10 @@ const pageTitle = autoload ? `${title} · PGD-01 Portable Gaming Device` : 'PGD-
 <meta name="twitter:image" content={ogImage}>
 <meta name="twitter:image:alt" content={ogAlt}>
 <title>{pageTitle}</title>
+<link rel="preload" href={pixelFont} as="font" type="font/ttf" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Noto+Sans+TC:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@700&family=Noto+Sans+TC:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap">
 <script is:inline>
 /* Screen detector. Picks a layout from the real viewport and input type, so it fits any phone or tablet
    (iPhone 17 Pro and Pro Max, iPad mini, iPad Pro and anything else) without a list of model sizes.
