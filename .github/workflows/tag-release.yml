@@ -29,9 +29,26 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
+      # The release GitHub App, when configured (RELEASE_APP_CLIENT_ID
+      # variable + RELEASE_APP_PRIVATE_KEY secret), as in release-pr.yml.
+      # Pushing as the App lets the production branch's ruleset name it as
+      # a bypass actor; GITHUB_TOKEN cannot be one. Nothing runs on pushes
+      # to production or on tags, so pushing as the App starts no workflow.
+      - name: Mint the release app token
+        id: app
+        if: vars.RELEASE_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
+          # The tag and the production push go out as the App when it is
+          # configured, otherwise as github-actions[bot].
+          token: ${{ steps.app.outputs.token || github.token }}
 
       - name: Tag it, if this version has not been tagged
         id: tag

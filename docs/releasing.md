@@ -98,7 +98,11 @@ three releases (GAM-62). `production-guard.yml` fails any PR aimed at
 If it happens anyway, land the same change on `main` and release.
 `tag-release.yml` moves `production` past commits whose changes the tag
 already contains (merging `production` into the tag would change nothing),
-using `--force-with-lease`, and lists them in its log. If the tag lacks
+using `--force-with-lease`, and lists them in its log. That push is a
+force push, so a ruleset that blocks force pushes on `production` must list
+the release App as a bypass actor (`tag-release.yml` pushes as the App when
+`RELEASE_APP_CLIENT_ID` is set); ordinary promotions are fast-forwards and
+need no bypass. If the tag lacks
 any of their changes, it still refuses and names the commits.
 
 ## Things worth knowing
