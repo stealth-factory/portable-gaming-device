@@ -25,7 +25,7 @@ A 1983-style home console in the browser, on an old phosphor monitor. Switch it 
 | 3 | **Invader Force** | `INVFORCE.EXE` | 3.1 s | Hold the line against a marching alien formation: one shot at a time, walls that crumble, a mystery saucer, a short shield on BOOST, and capsules that drop weapons (Twin, Spread, Rapid, a lightning laser), a stacking shot-speed boost and a rare atomic bomb. A tribute to Taito's *Space Invaders* (1978). |
 | 4 | **I Invade** | `IINVADE.EXE` | 2.6 s | The same war from the other side: the alien fleet marches up from the bottom of the screen on its own, and you time its left, middle and right bomb bays to hit the tanks along the top, with a cluster sweep, a UFO carpet and a meteor swarm to call on. One fleet a game; every tank has three lives, and the teams grow from one to six. Destroy them all or reach their row. |
 | 5 | **Bricks** | `BRICKS.EXE` | 2.2 s | One bat and one ember. Serve it into a wall of clay, kiln, glass and cinder, and clear every breakable brick. Anvils stay. Broken bricks sometimes drop a capsule: Broad or Slim changes the bat, Flare or Damp the ember's speed, and Sear lets it through the next three breakable bricks. Up and down bow the bat. A miss loses a bat; three to start, another every 2,000, up to six. |
-| 6 | **Martian Storm** | `STORM.EXE` | 3.8 s | Fly a skiff up through a Martian dust storm. Hold to shoot. BOOST spends a tuck: untouchable, guns silent, back where it started. Three tucks a leg, and a token can add one, up to five. Spores fly in fours; all four drop one token that cycles points, an extra tuck and twin guns. Barbs fire once. Slabs, from leg 3, take four hits and stop shots. Eight legs, then the pad. Three skiffs, another every 2,000, up to five. |
+| 6 | **Martian Storm** | `STORM.EXE` | 3.8 s | Fly a skiff up through a Martian dust storm. Hold to spray shots. Five guns, each up to level 3: Blaster, Spread, Laser, homing Missile and Wave; a capsule flashes S, L, M, W, so catch your own to level up or another to switch. Three hearts a skiff (up to five): a hit costs a heart, the last costs the skiff and its gun. Three skiffs, one more per leg cleared, every 5,000 and from 1UPs, up to nine. BOOST spends a tuck: untouchable, guns silent, back where it started. Barbs take three hits, slabs fourteen and always drop a pickup. Eight legs, then the pad. |
 
 The characters, art, sound and code in all six are original.
 
@@ -179,7 +179,7 @@ It switches the set on, captures the menu, each game's loading screen and some p
 | `sunstone` | `level` | Tunnel Raider: the sunstone is picked up |
 | `life_lost` | `level`, `cause` | Tunnel Raider: a cart is lost to a `sack`, `grub`, `borer` or `rockjaw` |
 | `life_lost` | `game`, `level` | Bricks: the ember drops (`game` is `bricks`) |
-| `life_lost` | `game`, `level` | Martian Storm: the skiff is hit (`game` is `martian-storm`; `level` is the leg) |
+| `life_lost` | `game`, `level` | Martian Storm: the skiff's last heart goes (`game` is `martian-storm`; `level` is the leg) |
 | `ii_wave` | `level`, `how` | I Invade: a wave ends; `how` is `fallen` (every tank destroyed), `touchdown` or `repelled` (game over) |
 | `ii_tank` | `level`, `how` | I Invade: a tank's last life goes; `how` is `bomb`, `cluster`, `ufo` or `meteor` |
 | `ii_ufo` | `level`, `tanks` | I Invade: the UFO is called in; `tanks` still standing |
@@ -210,7 +210,7 @@ Once the console has its own address:
 
 ## Credits
 
-Tunnel Raider is a tribute to Windmill Software's *Digger* (1983); Dino Run to the offline dinosaur game in Google Chrome (2014); Invader Force to Taito's *Space Invaders* (1978), and I Invade turns that genre round so you play the invaders. Bricks is a one-bat brick game: one bat, one ember, and a wall to clear. Martian Storm is a vertical shooter through a Martian dust storm: one skiff, a tuck, and eight legs. All six are original work: no characters, art, sound or code are copied.
+Tunnel Raider is a tribute to Windmill Software's *Digger* (1983); Dino Run to the offline dinosaur game in Google Chrome (2014); Invader Force to Taito's *Space Invaders* (1978), and I Invade turns that genre round so you play the invaders. Bricks is a one-bat brick game: one bat, one ember, and a wall to clear. Martian Storm is a vertical shooter through a Martian dust storm: one skiff, five guns, a tuck, and eight legs. All six are original work: no characters, art, sound or code are copied.
 
 ## Licence
 

@@ -118,12 +118,15 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 ### 12. Martian Storm
 
 - The sixth disk: an original vertical shooter (GAM-46). Fly a skiff up through a Martian dust storm, shoot the aliens that come down, and spend a limited tuck on BOOST to slip through a tight spot. The name on the menu, the page and the tube is Martian Storm. No year appears there.
-- Eight legs, counted upward. Leg 1 is the easiest. The dust scrolls for 24 seconds. Spores fly in fours and do not shoot; shooting all four before any leaves drops one token. Barbs fire one pellet, aimed once, not homing. Slabs, from leg 3, take four hits and stop shots. The token cycles points, an extra tuck and twin guns. One token on screen.
-- Three tucks at the start of each leg. A death on that leg keeps whatever is left; it does not hand out a fresh three, and it does not take any away. A tuck lasts 0.6 seconds: the hitbox is off, the guns are silent, and the skiff is back where the tuck started. Holding BOOST does not chain. A token can add one, up to five. The next leg resets to three.
+- Eight legs, counted upward. Leg 1 is the easiest. The dust scrolls for 24 seconds. Spores fly in fours and do not shoot; shooting all four before any leaves drops one weapon capsule. Barbs take three hits and fire one pellet, aimed once, not homing. Slabs, from leg 3, take fourteen hits, stop shots and always drop a pickup. Barbs sometimes drop one.
+- **Weapons (owner's brief, GAM-59):** five guns, each at level 1 to 3: Blaster (the start), Spread (up to a seven-way fan), Laser (beams through spores and barbs; slabs stop them), Missile (the blaster plus homing missiles from the pods) and Wave (weaving shots). A capsule flashes S, L, M, W; catching your own gun levels it up (200 at level 3), another switches to it at the same level. Researched against the classics: 1942 and Raiden keep power-ups until a life is lost, 1943 runs them on a clock. Martian Storm follows 1942 and Raiden: the gun is kept until the skiff is lost, then back to Blaster 1. Up to 72 of the skiff's shots in the air at once.
+- **Hearts:** three per skiff, up to five. A shot or a ram costs one heart (a ram also wrecks a spore or barb for no points) and gives 1.4 s of blinking safety. The last heart loses the skiff; the next skiff has three hearts.
+- **Lives:** three skiffs at the start, up to nine: one more for each leg cleared, every 5,000 points, and from a 1UP pickup. The last skiff shows `DUSTED`.
+- **Tucks:** three at the start of each leg. A death on that leg keeps whatever is left. A tuck lasts 0.6 seconds: the hitbox is off, the guns are silent, and the skiff is back where the tuck started. Holding BOOST does not chain. A tuck pickup adds one, up to five. Pickups the skiff cannot hold score 200.
 - The keyboard can hold a diagonal (scaled so it is not faster). The on-screen stick stays the console's 4-way stick.
-- Three skiffs, another every 2,000, up to five. A touch from a craft or a shot loses a skiff. The last skiff shows `DUSTED`. Clearing leg 8 lands on a pad with `GROUNDED`, then the console's card. Both endings use `STORM OVER`. Legs 1 to 7 use the kit's clear; leg 8 does not, because that helper would start another leg.
+- Clearing leg 8 lands on a pad with `GROUNDED`, then the console's card. Both endings use `STORM OVER`. Legs 1 to 7 use the kit's clear; leg 8 does not, because that helper would start another leg.
 - Load is 3.8 seconds. Rules live in `src/games/martian-storm/rules.ts` (unit-tested). The leaflet's about line is the only place the reference shooter is named.
-- Original skiff, spores, barbs, slabs, art, sound and code. Escorts, bosses, guns beyond twin, a longer route and an 8-way stick are later work.
+- Original skiff, spores, barbs, slabs, art, sound and code. Escorts, bosses, a longer route and an 8-way stick are later work.
 
 ## Stack (decided)
 
