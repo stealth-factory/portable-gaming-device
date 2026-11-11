@@ -3,6 +3,12 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.14.1] - 2026-11-11
+
+### Bug Fixes
+
+- Push tags and production as the release app (GAM-62) (#110)
+
 ## [0.14.0] - 2026-11-11
 
 ### Bug Fixes
