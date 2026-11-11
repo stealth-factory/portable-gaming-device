@@ -1,6 +1,6 @@
 # Third-party notices
 
-Game Guy's own code is under the PolyForm Noncommercial License 1.0.0 and its images under CC BY-NC-SA 4.0 (see [`LICENSING.md`](LICENSING.md)). The files below come from other projects. They are **not** covered by those licences: each keeps its upstream licence, reproduced here.
+PGD's own code is under the PolyForm Noncommercial License 1.0.0 and its images under CC BY-NC-SA 4.0 (see [`LICENSING.md`](LICENSING.md)). The files below come from other projects. They are **not** covered by those licences: each keeps its upstream licence, reproduced here.
 
 ## Agent skills (`.agents/skills/`, linked from `.claude/skills/`)
 

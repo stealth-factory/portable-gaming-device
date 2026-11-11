@@ -3,7 +3,7 @@
 A release is one decision: **merge the release pull request.** Everything
 either side of it is automatic.
 
-Game Guy uses a *pooled* release, adapted from
+PGD uses a *pooled* release, adapted from
 [stealth-factory/opscope](https://github.com/stealth-factory/opscope/blob/main/docs/releasing.md):
 merges to `main` pile up in one standing release PR, and production moves
 only when you merge it. Production is gated with a **Promotion Branch**:

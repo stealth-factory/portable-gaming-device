@@ -47,7 +47,7 @@ const MANUAL: GameDisk['manual'] = [
 
 export const disk: GameDisk = {
   id: 'iinvade', order: 4, slug: 'i-invade', genre: 'TACTICS', players: 1,
-  page: { title: 'I Invade', description: 'Be the invaders for once: time your bomb bays as the alien fleet marches up from below, call a cluster sweep, a UFO and meteors on the tanks above, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.' },
+  page: { title: 'I Invade', description: 'Be the invaders for once: time your bomb bays as the alien fleet marches up from below, call a cluster sweep, a UFO and meteors on the tanks above, on the PGD-01 Portable Gaming Device: a 1983-style console in your browser.' },
   title: 'I INVADE', nameKey: 'iiName', file: 'IINVADE.EXE', size: 24576, loadSecs: 2.6,
   steps: [[0, 0], [0.1, 0.1], [0.18, 0.12], [0.34, 0.4], [0.46, 0.42], [0.6, 0.66], [0.7, 0.7], [0.86, 0.94], [1, 1]],
   blurb: 'MARCH · BOMB · LAND', verb: 'INVADE', tap: true, controls: 'pad',

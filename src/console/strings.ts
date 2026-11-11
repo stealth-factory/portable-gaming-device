@@ -7,8 +7,8 @@ export const CONSOLE_STRINGS: Strings = {
   en: {
     menuSel: 'SELECT',
     tag: 'An old home computer on a glowing phosphor monitor. Switch it on, pick a disk, play.',
-    model: 'Model GG-3000 DX · 12″ phosphor monitor',
-    diskFor: 'Game disk for the Game Guy 3000 Deluxe',
+    model: 'Model PGD-01 · 12″ phosphor monitor',
+    diskFor: 'Game disk for the PGD-01 Portable Gaming Device',
     cmPickH: 'Choosing a game',
     cmPick: 'Switch the set on with POWER. After the memory test the drive boots the disk menu. Pick a game with the stick or the arrow keys, then press FIRE, Space or Enter, or tap it on the screen, to load it. Every disk takes its own time to read, never more than five seconds. Press G to warm-boot back to this menu from any game; RESET restarts the whole console. Each game keeps its own top-ten table on this device.',
     cmCtlH: 'The console',
@@ -25,8 +25,8 @@ export const CONSOLE_STRINGS: Strings = {
   'zh-hant': {
     menuSel: '選擇',
     tag: '一部舊式家用電腦，配一部發光的螢光顯示器。開機、選碟、開玩。',
-    model: '型號 GG-3000 DX · 12 吋螢光顯示器',
-    diskFor: 'Game Guy 3000 Deluxe 遊戲磁碟',
+    model: '型號 PGD-01 · 12 吋螢光顯示器',
+    diskFor: 'PGD-01 遊戲磁碟',
     cmPickH: '選擇遊戲',
     cmPick: '用 POWER 開機。記憶體測試完成後，磁碟機會載入遊戲選單。用搖桿或方向鍵選擇遊戲，再按 FIRE、空白鍵或 Enter，或直接輕觸畫面，便會載入。每隻磁碟的讀取時間都不同，但最長不超過五秒。在任何遊戲中按 G 都會暖開機返回選單；RESET 則會重新啟動整部主機。每個遊戲都會在這部裝置上保留自己的十大排行榜。',
     cmCtlH: '主機',
@@ -43,8 +43,8 @@ export const CONSOLE_STRINGS: Strings = {
   'zh-hans': {
     menuSel: '选择',
     tag: '一台老式家用电脑，配一台发光的荧光显示器。开机、选盘、开玩。',
-    model: '型号 GG-3000 DX · 12 英寸荧光显示器',
-    diskFor: 'Game Guy 3000 Deluxe 游戏磁盘',
+    model: '型号 PGD-01 · 12 英寸荧光显示器',
+    diskFor: 'PGD-01 游戏磁盘',
     cmPickH: '选择游戏',
     cmPick: '用 POWER 开机。内存测试完成后，软驱会载入游戏菜单。用摇杆或方向键选择游戏，再按 FIRE、空格键或 Enter，或直接轻触画面，便会载入。每张磁盘的读取时间都不同，但最长不超过五秒。在任何游戏中按 G 都会热启动返回菜单；RESET 则会重新启动整台主机。每个游戏都会在这台设备上保留自己的十大排行榜。',
     cmCtlH: '主机',

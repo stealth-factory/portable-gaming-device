@@ -1,6 +1,6 @@
 # Making a game disk
 
-Every game on the Game Guy 3000 Deluxe is a **disk**: one folder in `src/games/`. The console finds it on its own (`registry.ts`), so there is no list to edit. The disk menu, its page (`/<slug>`), its instructions, its high-score table and the offline cache all pick it up.
+Every game on the PGD-01 Portable Gaming Device is a **disk**: one folder in `src/games/`. The console finds it on its own (`registry.ts`), so there is no list to edit. The disk menu, its page (`/<slug>`), its instructions, its high-score table and the offline cache all pick it up.
 
 This page lists every file a game needs, in its folder and outside it, what goes in each, and how to check it. [`AGENTS.md`](../../AGENTS.md#game-folders) has the same list in short; the rules for how a game may talk to the console are in [Plug-in rules](#plug-in-rules) below.
 
@@ -106,7 +106,7 @@ Anything on the tube goes through the palette quantiser, so it looks right on gr
 The share image and screenshots are never drawn by hand. To make them for a new game:
 
 1. Add the capture steps to `make.cjs`: load the disk, wait for a good moment on the loading screen and in play, and `shot('load-<short>.png')` for the loading screen and `play('play-<short>.png', '<folder>')` for play. `play()` takes the screenshot and, with `--covers`, writes the game's `cover.ts` from the same frame; with `--previews` it also writes `preview.ts`. Add `load-<short>` and `play-<short>` (without `.png`; the script adds it) to the README screenshots list near the end of the script.
-2. Add an `IMAGES` entry: `out: 'og-<slug>.png'`, the play capture as `tv`, the title, the `<small>on the Game Guy 3000 Deluxe</small>` line, a one-sentence tagline and a fan of two floppies.
+2. Add an `IMAGES` entry: `out: 'og-<slug>.png'`, the play capture as `tv`, the title, the `<small>on the PGD-01 Portable Gaming Device</small>` line, a one-sentence tagline and a fan of two floppies.
 3. Run it against a preview build:
 
    ```sh

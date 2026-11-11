@@ -1,6 +1,6 @@
 # Changelog
 
-Every release of Game Guy, and what changed in it. Generated from the commit
+Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
 ## [0.10.0] - 2026-11-11

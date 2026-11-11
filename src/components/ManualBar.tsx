@@ -11,7 +11,7 @@ export function ManualBar(){
       </button>
       <nav className="bar-right" aria-label="Language and source code">
         <LangSwitch />
-        <a className="gh-link" href={REPO_URL} target="_blank" rel="noopener" aria-label="Game Guy on GitHub (opens in a new tab)">
+        <a className="gh-link" href={REPO_URL} target="_blank" rel="noopener" aria-label="PGD on GitHub (opens in a new tab)">
           <GitHubIcon /><span>GitHub</span>
         </a>
       </nav>

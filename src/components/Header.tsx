@@ -4,7 +4,7 @@ import { MODEL } from './site';
 export function Header(){
   return (
     <header>
-      <h1>Game Guy <span className="h-num">3000</span> <span className="h-dx">Deluxe</span></h1>
+      <h1>PGD<span className="h-num">-01</span> <span className="h-dx">Portable Gaming Device</span></h1>
       <span className="mk-model">{MODEL}</span>
       <p className="tag" data-i18n="tag">An old home computer on a glowing phosphor monitor. Switch it on, pick a disk, play.</p>
     </header>

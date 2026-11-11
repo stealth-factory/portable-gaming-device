@@ -1,8 +1,8 @@
 # Licensing
 
-Game Guy 3000 Deluxe is free to play, study, change and share for any non-commercial purpose. Selling it, or using it to make money, needs the copyright holder's permission. Copyright © 2026 wiiiimm.
+The PGD-01 Portable Gaming Device (PGD) is free to play, study, change and share for any non-commercial purpose. Selling it, or using it to make money, needs the copyright holder's permission. Copyright © 2026 wiiiimm.
 
-Game Guy is **source-available**, not "open source" in the OSI sense: the source is public and you may change it, but commercial use is reserved.
+PGD is **source-available**, not "open source" in the OSI sense: the source is public and you may change it, but commercial use is reserved.
 
 | What | Licence | File |
 | --- | --- | --- |
@@ -21,18 +21,18 @@ The full terms are in [`LICENSE`](LICENSE). This summary doesn't replace them.
 
 ## Commercial licence
 
-Apart from the organisations above, to use Game Guy, or any part of it, commercially (selling a build, publishing it to an app store, putting it in a paid product, running it with ads, or anything else meant to earn money), you need a separate commercial licence from the copyright holder. Ask [wiiiimm on GitHub](https://github.com/wiiiimm) first; nothing is granted until it's agreed in writing.
+Apart from the organisations above, to use PGD, or any part of it, commercially (selling a build, publishing it to an app store, putting it in a paid product, running it with ads, or anything else meant to earn money), you need a separate commercial licence from the copyright holder. Ask [wiiiimm on GitHub](https://github.com/wiiiimm) first; nothing is granted until it's agreed in writing.
 
 The images are non-commercial too (CC BY-NC-SA), and need the same permission for commercial use.
 
 ## Earlier versions
 
 - **Before 9 November 2026 (PR #6):** the repository had no licence, so those versions were all rights reserved. From this change, they are available under the terms above too.
-- **9 November 2026, from PR #6 up to this change (releases v0.1.0 to v0.5.0):** these were released under the GNU AGPL-3.0. Anyone who already received a copy of one of those versions keeps the AGPL's permissions for that copy. From this change on, the copyright holder offers every version of Game Guy, including those earlier commits and release tags, only under the terms above, whatever licence file an old commit contains.
+- **9 November 2026, from PR #6 up to this change (releases v0.1.0 to v0.5.0):** these were released under the GNU AGPL-3.0. Anyone who already received a copy of one of those versions keeps the AGPL's permissions for that copy. From this change on, the copyright holder offers every version of PGD (called Game Guy before 11 November 2026), including those earlier commits and release tags, only under the terms above, whatever licence file an old commit contains.
 
 ## Names and tributes
 
-The licences cover copyright only. They don't grant any right to the *Game Guy 3000 Deluxe* name or to the names of the games. The games are original tributes; the trade marks of the games they pay tribute to (*Digger*, *Space Invaders* and Google Chrome's dinosaur game) belong to their owners and aren't licensed here.
+The licences cover copyright only. They don't grant any right to the names of the games. The games are original tributes; the trade marks of the games they pay tribute to (*Digger*, *Space Invaders* and Google Chrome's dinosaur game) belong to their owners and aren't licensed here.
 
 ## Contributions
 

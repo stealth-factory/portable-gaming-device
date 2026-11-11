@@ -55,7 +55,7 @@ export const disk: GameDisk = {
   id: 'bricks', order: 5, slug: 'bricks', genre: 'BAT+BALL', players: 1,
   page: {
     title: 'Bricks',
-    description: 'Serve an ember into a wall of clay, kiln, glass and cinder bricks and clear them with one bat, on the Game Guy 3000 Deluxe: a 1983-style console in your browser.',
+    description: 'Serve an ember into a wall of clay, kiln, glass and cinder bricks and clear them with one bat, on the PGD-01 Portable Gaming Device: a 1983-style console in your browser.',
   },
   title: 'BRICKS', nameKey: 'bName', file: 'BRICKS.EXE', size: 18432, loadSecs: 2.2,
   steps: [[0, 0], [0.1, 0.08], [0.22, 0.3], [0.34, 0.32], [0.5, 0.55], [0.62, 0.6], [0.78, 0.86], [0.9, 0.9], [1, 1]],

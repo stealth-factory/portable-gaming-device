@@ -1,10 +1,10 @@
-# AGENTS.md: Game Guy
+# AGENTS.md: PGD (Portable Gaming Device)
 
 Notes for anyone (human or agent) working in this repo. Read this before changing anything.
 
 ## Linear
 
-- **Project:** Game Guy, <https://linear.app/stealth-company/project/game-guy-c4e01570fc18/overview>
+- **Project:** Game Guy (the console's name in Linear until the project is renamed), <https://linear.app/stealth-company/project/game-guy-c4e01570fc18/overview>
 - **Team:** Game Guy (key `GAM`, under Stealth Factory), <https://linear.app/stealth-company/team/GAM/overview>
 - **Issue IDs:** `GAM-<n>`, for example [GAM-11](https://linear.app/stealth-company/issue/GAM-11). Use that form in branches, PR titles and commits.
 - **Old `WII-<n>` IDs:** until 2026-11-09 the issues lived in the wiiiimm team as `WII-<n>`. They were moved and renumbered (WII-45 is now GAM-1, for example), and the old IDs in past PR titles, commits and `CHANGELOG.md` still redirect to the new issues. Leave them as they are; use `GAM` for anything new.
@@ -24,7 +24,7 @@ Every change goes through a pull request, unless the owner explicitly says to pu
 
 ## What this is
 
-**Game Guy 3000 Deluxe** (Game Guy for short) is a browser game console: one old CRT monitor that boots, shows a game loader, and runs several games. It starts as a copy of [Tunnel Raider](https://github.com/wiiiimm/tunnel-raider), which is still its own repo and site (`tunnel-raider.wiiiimm.codes`); changes made here do not flow back to it.
+**PGD-01 Portable Gaming Device** (PGD for short; called Game Guy 3000 Deluxe until 11 November 2026) is a browser game console: one old CRT monitor that boots, shows a game loader, and runs several games. It starts as a copy of [Tunnel Raider](https://github.com/wiiiimm/tunnel-raider), which is still its own repo and site (`tunnel-raider.wiiiimm.codes`); changes made here do not flow back to it.
 
 Requirements 1 to 12 below are built: the console boots into a disk menu with six games, Tunnel Raider, Dino Run, Invader Force, I Invade, Bricks and Martian Storm, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
 
@@ -58,17 +58,18 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 - The instructions shown match the game that is loaded. In the loader they cover the console itself (picking and loading a game, POWER, RESET, the switches and dial).
 - Tunnel Raider's current manual (the `#manual` leaflet with its `I18N` strings) becomes that game's instructions; each new game adds its own in the same style.
 
-### 6. Rebrand the console as Game Guy
+### 6. Brand the console as PGD
 
-- The page header and every bit of branding on the CRT set change from Tunnel Raider to the console's name: **Game Guy 3000 Deluxe** (chosen by the owner). Any shortened form must still say "Game Guy", and the look stays nerdy and retro.
-- Today's spots to change:
-  - **Page header:** wordmark and `TR-83` badge (`.mk-model`), and the tagline beside it.
-  - **Nameplate on the set:** `TUNNEL RAIDER` with the `TR-83 · <phosphor>` line (`.nameplate`, set by `setMode()`).
-  - **Embossed model line:** `TR-83 · 12″ PHOSPHOR MONITOR` (`.emboss`).
-  - **BIOS banner:** `TR-83 PERSONAL COMPUTER   BIOS 1.0` (`drawBoot()`).
-  - **Instructions:** the `model` string in `I18N` for all three languages.
-  - **App identity:** `<title>`, `apple-mobile-web-app-title`, share tags and image, `manifest.webmanifest` name and short name, icons, README.
-- Model code: replace `TR-83` with `GG-3000 DX`. Game names (Tunnel Raider and the rest) appear only inside their own game: its loading screen, instructions and title.
+- **The name (owner's call, 11 November 2026, GAM-55):** **PGD-01 Portable Gaming Device**, **PGD** for short, model code `PGD-01`. PGD is meant to sound generic: it's the open console shell that other things build on, like a standard, not a product brand. Until then the console was *Game Guy 3000 Deluxe* (`GG-3000 DX`); before that, Tunnel Raider (`TR-83`). The repo was renamed from `game-guy` to `portable-gaming-device` the same day. Past PR titles, commits and `CHANGELOG.md` entries keep the old name.
+- The look stays nerdy and retro, a 1983 home console.
+- Where the name appears:
+  - **Page header:** wordmark (`PGD-01 Portable Gaming Device`, `Header.tsx`) and the model badge (`.mk-model`, `MODEL` in `src/components/site.ts`), with the tagline beside it.
+  - **Nameplate on the set:** `PGD · PORTABLE GAMING DEVICE` (`Nameplate.tsx`, the long part in `.np-rest`, hidden on upright phones) with the `PGD-01 · <phosphor>` line set by `setMode()`.
+  - **On the tube:** the BIOS banner (`PGD-01 GAMING DEVICE   BIOS 1.0`) and `STARTING PGD-DOS...` in `src/console/boot.ts`, the launcher header (`src/console/launcher/draw.ts`), the old list menu (`loader.ts`) and the burnt-in title (`buildBurn()` in `core.ts`).
+  - **Instructions:** the `model` and `diskFor` strings in `src/console/strings.ts`, all three languages.
+  - **App identity:** `<title>`, `apple-mobile-web-app-title` (`PGD`), share tags and images (`tools/share-images/make.cjs`), the PWA manifest name and short name (`astro.config.mjs`), each disk's page description, README.
+- **Kept on purpose:** storage keys (`gg-best-<id>`, `gg-board-<id>`, `gg-name` and the rest), the `gg:settings` event and the `__gg` test hook keep their `gg` prefix, so nobody loses their scores or settings.
+- Game names (Tunnel Raider and the rest) appear only inside their own game: its loading screen, instructions and title.
 
 ### 7. A SELECT button beside RESET
 
@@ -79,7 +80,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 - It needs a place in every layout (`desk`, `console`, tall console, `phone-portrait`, `tablet-portrait`), sitting with RESET beside POWER.
 - **RESET vs SELECT:** RESET reboots the whole console (BIOS, then the loader); SELECT just swaps the game, through the loader.
 - Add a keyboard shortcut for it, and an analytics event (for example `select` with the game left and its level).
-- **Status:** hidden. `PowerPanel` in `src/components/PowerPanel.tsx` takes `showSelect`; pass it from `ConsoleSet` to bring the button back (and add SELECT back to the console strings). The nameplate on an upright phone shows the full name while SELECT is hidden; with SELECT back it may need shortening to GAME GUY again (`.np-rest`). Every layout stamps the release version (`VERSION` in `src/components/site.ts`, read from `package.json`) on its own line under the plate, including phone landscape, where the plate sits on the right in the middle.
+- **Status:** hidden. `PowerPanel` in `src/components/PowerPanel.tsx` takes `showSelect`; pass it from `ConsoleSet` to bring the button back (and add SELECT back to the console strings). The nameplate on an upright phone shows just `PGD` (`.np-rest` hidden), since the full name would run into RESET. Every layout stamps the release version (`VERSION` in `src/components/site.ts`, read from `package.json`) on its own line under the plate, including phone landscape, where the plate sits on the right in the middle.
 
 ### 8. Dino Run, with its own high-score table
 

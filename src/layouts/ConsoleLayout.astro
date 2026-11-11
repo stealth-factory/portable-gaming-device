@@ -21,10 +21,10 @@ interface Props {
 const {
   title, description, autoload,
   ogImage = '/og-image.png',
-  ogAlt = 'The Game Guy 3000 Deluxe: a 1983-style home console on a green-phosphor CRT monitor, its disk menu on the screen and floppy disks beside it.',
+  ogAlt = 'The PGD-01 Portable Gaming Device: a 1983-style home console on a green-phosphor CRT monitor, its disk menu on the screen and floppy disks beside it.',
 } = Astro.props;
-const shareTitle = autoload ? `${title} · Game Guy 3000 Deluxe` : 'Game Guy 3000 Deluxe: a 1983 home console in your browser';
-const pageTitle = autoload ? `${title} · Game Guy 3000 Deluxe` : 'Game Guy 3000 Deluxe';
+const shareTitle = autoload ? `${title} · PGD-01 Portable Gaming Device` : 'PGD-01 Portable Gaming Device: a 1983 home console in your browser';
+const pageTitle = autoload ? `${title} · PGD-01 Portable Gaming Device` : 'PGD-01 Portable Gaming Device';
 ---
 <!doctype html>
 <html lang="en" data-autoload={autoload}>
@@ -40,10 +40,10 @@ const pageTitle = autoload ? `${title} · Game Guy 3000 Deluxe` : 'Game Guy 3000
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Game Guy">
+<meta name="apple-mobile-web-app-title" content="PGD">
 <!-- sharing previews (make og:image absolute once the console has its own address) -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Game Guy 3000 Deluxe">
+<meta property="og:site_name" content="PGD-01 Portable Gaming Device">
 <meta property="og:title" content={shareTitle}>
 <meta property="og:description" content={description}>
 <meta property="og:image" content={ogImage}>

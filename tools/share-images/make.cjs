@@ -23,30 +23,30 @@ const page = ({ tv, h1, sub = '', tag, disks }) => `<!doctype html><html><head><
 <style>${fs.readFileSync(path.join(__dirname, 'share.css'), 'utf8')}</style></head><body>
 <img class="tv" src="${tv}" alt="">
 <div class="copy"><h1>${h1}${sub}</h1>
-<div class="label"><span class="model">GG-3000 DX</span><span class="mon">12″ phosphor monitor</span></div>
+<div class="label"><span class="model">PGD-01</span><span class="mon">12″ phosphor monitor</span></div>
 <p class="tag">${tag}</p></div>
 <div class="disks">${disks}</div>
 <div class="foot">Plays in your browser · offline · <span>EN</span> · 繁中 · 简中</div></body></html>`;
 
 const IMAGES = [
-  { out: 'og-image.png', tv: 'play-tunnel.png', h1: 'Game Guy<br>3000 Deluxe', tag: 'A 1983 home console in your browser. Switch it on, pick a disk, play.',
+  { out: 'og-image.png', tv: 'play-tunnel.png', h1: 'PGD-01<br>Portable Gaming Device', tag: 'A 1983 home console in your browser. Switch it on, pick a disk, play.',
     disks: disk('c1', 'Tunnel Raider', 'TUNNEL.EXE', 0, -7, 1) + disk('c2', 'Dino Run', 'DINORUN.COM', 148, 2, 2) + disk('c3', 'Invader Force', 'INVFORCE.EXE', 298, 8, 3) },
-  { out: 'og-tunnel-raider.png', tv: 'play-tunnel.png', h1: 'Tunnel Raider', sub: '<small>on the Game Guy 3000 Deluxe</small>',
+  { out: 'og-tunnel-raider.png', tv: 'play-tunnel.png', h1: 'Tunnel Raider', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
     tag: 'Dig for emeralds, drop gold on the grubs, outwit smarter monsters every level.',
     disks: disk('c1', 'Tunnel Raider', 'TUNNEL.EXE · 46K', 40, -4, 2) + disk('c4', 'Dino Run', 'DINORUN.COM', 190, 7, 1) },
-  { out: 'og-invader-force.png', tv: 'play-invader.png', h1: 'Invader Force', sub: '<small>on the Game Guy 3000 Deluxe</small>',
+  { out: 'og-invader-force.png', tv: 'play-invader.png', h1: 'Invader Force', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
     tag: 'Hold the line against the marching formation. One shot at a time: make it count.',
     disks: disk('c3', 'Invader Force', 'INVFORCE.EXE', 40, -4, 2) + disk('c4', 'Tunnel Raider', 'TUNNEL.EXE', 190, 7, 1) },
-  { out: 'og-i-invade.png', tv: 'play-iinvade.png', h1: 'I Invade', sub: '<small>on the Game Guy 3000 Deluxe</small>',
+  { out: 'og-i-invade.png', tv: 'play-iinvade.png', h1: 'I Invade', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
     tag: 'Be the invaders for once. Time the bomb bays, outlast the tanks, call in the UFO.',
     disks: disk('c1', 'I Invade', 'IINVADE.EXE', 40, -4, 2) + disk('c3', 'Invader Force', 'INVFORCE.EXE', 190, 7, 1) },
-  { out: 'og-dino-run.png', tv: 'play-dino.png', h1: 'Dino Run', sub: '<small>on the Game Guy 3000 Deluxe</small>',
+  { out: 'og-dino-run.png', tv: 'play-dino.png', h1: 'Dino Run', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
     tag: 'Jump the cacti, duck the pterosaurs, run as far as the desert goes.',
     disks: disk('c2', 'Dino Run', 'DINORUN.COM · 9K', 40, -4, 2) + disk('c4', 'Tunnel Raider', 'TUNNEL.EXE', 190, 7, 1) },
-  { out: 'og-bricks.png', tv: 'play-bricks.png', h1: 'Bricks', sub: '<small>on the Game Guy 3000 Deluxe</small>',
+  { out: 'og-bricks.png', tv: 'play-bricks.png', h1: 'Bricks', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
     tag: 'Serve an ember, bounce it off one bat, and clear the wall.',
     disks: disk('c2', 'Bricks', 'BRICKS.EXE · 18K', 40, -4, 2) + disk('c4', 'Dino Run', 'DINORUN.COM', 190, 7, 1) },
-  { out: 'og-martian-storm.png', tv: 'play-storm.png', h1: 'Martian Storm', sub: '<small>on the Game Guy 3000 Deluxe</small>',
+  { out: 'og-martian-storm.png', tv: 'play-storm.png', h1: 'Martian Storm', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
     tag: 'Fly a skiff through a Martian dust storm, tuck past the shots and land each leg.',
     disks: disk('c3', 'Martian Storm', 'STORM.EXE · 30K', 40, -4, 2) + disk('c4', 'Bricks', 'BRICKS.EXE', 190, 7, 1) },
 ];

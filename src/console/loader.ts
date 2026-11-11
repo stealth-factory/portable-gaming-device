@@ -201,8 +201,8 @@ export function drawMenu(){
   // rows shrink (and drop their second line) when the disks don't all fit on a short tube
   const { rowH, gap, top } = menuRows(n, LH), tall = rowH >= 30;
   const bw = Math.min(LW - 16, 300), x0 = Math.round(LW / 2 - bw / 2);
-  txt('GAME GUY 3000', LW / 2, top, 'text', 'center', 16);
-  txt('D E L U X E', LW / 2, top + 20, 'gold', 'center');
+  txt('PGD-01', LW / 2, top, 'text', 'center', 16);
+  txt('P O R T A B L E', LW / 2, top + 20, 'gold', 'center');
   g.fillStyle = col('hud'); for (let x = x0; x < x0 + bw; x += 4) g.fillRect(x, top + 34, 2, 1);
   txt('A:\\> SELECT A DISK', x0, top + 42, 'hud');
   menuRects = [];

@@ -1,6 +1,6 @@
-# Game Guy 3000 Deluxe
+# PGD-01 Portable Gaming Device
 
-![Game Guy 3000 Deluxe on a green-phosphor CRT monitor](public/og-image.png)
+![The PGD-01 Portable Gaming Device on a green-phosphor CRT monitor](public/og-image.png)
 
 A 1983-style home console in the browser, on an old phosphor monitor. Switch it on, watch the BIOS and the floppy drive boot, pick a disk from the menu and play. Each game has its own loading screen, instructions and high-score table, and it all works offline once loaded.
 
@@ -33,7 +33,7 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
 
 ## The console
 
-- **Nameplate:** Game Guy and the phosphor in use, with the release version stamped on its own line under the plate. The version is the one in `package.json`, so it moves with the release.
+- **Nameplate:** PGD and the phosphor in use, with the release version stamped on its own line under the plate. The version is the one in `package.json`, so it moves with the release.
 - **POWER** switches the set on (or press <kbd>Enter</kbd>). It runs a memory test, beeps, spins up the drive and boots the disk menu.
 - **Disk menu (the cover carousel):** the front disk's cover sits in the middle with its title, blurb, best score, genre and controls under it, and its neighbours either side. A numbered tick strip and an `nn/NN` counter show where you are in the box.
   - **Choose a game:** stick or arrow keys (held, it repeats), a tap on a side cover, a tick or the ◀ ▶ arrows.
@@ -212,4 +212,4 @@ Tunnel Raider is a tribute to Windmill Software's *Digger* (1983); Dino Run to t
 
 ## Licence
 
-Copyright © 2026 wiiiimm. Game Guy is source-available: the code is under the [PolyForm Noncommercial License 1.0.0](LICENSE) and the images under [CC BY-NC-SA 4.0](LICENSES/CC-BY-NC-SA-4.0.txt). You can play, study, change and share it for any non-commercial purpose. Selling it, or using it to make money in any other way, needs a commercial licence: ask [wiiiimm](https://github.com/wiiiimm). Contributions are welcome under the terms in [`CONTRIBUTING.md`](CONTRIBUTING.md). The vendored agent skills keep their own licences. See [`LICENSING.md`](LICENSING.md) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+Copyright © 2026 wiiiimm. PGD is source-available: the code is under the [PolyForm Noncommercial License 1.0.0](LICENSE) and the images under [CC BY-NC-SA 4.0](LICENSES/CC-BY-NC-SA-4.0.txt). You can play, study, change and share it for any non-commercial purpose. Selling it, or using it to make money in any other way, needs a commercial licence: ask [wiiiimm](https://github.com/wiiiimm). Contributions are welcome under the terms in [`CONTRIBUTING.md`](CONTRIBUTING.md). The vendored agent skills keep their own licences. See [`LICENSING.md`](LICENSING.md) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

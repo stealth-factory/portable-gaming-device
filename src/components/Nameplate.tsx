@@ -5,7 +5,7 @@ export function Nameplate(){
   return (
     <div className="nameplate">
       <div className="np-badge">
-        <b>GAME GUY<span className="np-rest"> 3000 DELUXE</span></b>
+        <b>PGD<span className="np-rest"> · PORTABLE GAMING DEVICE</span></b>
         <span id="plate">{MODEL} · GREEN P1</span>
       </div>
       <small className="np-ver">{`v${VERSION}`}</small>

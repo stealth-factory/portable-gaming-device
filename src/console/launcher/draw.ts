@@ -71,12 +71,12 @@ function decodeFrame(f: string, w: number, h: number){
 function header(a: Api, L: Layout, s: LauncherState, sys: LauncherSystem){
   const n = sys.disks().length, cur = cursorOn(s, sys.reducedMotion());
   if (L.header.lines === 2) {
-    a.txt('GAME GUY 3000 DELUXE', a.LW / 2, L.header.y, 'text', 'center');
+    a.txt('PGD-01 PORTABLE GAMING DEVICE', a.LW / 2, L.header.y, 'text', 'center');
     const p = `A:\\> DRIVE A: ${n} DISKS`, w = width(a, p), x = Math.round(a.LW / 2 - (w + 6) / 2);
     a.txt(p, x, L.header.y + 11, 'hud');
     if (cur) R(a, x + w + 2, L.header.y + 17, 5, 2, 'text');
   } else {
-    a.txt('GAME GUY 3000 DELUXE', 8, L.header.y, 'text');
+    a.txt('PGD-01 PORTABLE GAMING DEVICE', 8, L.header.y, 'text');
     const p = L.tier === 'short' ? `A:\\> ${n} DISKS` : `A:\\> DRIVE A: ${n} DISKS`;
     a.txt(p, a.LW - 15, L.header.y, 'hud', 'right');
     if (cur) R(a, a.LW - 13, L.header.y + 6, 5, 2, 'text');

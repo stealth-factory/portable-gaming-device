@@ -49,7 +49,7 @@ export function buildBurn(){
   const b = burn.getContext('2d')!;
   b.fillStyle = '#fff'; b.fillRect(0, 0, LW, LH);
   b.fillStyle = '#d0d0d0'; b.font = '16px Silkscreen, "Courier New", monospace'; b.textAlign = 'center'; b.textBaseline = 'middle';
-  b.fillText('GAME GUY 3000', LW / 2, LH * 0.42);
+  b.fillText('PGD-01', LW / 2, LH * 0.42);
   b.fillStyle = '#dadada'; b.font = '8px Silkscreen, "Courier New", monospace'; b.textAlign = 'left'; b.textBaseline = 'top';
   b.fillText('000000', 6, 6); b.fillText('HI 000000', 80, 6);
 }
@@ -101,7 +101,7 @@ export function setMode(k: string){
   R.setProperty('--phos', M.pal[M.phos]); R.setProperty('--phos2', M.pal[M.phos2]);
   R.setProperty('--plastic-hi', hi); R.setProperty('--plastic', mid); R.setProperty('--plastic-lo', low);
   R.setProperty('--bezel-ink', ink); R.setProperty('--glass', glass);
-  $('plate').textContent = 'GG-3000 DX · ' + M.name;
+  $('plate').textContent = 'PGD-01 · ' + M.name;
   updateDial(MODE_ORDER.indexOf(k));
   try { localStorage.setItem('eb-mode', k); } catch (e) {}
   accReset = true; warmT = 0; age.dg = 0;

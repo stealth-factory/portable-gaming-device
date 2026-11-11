@@ -15,8 +15,8 @@ export default defineConfig({
       injectRegister: false,
       includeManifestIcons: false,
       manifest: {
-    "name": "Game Guy 3000 Deluxe",
-    "short_name": "Game Guy",
+    "name": "PGD-01 Portable Gaming Device",
+    "short_name": "PGD",
     "description": "A 1983-style home console in your browser: pick a floppy and play Tunnel Raider, Dino Run and more, with drive sounds, high scores and offline play.",
     "id": "./",
     "start_url": "./",
@@ -73,7 +73,7 @@ export default defineConfig({
         "sizes": "1200x630",
         "type": "image/png",
         "form_factor": "wide",
-        "label": "The Game Guy 3000 Deluxe disk menu on a green-phosphor CRT"
+        "label": "The PGD-01 Portable Gaming Device disk menu on a green-phosphor CRT"
       }
     ]
   },

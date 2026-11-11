@@ -505,7 +505,7 @@ kbd{font-family:var(--body);font-size:11px;font-weight:600;line-height:1.5;color
 .install-btn{font:600 12px/1 "IBM Plex Mono","Noto Sans TC","Noto Sans SC",monospace;letter-spacing:.06em;background:#181713;color:var(--phos);border:1px solid #3a372f;border-radius:6px;padding:9px 12px;cursor:pointer;white-space:nowrap}
 .install-btn:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 
-/* ---------- Game Guy 3000 Deluxe ---------- */
+/* ---------- PGD-01 Portable Gaming Device ---------- */
 h1 .h-dx{color:#cfc3a3}
 @media (max-width:560px){h1{font-size:17px;letter-spacing:.24em}}
 /* RESET is the dangerous one, so it's dark wine red; SELECT keeps the graphite key */
@@ -526,11 +526,10 @@ h1 .h-dx{color:#cfc3a3}
 .nameplate b .np-rest{font:inherit;letter-spacing:inherit;white-space:normal}
 /* SELECT is hidden for now (it does what RESET does until there's more to choose from) */
 .sel-grp[hidden]{display:none!important}
-[data-layout="phone-portrait"] .nameplate b .np-rest{display:inline}
-/* upright phones: the badge sits on the power row, centred on the rocker, and drops "3000 DELUXE" when the
-   full name would run into RESET (narrow fronts such as a folding phone's cover screen) */
+[data-layout="phone-portrait"] .nameplate b .np-rest{display:none}
+/* upright phones: the badge sits on the power row, centred on the rocker, and shows just "PGD": the full name
+   would run into RESET */
 [data-layout="phone-portrait"] .nameplate{bottom:21px}
-@media (max-width:399px){[data-layout="phone-portrait"] .nameplate b .np-rest{display:none}}
 /* the button pad: stands in for the stick while a game with no stick plays (`controls: 'pad'`, set as data-pad on <html>).
    It fills the stick's zone on desk and portrait: the bomb keys (red, like FIRE) along the top, the specials (amber, like
    BOOST) underneath; with the sixth slot unused the bottom two share the row. The FIRE row beside it steps aside.
