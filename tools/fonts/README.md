@@ -14,6 +14,10 @@ python3 tools/fonts/metrics.py
 The table contains the font's Unicode advances and missing-glyph advance in
 font units. `measurePixelText` scales those units to 8 or 16 px. The source
 font has no kerning; its positioning tables only attach marks. Web `Screen2D.measureText`
-and the Node conformance host use the same table; the browser continues to
-draw text with Silkscreen. The vendored font also supplies the source for
+and the Node conformance host use the same table. The browser serves the pinned
+regular face as a local hashed asset, preloads it, and waits for it before
+booting the console, so text drawing and measurement agree without Google Fonts.
+An early POWER or Enter press initialises audio immediately and queues the full
+boot until the font is ready. POWER can cancel that queue. The boot clock starts
+only when the font is usable. The vendored font also supplies the source for
 the native bitmap atlas in GAM-35.
