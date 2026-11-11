@@ -1,0 +1,25 @@
+# Fails any pull request aimed at the production branch.
+#
+# production is Vercel's production branch and moves only by tag-release
+# after a release PR is merged into main. Vercel's own bot opens its PRs
+# against the production branch (it did with #86, Speed Insights), and
+# merging one there left production ahead of main and stalled every
+# release after v0.10.0. Retarget such a PR to main instead.
+name: production-guard
+
+on:
+  pull_request:
+    branches: [production]
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  base:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Pull requests go to main
+        run: |
+          echo "::error::This pull request targets production. Retarget it to main:" \
+            "production moves only when a release PR is merged (docs/releasing.md)."
+          exit 1

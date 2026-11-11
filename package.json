@@ -2,7 +2,7 @@
   "name": "portable-gaming-device",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
-  "version": "0.13.0",
+  "version": "0.14.1",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
@@ -24,6 +24,7 @@
   "dependencies": {
     "@astrojs/react": "^7.1.4",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.1.0",
     "astro": "^7.4.7",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

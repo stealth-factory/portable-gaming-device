@@ -29,9 +29,26 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
+      # The release GitHub App, when configured (RELEASE_APP_CLIENT_ID
+      # variable + RELEASE_APP_PRIVATE_KEY secret), as in release-pr.yml.
+      # Pushing as the App lets the production branch's ruleset name it as
+      # a bypass actor; GITHUB_TOKEN cannot be one. Nothing runs on pushes
+      # to production or on tags, so pushing as the App starts no workflow.
+      - name: Mint the release app token
+        id: app
+        if: vars.RELEASE_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
+          # The tag and the production push go out as the App when it is
+          # configured, otherwise as github-actions[bot].
+          token: ${{ steps.app.outputs.token || github.token }}
 
       - name: Tag it, if this version has not been tagged
         id: tag
@@ -113,16 +130,27 @@ jobs:
               echo "production is already past ${TAG}"
               exit 0
             fi
-            # Fast-forward only. If production holds a commit main does not,
-            # that is a divergence for a person to look at, not something to
-            # force past.
-            git merge-base --is-ancestor "$current" "$sha" || {
-              echo "production (${current}) is not an ancestor of ${TAG}" >&2
-              echo "refusing to force it; see docs/releasing.md" >&2
-              exit 1; }
-            if ! git merge-base --is-ancestor "$current" "$(git rev-parse origin/main)"; then
-              echo "production is not on main" >&2; exit 1
+            # Fast-forward when we can. If production holds commits main does
+            # not (a PR merged straight into production, as Vercel's bot did
+            # with #86), move it only when the tag already contains every one
+            # of their changes: merging production into the tag must change
+            # nothing. Then nothing is lost. Anything else is a divergence
+            # for a person to look at, not something to force past.
+            lease=""
+            if ! git merge-base --is-ancestor "$current" "$sha"; then
+              extra=$(git log --oneline "${sha}..${current}")
+              merged=$(git merge-tree --write-tree "$sha" "$current" 2>/dev/null) || merged=""
+              if [ "$merged" != "$(git rev-parse "${sha}^{tree}")" ]; then
+                echo "production (${current}) is not an ancestor of ${TAG}" >&2
+                echo "and holds changes ${TAG} does not have:" >&2
+                printf '%s\n' "$extra" >&2
+                echo "land them on main first; see docs/releasing.md" >&2
+                exit 1
+              fi
+              echo "production holds commits main does not, all already in ${TAG}:"
+              printf '%s\n' "$extra"
+              lease="--force-with-lease=refs/heads/production:${current}"
             fi
           fi
-          git push origin "${sha}:refs/heads/production"
+          git push $lease origin "${sha}:refs/heads/production"
           echo "production -> ${TAG} (${sha}); Vercel deploys it"
