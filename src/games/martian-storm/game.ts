@@ -536,6 +536,8 @@ function combat(dt: number) {
     const flown = craft.leaving && craft.y + s.h < api.HUD;
     if (!leftBottom && !leftSide && !flown) return true;
     if (craft.kind === 'spore') noteSpore(craft, 'left');
+    // gone from the field: a missile still chasing it picks a new target
+    craft.alive = false;
     return false;
   });
   catchPickups(dt);
