@@ -13,7 +13,7 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap(name => {
 // registry.ts belongs to the browser host: its lazy imports are not part of a game disk.
 const files = [...walk(join(ROOT, 'src/games')).filter(f => f !== join(ROOT, 'src/games/registry.ts')), ...walk(join(ROOT, 'src/kit/play'))];
 const forbiddenNames = [
-  'window', 'document', 'navigator', 'localStorage', 'sessionStorage', 'location',
+  'window', 'self', 'document', 'navigator', 'localStorage', 'sessionStorage', 'location',
   'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate',
   'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback',
   'fetch', 'performance', 'Date',
@@ -23,6 +23,13 @@ const cases: [string, string, string | null][] = [
     [`direct ${name}`, `void ${name};`, `banned global ${name}`],
     [`aliased globalThis ${name}`, `const env = globalThis; env.${name};`, `banned global ${name}`],
   ] satisfies [string, string, string | null][]),
+  ['shorthand global', 'const env = { document }; env.document.createElement("canvas");', 'banned global document'],
+  ['shorthand timer', 'const env = { setTimeout }; env.setTimeout(() => {}, 1);', 'banned global setTimeout'],
+  ['browser self', 'self.document;', 'banned global document'],
+  ['browser self alias', 'const env = self; env.fetch("/game");', 'banned global fetch'],
+  ['ordinary g object', 'const state = { g: { score: 1 } }; state.g.score++;', null],
+  ['ordinary g number', 'const colour = { g: 128 }; colour.g.toFixed(0);', null],
+  ['ordinary destructured g', 'const { g: channel } = { g: 128 }; channel.toFixed(0);', null],
   ['direct global', 'document.createElement("canvas");', 'banned global document'],
   ['global alias', 'const dom = document; dom.createElement("canvas");', 'banned global document'],
   ['global property', 'globalThis.document;', 'banned global document'],
@@ -40,6 +47,10 @@ const cases: [string, string, string | null][] = [
   ['destructured canvas', 'const { g: surface } = api; surface.canvas;', 'Screen2D has no canvas'],
   ['computed canvas member', 'api.g["getImageData"]();', 'Screen2D has no getImageData'],
   ['destructured member', 'const { strokeRect } = api.g;', 'Screen2D has no strokeRect'],
+  ['cast API escape', '(api as any).g.stroke();', 'Screen2D has no stroke'],
+  ['aliased cast API', 'const borrowed = api as any; borrowed["g"].stroke();', 'Screen2D has no stroke'],
+  ['destructured cast API', 'const { g: surface } = api as any; surface.stroke();', 'Screen2D has no stroke'],
+  ['local shorthand', 'const document = 1; const labels = { document }; void labels.document;', null],
   ['cast escape', '(api.g as any).stroke();', 'Screen2D has no stroke'],
   ['unknown computed member', 'const name = "stroke"; api.g[name]();', 'Screen2D has no computed member'],
   ['portable drawing', 'const surface = api.g; surface.fillStyle = api.col("window"); surface.fillRect(0, 0, 1, 1); Math.random();', null],
@@ -49,6 +60,45 @@ const virtualFiles = new Map(cases.map(([name, code], index) => [
   join(ROOT, `tests/unit/kit/contract-case-${index}.ts`),
   `import type { ConsoleAPI } from '../../../src/games/types';\ndeclare const api: ConsoleAPI;\n${code}\nexport {}; // ${name}`,
 ]));
+// An independent v1 shape catches changed parameter, return and property types as well as added members.
+const frozenSurface = `
+interface FrozenScreen2D {
+  fillStyle: string;
+  fillRect(x: number, y: number, w: number, h: number): void;
+  beginPath(): void;
+  rect(x: number, y: number, w: number, h: number): void;
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number, counterclockwise?: boolean): void;
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  closePath(): void;
+  fill(): void;
+  clip(): void;
+  save(): void;
+  restore(): void;
+  translate(x: number, y: number): void;
+  rotate(angle: number): void;
+  scale(x: number, y: number): void;
+  setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void;
+  font: string;
+  measureText(s: string): { width: number };
+}
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+`;
+const surfaceCases: [string, string, boolean][] = [
+  ['matches the v1 signatures', 'Screen2D', true],
+  ['rejects browser-only colour types', "Omit<Screen2D, 'fillStyle'> & { fillStyle: CanvasGradient }", false],
+  ['rejects changed drawing arguments', "Omit<Screen2D, 'fillRect'> & { fillRect(x: string, y: number, w: number, h: number): void }", false],
+  ['rejects changed measurement results', "Omit<Screen2D, 'measureText'> & { measureText(s: string): TextMetrics }", false],
+];
+for (const [index, [_name, candidate]] of surfaceCases.entries()) {
+  virtualFiles.set(join(ROOT, `tests/unit/kit/surface-case-${index}.ts`), `
+    import type { Screen2D } from '../../../src/games/types';
+    ${frozenSurface}
+    declare const matches: Equal<${candidate}, FrozenScreen2D>;
+    const portable: true = matches;
+  `);
+}
 const config = ts.readConfigFile(join(ROOT, 'tsconfig.json'), ts.sys.readFile);
 const { options } = ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT);
 const host = ts.createCompilerHost(options);
@@ -70,6 +120,10 @@ describe('disk contract v1', () => {
     if (!declaration || !ts.isInterfaceDeclaration(declaration)) throw new Error('Screen2D is missing');
     expect(declaration.heritageClauses).toBeUndefined();
     expect(declaration.members.map(m => m.name?.getText(source)).sort()).toEqual([...SCREEN_MEMBERS].sort());
+  });
+  it.each(surfaceCases.map(([name, _candidate, valid], index) => [name, index, valid] satisfies [string, number, boolean]))('%s', (_name, index, valid) => {
+    const diagnostics = program.getSemanticDiagnostics(sourceOf(join(ROOT, `tests/unit/kit/surface-case-${index}.ts`)));
+    expect(diagnostics.length === 0).toBe(valid);
   });
   it.each(files.map(path => [relative(ROOT, path), path]))('%s uses only portable globals and Screen2D members', (_name, path) => {
     expect(contractViolations(sourceOf(path), checker)).toEqual([]);

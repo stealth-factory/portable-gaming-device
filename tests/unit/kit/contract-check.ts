@@ -8,7 +8,7 @@ export const SCREEN_MEMBERS = [
 ];
 
 const bannedGlobals = new Set([
-  'window', 'document', 'navigator', 'localStorage', 'sessionStorage', 'location',
+  'window', 'self', 'document', 'navigator', 'localStorage', 'sessionStorage', 'location',
   'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate',
   'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback',
   'fetch', 'performance', 'Date',
@@ -27,39 +27,46 @@ export function contractViolations(source: ts.SourceFile, checker: ts.TypeChecke
     failures.push(`${line + 1}:${character + 1} ${message}`);
   };
   const isGlobal = (node: ts.Identifier) => {
-    const declarations = checker.getSymbolAtLocation(node)?.getDeclarations();
+    const symbol = ts.isShorthandPropertyAssignment(node.parent)
+      ? checker.getShorthandAssignmentValueSymbol(node.parent)
+      : checker.getSymbolAtLocation(node);
+    const declarations = symbol?.getDeclarations();
     return !declarations?.length || declarations.every(d => d.getSourceFile().isDeclarationFile);
   };
-  const isGlobalObject = (node: ts.Expression, seen = new Set<ts.Node>()): boolean => {
+  const hasNamedType = (type: ts.Type, names: string[]): boolean =>
+    names.includes(type.getSymbol()?.getName() ?? '')
+      || (type.isUnionOrIntersection() && type.types.some(part => hasNamedType(part, names)));
+  const hasOrigin = (node: ts.Expression, names: string[], seen = new Set<ts.Node>()): boolean => {
     if (seen.has(node)) return false;
     seen.add(node);
-    if (checker.getTypeAtLocation(node).getSymbol()?.getName() === 'globalThis') return true;
+    if (hasNamedType(checker.getTypeAtLocation(node), names)) return true;
     if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isTypeAssertionExpression(node) || ts.isNonNullExpression(node)) {
-      return isGlobalObject(node.expression, seen);
+      return hasOrigin(node.expression, names, seen);
     }
     if (!ts.isIdentifier(node)) return false;
-    if (node.text === 'globalThis' && isGlobal(node)) return true;
+    if (names.includes(node.text) && isGlobal(node)) return true;
     return checker.getSymbolAtLocation(node)?.getDeclarations()?.some(declaration =>
-      ts.isVariableDeclaration(declaration) && !!declaration.initializer && isGlobalObject(declaration.initializer, seen),
+      ts.isVariableDeclaration(declaration) && !!declaration.initializer && hasOrigin(declaration.initializer, names, seen),
     ) ?? false;
   };
+  const isGlobalObject = (node: ts.Expression) => hasOrigin(node, ['globalThis']);
+  const isAPI = (node: ts.Expression) => hasOrigin(node, ['ConsoleAPI']);
   const isScreen = (node: ts.Expression, seen = new Set<ts.Node>()): boolean => {
     if (seen.has(node)) return false;
     seen.add(node);
-    const type = checker.getTypeAtLocation(node);
-    if (type.getSymbol()?.getName() === 'Screen2D' || type.getSymbol()?.getName() === 'CanvasRenderingContext2D') return true;
+    if (hasNamedType(checker.getTypeAtLocation(node), ['Screen2D', 'CanvasRenderingContext2D'])) return true;
     if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isTypeAssertionExpression(node) || ts.isNonNullExpression(node)) {
       return isScreen(node.expression, seen);
     }
-    if (ts.isPropertyAccessExpression(node) && node.name.text === 'g') return true;
-    if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) && node.argumentExpression.text === 'g') return true;
+    if (ts.isPropertyAccessExpression(node) && node.name.text === 'g' && isAPI(node.expression)) return true;
+    if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) && node.argumentExpression.text === 'g' && isAPI(node.expression)) return true;
     if (ts.isIdentifier(node)) {
       for (const declaration of checker.getSymbolAtLocation(node)?.getDeclarations() ?? []) {
         if (ts.isVariableDeclaration(declaration) && declaration.initializer && isScreen(declaration.initializer, seen)) return true;
         if (ts.isBindingElement(declaration) && ts.isObjectBindingPattern(declaration.parent)) {
           const owner = declaration.parent.parent;
           if (ts.isVariableDeclaration(owner) && owner.initializer) {
-            if (memberName(declaration.propertyName ?? declaration.name) === 'g') return true;
+            if (memberName(declaration.propertyName ?? declaration.name) === 'g' && isAPI(owner.initializer)) return true;
           }
         }
       }
