@@ -227,6 +227,22 @@ async function playEveryDisk(p, tag){
       const sprayOk = spray.weapon === 'spread' && spray.level === 3 && spray.shots >= 7;
       if (!heartOk || !sprayOk) errs.push(tag + ' martian storm hearts/weapons: ' + JSON.stringify({ hit, hurt, spray: { weapon: spray.weapon, level: spray.level, shots: spray.shots } }));
       console.log(tag, 'martian storm hearts/weapons', { hearts: hurt.state.hearts, lives: hurt.state.lives, shots: spray.shots });
+      // GAM-60: guns stack (a laser joins the spread), and the BOMB key beside FIRE (or V) spends a bomb
+      await p.waitForTimeout(400);
+      await p.evaluate(() => __gg.runtime.debug.arm('laser', 3));
+      await p.keyboard.down('Space');
+      await p.waitForTimeout(250);
+      const stack = await p.evaluate(() => __gg.runtime.debug.state());
+      await p.keyboard.up('Space');
+      const bombKey = await p.evaluate(() => { const b = document.querySelector('#fireRBtn'); return { shown: !!b && !b.hidden, text: b?.textContent || '' }; });
+      const beforeBomb = await p.evaluate(() => __gg.runtime.debug.state().bombs);
+      await p.keyboard.press('KeyV');
+      await p.waitForTimeout(100);
+      const afterBomb = await p.evaluate(() => ({ state: __gg.runtime.debug.state(), mode: __gg.S.mode }));
+      const stackOk = stack.guns.spread === 3 && stack.guns.laser === 3 && stack.shots >= 10;
+      const bombOk = bombKey.shown && /BOMB/.test(bombKey.text) && afterBomb.state.bombs === beforeBomb - 1 && afterBomb.mode === 'play';
+      if (!stackOk || !bombOk) errs.push(tag + ' martian storm stack/bomb: ' + JSON.stringify({ guns: stack.guns, shots: stack.shots, bombKey, beforeBomb, afterBomb: afterBomb.state.bombs, mode: afterBomb.mode }));
+      console.log(tag, 'martian storm stack/bomb', { guns: stack.guns, shots: stack.shots, bombs: [beforeBomb, afterBomb.state.bombs], key: bombKey.text });
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
