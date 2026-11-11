@@ -168,16 +168,21 @@ export function drawBlast(api: ConsoleAPI, cx: number, cy: number, k: number, re
   g.beginPath();
   g.rect(0, hud, api.LW, api.LH - hud);
   g.clip();
-  g.lineWidth = 3;
-  g.strokeStyle = api.col('spark');
-  g.beginPath();
-  g.arc(Math.round(cx), Math.round(cy), Math.max(1, k * reach), 0, Math.PI * 2);
-  g.stroke();
-  g.lineWidth = 2;
-  g.strokeStyle = api.col('gold');
-  g.beginPath();
-  g.arc(Math.round(cx), Math.round(cy), Math.max(1, k * reach * 0.6), 0, Math.PI * 2);
-  g.stroke();
+  const x = Math.round(cx), y = Math.round(cy);
+  const ring = (radius: number, width: number, role: 'spark' | 'gold') => {
+    const outer = radius + width / 2, inner = Math.max(0, radius - width / 2);
+    g.fillStyle = api.col(role);
+    g.beginPath();
+    g.moveTo(x + outer, y);
+    g.arc(x, y, outer, 0, Math.PI * 2);
+    if (inner > 0) {
+      g.moveTo(x + inner, y);
+      g.arc(x, y, inner, 0, Math.PI * 2, true);
+    }
+    g.fill();
+  };
+  ring(Math.max(1, k * reach), 3, 'spark');
+  ring(Math.max(1, k * reach * 0.6), 2, 'gold');
   g.restore();
 }
 

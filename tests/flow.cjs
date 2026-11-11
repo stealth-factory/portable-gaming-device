@@ -169,6 +169,8 @@ async function playEveryDisk(p, tag){
       if (!steerOk) errs.push(tag + ' bricks stick: ' + JSON.stringify({ steer, keyed }));
       console.log(tag, 'bricks stick', { stick: Math.round(steer.stick.speed), bow: steer.bow, key: Math.round(keyed.speed) });
       const caught = await p.evaluate(async () => {
+        // Keep capsule observations independent of an ember missing or spending Sear on the wall.
+        __gg.runtime.start(); __gg.S.mode = 'play'; __gg.S.modeT = 0;
         const dbg = __gg.runtime.debug;
         const baseW = dbg.state().bw;
         const take = (kind) => new Promise(resolve => {
@@ -393,9 +395,24 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
     const after = await ii(), b = after.bombs[0], bay = k[0] === 'S' ? 'M' : k[0];
     bays[k] = !!b && b.bay === bay && Math.abs(b.x - before.bays[bay].x) <= 4;
     if (k === 'R' && b) {   // a second press on the same bay while its bomb is up does nothing, and the bomb is rising
-      await p.waitForTimeout(450); await p.keyboard.press('c'); await p.waitForTimeout(60);
-      const now = await ii();
-      one = now.bombs.filter(q => q.bay === 'R').length === 1; up = now.bombs.length > 0 && now.bombs[0].y < b.y;
+      const flight = await p.evaluateHandle(() => {
+        const bomb = __gg.runtime.debug.state().bombs.find(q => q.bay === 'R');
+        if (!bomb) throw new Error('Right-bay bomb disappeared before the repeat-press check');
+        // Give the original bomb clearance from walls and tanks while its real bay cooldown expires.
+        bomb.y = __gg.LH - 8;
+        return { bomb, y: bomb.y };
+      });
+      try {
+        await p.waitForFunction(() => __gg.runtime.debug.state().bayCD.R <= 0, null, { timeout: 2000 });
+        await p.keyboard.press('c');
+        const time = await p.evaluate(() => __gg.S.time);
+        await p.waitForFunction(t => __gg.S.time > t, time, { timeout: 2000 });
+        const checked = await flight.evaluate(({ bomb, y }) => {
+          const right = __gg.runtime.debug.state().bombs.filter(q => q.bay === 'R');
+          return { one: right.length === 1 && right[0] === bomb, up: bomb.y < y };
+        });
+        one = checked.one; up = checked.up;
+      } finally { await flight.dispose(); }
     }
   }
   // a tap on a pad key fires its bay and leaves the keyboard where it was (Space still bombs, nothing is focused)
