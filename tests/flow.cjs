@@ -277,6 +277,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.keyboard.press('g'); await p.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 6000 });
   await p.evaluate(() => __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'invader')));
   await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 10000 });
+  await p.evaluate(() => { __gg.S.boostT = 60; });   // isolate weapon checks from unrelated enemy fire
   const leaflet = await p.evaluate(() => document.querySelector('#manual')?.textContent || '');
   const dbg = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); return { weapon: F.weapon, speed: F.speed, shots: F.shots.length, beam: !!F.beam, capsules: F.capsules.length, blasts: F.blasts.length, alive: F.aliens.filter(a => a.alive).length }; });
   await p.keyboard.press('Space'); await p.waitForTimeout(150);
@@ -290,11 +291,11 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   await p.evaluate(() => { __gg.runtime.debug.arm('speed'); __gg.runtime.debug.arm('speed'); __gg.runtime.debug.arm('pierce'); }); await p.waitForTimeout(500);
   await p.keyboard.press('Space'); await p.waitForTimeout(60);
   const pierce = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-pierce.png` });
-  await p.evaluate(() => { const F = __gg.runtime.debug.state(); __gg.S.boostT = 1; __gg.runtime.debug.clash(F.ox + 20, F.oy + 50); __gg.runtime.debug.blast(F.ox + 40, F.oy + 40); }); await p.waitForTimeout(100);
+  await p.evaluate(() => { const F = __gg.runtime.debug.state(); __gg.S.boostT = 60; __gg.runtime.debug.clash(F.ox + 20, F.oy + 50); __gg.runtime.debug.blast(F.ox + 40, F.oy + 40); }); await p.waitForTimeout(100);
   const blasts = await dbg(); await p.screenshot({ path: `${out}/${tag}-invader-blast.png` });
   await p.waitForTimeout(600);
   // Rapid keeps firing while Space is held down (no key repeat needed)
-  await p.evaluate(() => { __gg.runtime.debug.clearWalls(); __gg.S.boostT = 5; __gg.runtime.debug.arm('rapid'); });   // shield up: no walls to hide behind
+  await p.evaluate(() => { __gg.runtime.debug.clearWalls(); __gg.S.boostT = 60; __gg.runtime.debug.arm('rapid'); });   // shield up: no walls to hide behind
   await p.waitForFunction(() => !__gg.runtime.debug.state().shots.length, null, { timeout: 4000 });
   await p.keyboard.down('Space'); await p.waitForTimeout(300);
   const rapid = await dbg(); await p.keyboard.up('Space');
@@ -305,7 +306,7 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const shotCap = await p.evaluate(() => { const F = __gg.runtime.debug.state(); const near = F.blasts.filter(b => b.r >= 16 && Math.hypot(Math.max(F.px, Math.min(b.x, F.px + 13)) - b.x, Math.max(__gg.runtime.debug.cannonY(), Math.min(b.y, __gg.runtime.debug.cannonY() + 7)) - b.y) <= b.r).length; return { capsules: F.capsules.length, blasts: near, weapon: F.weapon, lives: __gg.S.lives, mode: __gg.S.mode }; });
   await p.screenshot({ path: `${out}/${tag}-invader-shotcap.png` });
   const capOk = shotCap.capsules === 0 && shotCap.blasts >= 1 && shotCap.weapon === 'rapid' && shotCap.lives === livesBefore && shotCap.mode === 'play';
-  await p.evaluate(() => { const F = __gg.runtime.debug.state(), a = F.aliens.filter(q => q.alive).sort((p, q) => q.r - p.r)[0]; F.px = F.ox + a.c * 16 - 1; __gg.runtime.debug.arm('nuke'); }); await p.waitForTimeout(200);   // under a live alien
+  await p.evaluate(() => { const F = __gg.runtime.debug.state(), a = F.aliens.filter(q => q.alive).sort((p, q) => q.r - p.r)[0]; __gg.S.boostT = 60; F.px = F.ox + a.c * 16 - 1; __gg.runtime.debug.arm('nuke'); }); await p.waitForTimeout(200);   // under a live alien
   const label = await p.evaluate(() => document.querySelector('#boostBtn span').textContent);
   await p.keyboard.press('Shift'); await p.waitForTimeout(200);
   const flying = await p.evaluate(() => !!__gg.runtime.debug.state().missile); await p.screenshot({ path: `${out}/${tag}-invader-missile.png` });
