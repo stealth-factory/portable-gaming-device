@@ -306,11 +306,8 @@ export const MISSILE_COOLDOWN = 0.42;
     missileSalvo. The more of a gun you catch, the more it sprays. */
 export function volley(weapon: Weapon, level: number): ShotSpec[] {
   const lv = Math.max(1, Math.min(WEAPON_MAX, level));
-  if (weapon === 'blaster') {
-    if (lv === 1) return [straight(0)];
-    if (lv === 2) return [straight(-3), straight(3)];
-    return [straight(-5), straight(0), straight(5)];
-  }
+  // the blaster is never on a capsule, so it only ever has its one shot; catch a capsule to grow the spray
+  if (weapon === 'blaster') return [straight(0)];
   if (weapon === 'spread') {
     if (lv === 1) return fan([-12, 0, 12], BOLT);
     if (lv === 2) return fan([-22, -11, 0, 11, 22], BOLT);
