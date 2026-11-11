@@ -3,6 +3,12 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.12.0] - 2026-11-11
+
+### Features
+
+- **martian-storm**: Weapon power-ups, hearts and extra lives (GAM-59) (#100)
+
 ## [0.11.0] - 2026-11-11
 
 ### Documentation

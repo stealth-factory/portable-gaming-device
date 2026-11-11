@@ -194,7 +194,20 @@ async function playEveryDisk(p, tag){
       const tuckOk = before.tucks === 3 && mid.tucks === before.tucks - 1 && after.state.lives === before.lives && after.state.lives === 3;
       if (!tuckOk || !spent) errs.push(tag + ' martian storm tuck: ' + JSON.stringify({ before, mid, after, spent }));
       console.log(tag, 'martian storm tuck', { tucks: mid.tucks, lives: after.state.lives, boost: after.boost });
-      await p.keyboard.press('Space');
+      // GAM-59: a pellet with no tuck costs a heart, not the skiff; a level 3 spread puts a seven-way fan in the air
+      await p.waitForTimeout(700);
+      const hit = await p.evaluate(() => { __gg.runtime.debug.pellet(); return __gg.runtime.debug.state(); });
+      await p.waitForTimeout(100);
+      const hurt = await p.evaluate(() => ({ state: __gg.runtime.debug.state(), mode: __gg.S.mode }));
+      await p.evaluate(() => __gg.runtime.debug.arm('spread', 3));
+      await p.keyboard.down('Space');
+      await p.waitForTimeout(250);
+      const spray = await p.evaluate(() => __gg.runtime.debug.state());
+      await p.keyboard.up('Space');
+      const heartOk = hurt.state.hearts === hit.hearts - 1 && hurt.state.lives === hit.lives && hurt.mode === 'play';
+      const sprayOk = spray.weapon === 'spread' && spray.level === 3 && spray.shots >= 7;
+      if (!heartOk || !sprayOk) errs.push(tag + ' martian storm hearts/weapons: ' + JSON.stringify({ hit, hurt, spray: { weapon: spray.weapon, level: spray.level, shots: spray.shots } }));
+      console.log(tag, 'martian storm hearts/weapons', { hearts: hurt.state.hearts, lives: hurt.state.lives, shots: spray.shots });
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
