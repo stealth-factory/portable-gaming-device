@@ -9,7 +9,7 @@ import { Stick } from "./stick";
 import { makeHaptics, type Haptic } from "../kit/platform/haptics";
 import { DEFAULTS, scoreKeys, SETTINGS_EVENT } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
-import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame, launcherTargets } from "./program/loader";
+import { diskInfo, startConsole, drawBoot, updateBoot, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame, launcherTargets } from "./program/loader";
 import { bindHost } from "./program/host";
 import { makeWebPlatform } from "./web/platform";
 import { ac, muted, setMuted, ensureAudio, hush, tone, audioOut } from "./web/audio";
