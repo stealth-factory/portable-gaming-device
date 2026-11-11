@@ -196,7 +196,7 @@ async function playEveryDisk(p, tag){
       console.log(tag, 'martian storm tuck', { tucks: mid.tucks, lives: after.state.lives, boost: after.boost });
       // GAM-59: a pellet with no tuck costs a heart, not the skiff; a level 3 spread puts a seven-way fan in the air
       await p.waitForTimeout(700);
-      const hit = await p.evaluate(() => { __gg.runtime.debug.pellet(); return __gg.runtime.debug.state(); });
+      const hit = await p.evaluate(() => { __gg.runtime.debug.unblink(); __gg.runtime.debug.pellet(); return __gg.runtime.debug.state(); });
       await p.waitForTimeout(100);
       const hurt = await p.evaluate(() => ({ state: __gg.runtime.debug.state(), mode: __gg.S.mode }));
       await p.evaluate(() => __gg.runtime.debug.arm('spread', 3));
@@ -399,6 +399,9 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   if (!iiOk) errs.push(tag + ' i invade pad: ' + JSON.stringify({ menuPad, gamePad, overPad, backPad, bays, one, up, tapPad, focus, cluster, volley, geom, meteorsDark, meteorsLit, meteors, landed, phosC }));
   console.log(tag, JSON.stringify({ iinvade: { gamePad, bays, one, up, tapPad, cluster, volley, layout: geom.layout, meteors, landed, phosC, overPad: overPad.pad } }));
   await playEveryDisk(p, tag);
+  await p.context().close();
 }
-console.log(errs.join('\n') || 'no errors'); await b.close();
+console.log(errs.join('\n') || 'no errors');
+if (errs.length) process.exitCode = 1;
+await b.close();
 })();
