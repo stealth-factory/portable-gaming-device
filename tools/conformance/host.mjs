@@ -95,7 +95,7 @@ export function makeHost({ disk, script, palette, measurePixelText }) {
         button.label = spec.label ?? button.label; button.enabled = spec.enabled ?? (value === null ? true : button.enabled);
         if (!button.enabled) button.queued = button.held = false;
       }
-      record('buttons', changes);
+      record('buttons', Object.fromEntries(Object.entries(changes).map(([id, value]) => [id, value === null ? null : { ...value }])));
     },
     get fireHeld() { return B('fire').held; }, get fireQueued() { return B('fire').queued; },
     get boostHeld() { return B('boost').held; }, get boostQueued() { return B('boost').queued; },

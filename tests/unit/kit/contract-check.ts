@@ -23,6 +23,16 @@ function memberName(node: ts.Node): string | undefined {
 export function contractViolations(source: ts.SourceFile, checker: ts.TypeChecker): string[] {
   const failures: string[] = [];
   const restSources = new Map<ts.Symbol, ts.Expression>();
+  // Plain `x = value` assignments, so an alias typed `any` still carries what was assigned to it.
+  const assignedValues = new Map<ts.Symbol, ts.Expression[]>();
+  const collectAssignments = (node: ts.Node) => {
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(node.left)) {
+      const symbol = checker.getSymbolAtLocation(node.left);
+      if (symbol) assignedValues.set(symbol, [...(assignedValues.get(symbol) ?? []), node.right]);
+    }
+    ts.forEachChild(node, collectAssignments);
+  };
+  collectAssignments(source);
   const report = (node: ts.Node, message: string) => {
     const { line, character } = source.getLineAndCharacterOfPosition(node.getStart(source));
     failures.push(`${line + 1}:${character + 1} ${message}`);
@@ -76,7 +86,9 @@ export function contractViolations(source: ts.SourceFile, checker: ts.TypeChecke
     if (ts.isPropertyAccessExpression(node) && node.name.text === 'g' && isAPI(node.expression)) return true;
     if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) && node.argumentExpression.text === 'g' && isAPI(node.expression)) return true;
     if (ts.isIdentifier(node)) {
-      for (const declaration of checker.getSymbolAtLocation(node)?.getDeclarations() ?? []) {
+      const symbol = checker.getSymbolAtLocation(node);
+      if (symbol && assignedValues.get(symbol)?.some(value => isScreen(value, seen))) return true;
+      for (const declaration of symbol?.getDeclarations() ?? []) {
         if (ts.isVariableDeclaration(declaration) && declaration.initializer && isScreen(declaration.initializer, seen)) return true;
         if (ts.isBindingElement(declaration) && !declaration.dotDotDotToken && ts.isObjectBindingPattern(declaration.parent)) {
           const owner = declaration.parent.parent;
