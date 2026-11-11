@@ -89,7 +89,7 @@
       "source": "stealth-factory/private-skills",
       "sourceType": "github",
       "skillPath": "skills/claude-software-factory/SKILL.md",
-      "computedHash": "8e287a0834092b372bcdb8eead6e9360cd76e7f8f79c817ca89c032d1318a383"
+      "computedHash": "41377ae7a85e713887f33810facb4dc3c26506d651a137972650f335042972bd"
     },
     "code-complexity-stats-pr": {
       "source": "stealth-factory/skills",
@@ -765,7 +765,7 @@
       "source": "stealth-factory/private-skills",
       "sourceType": "github",
       "skillPath": "skills/xcode-vercel-release-tracks/SKILL.md",
-      "computedHash": "a9b5d1b7dce88af19337d7e53af98d040d84d2592ae9a3906f20193cc44ad3fb"
+      "computedHash": "826bab655f3b7bdd8ea9431fd0cf0216c8fa94bf1fc9f6eda3db37193238f8ee"
     }
   }
 }
