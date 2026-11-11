@@ -1,4 +1,4 @@
-// Makes the app icons and favicon (public/icons/*.png, public/favicon.svg) from one drawing: the set's CRT with the
+// Makes the app icons and favicon (public/icons/*.png, public/favicon.svg, public/favicon.ico) from one drawing: the set's CRT with the
 // joystick on the tube, the power lamp, a silver PGD nameplate and the red and amber keys.
 // Run: node tools/icons/make.cjs   (needs Playwright's Chromium and the Silkscreen font from Google Fonts)
 const { chromium } = require('playwright');
@@ -73,6 +73,21 @@ function favicon(){
     + `<circle cx="6" cy="26.8" r="1.3" fill="#b2ffbd"/><rect width="5" height="3" x="18" y="25.3" fill="#d8352a" rx="1"/><rect width="5" height="3" x="24" y="25.3" fill="#f0b23c" rx="1"/></svg>`;
 }
 
+// Packs PNGs into an ICO: a 6-byte header, a 16-byte entry per image, then the PNG data.
+function ico(pngs){
+  const head = Buffer.alloc(6 + 16 * pngs.length);
+  head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(pngs.length, 4);
+  let off = head.length;
+  pngs.forEach(({ s, buf }, i) => {
+    const e = 6 + 16 * i;
+    head.writeUInt8(s >= 256 ? 0 : s, e); head.writeUInt8(s >= 256 ? 0 : s, e + 1);
+    head.writeUInt16LE(1, e + 4); head.writeUInt16LE(32, e + 6);
+    head.writeUInt32LE(buf.length, e + 8); head.writeUInt32LE(off, e + 12);
+    off += buf.length;
+  });
+  return Buffer.concat([head, ...pngs.map(x => x.buf)]);
+}
+
 (async () => {
   const b = await chromium.launch();
   const p = await b.newPage({ deviceScaleFactor: 1 });
@@ -89,6 +104,14 @@ function favicon(){
   await p.setViewportSize({ width: 32, height: 32 });
   await p.setContent(`<!doctype html><html><head><style>html,body{margin:0;background:transparent}svg{display:block}</style></head><body>${fav}</body></html>`);
   await p.screenshot({ path: path.join(OUT, 'favicon-32.png'), omitBackground: true });
-  console.log('favicon.svg, favicon-32.png');
+  // favicon.ico (the page's raster fallback): the same drawing at 16, 32 and 48 px, each stored as a PNG inside the ICO.
+  const pngs = [];
+  for (const s of [16, 32, 48]){
+    await p.setViewportSize({ width: s, height: s });
+    await p.setContent(`<!doctype html><html><head><style>html,body{margin:0;background:transparent}svg{display:block;width:${s}px;height:${s}px}</style></head><body>${fav}</body></html>`);
+    pngs.push({ s, buf: await p.screenshot({ omitBackground: true }) });
+  }
+  fs.writeFileSync(path.join(ROOT, 'public/favicon.ico'), ico(pngs));
+  console.log('favicon.svg, favicon-32.png, favicon.ico');
   await b.close();
 })();
