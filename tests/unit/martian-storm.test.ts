@@ -245,7 +245,8 @@ describe('weapons (GAM-59)', () => {
     expect(a.arsenal).toEqual({ spread: 2, laser: 1 });
     expect(gunsOf(a.arsenal)).toEqual([{ weapon: 'spread', level: 2 }, { weapon: 'laser', level: 1 }]);
     expect(arsenalLabel({})).toBe('BLAST');
-    expect(arsenalLabel({ wave: 1, spread: 3, missile: 2 })).toBe('S3 M2 W1');
+    expect(arsenalLabel({ wave: 1, spread: 3, missile: 2 })).toBe('S3M2W1');
+    expect(arsenalLabel({ spread: 3, laser: 3, missile: 3, wave: 3 }).length).toBeLessThanOrEqual('MISSILE 3'.length);
     expect(catchGun({ laser: WEAPON_MAX }, 'laser')).toEqual({ arsenal: { laser: WEAPON_MAX }, level: WEAPON_MAX, points: 200 });
   });
 

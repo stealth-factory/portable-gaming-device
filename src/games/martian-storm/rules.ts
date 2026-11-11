@@ -251,11 +251,12 @@ export function gunsOf(arsenal: Arsenal): { weapon: Weapon; level: number }[] {
   return out.length ? out : [{ weapon: 'blaster', level: 1 }];
 }
 
-/** The HUD's short name for the stack: BLAST, or each gun's letter and level, such as S3 L1 M2. */
+/** The HUD's short name for the stack: BLAST, or each gun's letter and level, such as S3M2W1. */
 export function arsenalLabel(arsenal: Arsenal): string {
   const guns = gunsOf(arsenal);
   if (guns[0]?.weapon === 'blaster') return WEAPON_NAME.blaster;
-  return guns.map(g => WEAPON_NAME[g.weapon].charAt(0) + g.level).join(' ');
+  // no gaps: four guns read S3L3M3W3, eight characters, no wider than MISSILE 3 was, so the badge fits a 240 px tube
+  return guns.map(g => WEAPON_NAME[g.weapon].charAt(0) + g.level).join('');
 }
 
 /** What the skiff holds that a pickup can add to. */
