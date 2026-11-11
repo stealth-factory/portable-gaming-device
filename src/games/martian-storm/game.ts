@@ -611,7 +611,7 @@ function combat(dt: number) {
   }
   for (const pellet of pellets) { pellet.x += pellet.vx * dt; pellet.y += pellet.vy * dt; }
   // the blast eats any shot fired into it while it lasts
-  if (bombLeft > 0) { bombLeft = Math.max(0, bombLeft - dt); pellets = []; }
+  if (bombLeft > 0) pellets = [];
   shots = shots.filter(shot => {
     const box = { x: shot.x, y: shot.y, ...SHOT_BOX[shot.kind] };
     for (const craft of enemies) {
@@ -764,6 +764,8 @@ function start() {
 function update(dt: number) {
   pinMeters();
   fx.update(dt);
+  // the blast runs its course whatever the mode, so a bomb set off just before a leg ends still finishes its rings
+  if (bombLeft > 0) bombLeft = Math.max(0, bombLeft - dt);
   if (done) return;
   const mode = api.S.mode;
   if (blinkLeft > 0 && (mode === 'ready' || mode === 'play')) blinkLeft = Math.max(0, blinkLeft - dt);

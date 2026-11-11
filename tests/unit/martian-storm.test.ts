@@ -362,6 +362,11 @@ describe('hearts, lives and pickups (GAM-59)', () => {
     runtime.debug!.pellet();
     runtime.update(1 / 60);
     expect(runtime.debug!.state().hearts).toBe(HEARTS_START);
+    // the blast runs out even when play stops under it (a leg ending, a pause of the round)
+    S.mode = 'clear';
+    for (let i = 0; i < 45; i++) runtime.update(1 / 60);
+    expect(runtime.debug!.state().bombing).toBe(false);
+    S.mode = 'play';
     for (let i = 0; i < 60; i++) runtime.update(1 / 60);
     tapBomb();
     runtime.update(1 / 60);
