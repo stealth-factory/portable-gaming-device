@@ -71,6 +71,8 @@ const cases: [string, string, string | null][] = [
   ['direct canvas member', 'api.g.drawImage(null, 0, 0);', 'Screen2D has no drawImage'],
   ['aliased canvas member', 'const surface = api.g; surface.stroke();', 'Screen2D has no stroke'],
   ['assigned any canvas alias', 'let surface: any = null; surface = api.g; surface.stroke();', 'Screen2D has no stroke'],
+  ['assigned any global alias', 'let env: any = null; env = globalThis; env.fetch("/");', 'banned global fetch'],
+  ['assigned any API alias', 'let env: any = null; env = api; env.g.stroke();', 'Screen2D has no stroke'],
   ['destructured canvas', 'const { g: surface } = api; surface.canvas;', 'Screen2D has no canvas'],
   ['computed canvas member', 'api.g["getImageData"]();', 'Screen2D has no getImageData'],
   ['destructured member', 'const { strokeRect } = api.g;', 'Screen2D has no strokeRect'],

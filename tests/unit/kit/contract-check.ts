@@ -65,6 +65,7 @@ export function contractViolations(source: ts.SourceFile, checker: ts.TypeChecke
     const symbol = checker.getSymbolAtLocation(node);
     const assignedSource = symbol && restSources.get(symbol);
     if (assignedSource) return hasOrigin(assignedSource, names, seen);
+    if (symbol && assignedValues.get(symbol)?.some(value => hasOrigin(value, names, seen))) return true;
     return symbol?.getDeclarations()?.some(declaration => {
       if ((ts.isVariableDeclaration(declaration) || ts.isParameter(declaration) || ts.isBindingElement(declaration)) && declaration.initializer) return hasOrigin(declaration.initializer, names, seen);
       if (ts.isBindingElement(declaration) && declaration.dotDotDotToken && ts.isObjectBindingPattern(declaration.parent)) {
