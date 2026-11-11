@@ -12,7 +12,7 @@ export function drawSprite(api: ConsoleAPI, art: Sprite, x: number, y: number, r
   g.fillStyle = api.col(role);
   paint(g, art, x0, y0, '#');
 }
-function paint(g: CanvasRenderingContext2D, art: Sprite, x0: number, y0: number, ch: string){
+function paint(g: ConsoleAPI['g'], art: Sprite, x0: number, y0: number, ch: string){
   for (let r = 0; r < art.length; r++) {
     const row = art[r];
     for (let c = 0; c < row.length; c++) if (row[c] === ch) g.fillRect(x0 + c, y0 + r, 1, 1);

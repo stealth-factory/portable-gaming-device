@@ -5,7 +5,8 @@
               so the menu and the loading screen can show before the game itself arrives.
    - game.ts  default-exports `create(api) => GameRuntime`: the game. Downloaded while the drive "reads" the disk.
 
-   Neither may import from src/console: everything a game needs comes through the ConsoleAPI it is handed.
+   Disk contract v1 runs without a browser. Games and the play kit use only ConsoleAPI, never browser globals
+   or imports from src/console. Math.random is supplied by the host and can be seeded for conformance runs.
    The console finds games on its own (src/games/registry.ts); there is no list to edit. */
 import type { Haptic } from '../kit/platform/haptics';
 export type { Haptic, HapticName } from '../kit/platform/haptics';
@@ -33,11 +34,46 @@ export type Role =
 export type Dir = 'up' | 'down' | 'left' | 'right';
 export type Step = { dx: number; dy: number };
 
+/** The drawing surface shared by browser and native hosts. Only filled paths are supported.
+    Colours are current palette strings from col() or palette.pal; fonts are Silkscreen at 8 or 16 px. */
+export interface Screen2D {
+  fillStyle: string;
+  fillRect(x: number, y: number, w: number, h: number): void;
+  beginPath(): void;
+  rect(x: number, y: number, w: number, h: number): void;
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number, counterclockwise?: boolean): void;
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  closePath(): void;
+  fill(): void;
+  clip(): void;
+  save(): void;
+  restore(): void;
+  translate(x: number, y: number): void;
+  rotate(angle: number): void;
+  scale(x: number, y: number): void;
+  setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void;
+  font: string;
+  measureText(s: string): { width: number };
+}
+
+/** An opaque off-screen picture, row-major, one palette index (0 to 3) per pixel.
+    Mutate px, then stamp it. Palette colour changes need no rebuild; changed role mappings may use onPalette(). */
+export interface Layer { readonly w: number; readonly h: number; readonly px: Uint8Array }
+
+/** The read-only theme information disks need; roles map drawing roles to palette indices. */
+export interface Palette { readonly pal: readonly string[]; readonly roles: Readonly<Record<string, number>> }
+
 /** What the console lends a game. Values are live: read them each frame, don't copy them at start-up. */
 export interface ConsoleAPI {
   /* ---- the picture: a low-res buffer, snapped to four colours and run through the CRT pass ---- */
   /** Drawing context for the low-res buffer, LW × LH pixels. Row 0..HUD is the status bar. */
-  readonly g: CanvasRenderingContext2D;
+  readonly g: Screen2D;
+  /** Allocate an off-screen picture of whole low-res pixels, initially palette index 0. */
+  layer(w: number, h: number): Layer;
+  /** Copy an opaque layer onto the picture at (x, y), using the current palette and drawing transform. */
+  stamp(layer: Layer, x: number, y: number): void;
   readonly LW: number; readonly LH: number; readonly HUD: number;
   /** Grid for tile games: W × H cells of CELL low-res pixels; game units are C per cell, K low-res px per unit. */
   readonly W: number; readonly H: number; readonly C: number; readonly K: number;
@@ -46,13 +82,13 @@ export interface ConsoleAPI {
   /** The colour for a role in the current phosphor theme. */
   col(role: Role): string;
   /** The current theme's four colours as [r, g, b], by palette index; the theme itself (its `roles` map a role to an index). */
-  readonly palRGB: number[][];
-  readonly palette: any;
+  readonly palRGB: readonly (readonly number[])[];
+  readonly palette: Palette;
   /** Pixel-font text: size 8 or 16, align left / center / right. */
   txt(s: string, x: number, y: number, role?: Role, align?: 'left' | 'center' | 'right', size?: number): void;
   /** A centred two-line banner over the playfield (GET READY, LEVEL CLEARED …). */
   banner(title: string, sub?: string): void;
-  /** Shape helpers: a rounded-rect path (fill or stroke it yourself), and a filled polygon and circle in the current fillStyle. */
+  /** Shape helpers: a rounded-rect path (fill it yourself), and a filled polygon and circle in the current fillStyle. */
   rr(x: number, y: number, w: number, h: number, r: number): void;
   poly(pts: number[]): void;
   circ(x: number, y: number, r: number): void;
@@ -106,7 +142,7 @@ export interface ConsoleAPI {
   finishGame(): void;
 
   /* ---- odds and ends ---- */
-  /** Vercel Analytics custom event (at most two properties). */
+  /** Vercel Analytics custom event (at most two properties); a no-op on mobile hosts. */
   track(name: string, data?: Record<string, string | number | boolean | null>): void;
   /** A small seeded random generator. */
   mulberry32(seed: number): () => number;
@@ -122,7 +158,7 @@ export interface GameRuntime {
   update(dt: number): void;
   /** Draw the playfield and HUD into the low-res buffer. */
   draw(): void;
-  /** Optional: the phosphor theme changed. */
+  /** Optional: the phosphor theme changed. Rebuild cached indices if its role mapping changed. */
   onPalette?(): void;
   /** Optional hooks for the Playwright tests. */
   debug?: Record<string, (...a: any[]) => any>;
@@ -131,6 +167,12 @@ export type CreateGame = (api: ConsoleAPI) => GameRuntime;
 
 /** A game's disk: everything the console shows before and around the game. */
 export interface GameDisk {
+  /** The ConsoleAPI version this disk requires. */
+  contract: 1;
+  /** Positive whole-number revision; increase whenever this disk's built files change. */
+  version: number;
+  /** The lowest App Store age band this disk suits. Version 1 ships only 4+ disks. */
+  rating: '4+';
   /** Short id, used for storage keys (`gg-board-<id>`) and analytics. */
   id: string;
   /** Position on the disk menu. */

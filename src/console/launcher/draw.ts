@@ -47,7 +47,7 @@ function labelCover(a: Api, d: GameDisk, r: Rect, dim: number){
 }
 
 function paintCard(a: Api, d: GameDisk, c: Card, s: LauncherState, sys: LauncherSystem, st: DiskState){
-  const pal: string[] = a.palette.pal, front = c.off === 0;
+  const pal = a.palette.pal, front = c.off === 0;
   const map = st.kind === 'missing' ? DIM_MISSING : c.dim === 2 ? DIM_FAR : c.dim === 1 ? DIM_NEAR : undefined;
   const live = front && previewing(s, sys.reducedMotion()), pt = previewT(s);
   if (live && d.drawPreview) d.drawPreview(a as ConsoleAPI, c.x, c.y, c.w, c.h, pt);

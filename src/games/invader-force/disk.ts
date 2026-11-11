@@ -52,6 +52,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
+  contract: 1, version: 1, rating: '4+',
   id: 'invader', order: 3, slug: 'invader-force', genre: 'SHOOTER', players: 1,
   page: { title: 'Invader Force', description: 'Hold the line against a marching alien formation: shoot them down before they land, duck behind the walls and grab the mystery saucer, catch weapon capsules, on the PGD-01 Portable Gaming Device: a 1983-style console in your browser.' },
   title: 'INVADER FORCE', nameKey: 'ifName', file: 'INVFORCE.EXE', size: 28672, loadSecs: 3.1,

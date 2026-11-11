@@ -1,7 +1,7 @@
 /* Tunnel Raider: dig for emeralds, drop sacks of gold on the grubs, outwit them level after level.
    A tribute to Windmill Software's Digger (1983); characters, art, sound and code are original.
    Everything from the console comes through `api` (see src/games/types.ts). */
-import type { ConsoleAPI, CreateGame, Dir, Role } from '../types';
+import type { ConsoleAPI, CreateGame, Dir, Role, Layer } from '../types';
 
 let api: ConsoleAPI;
 
@@ -25,12 +25,12 @@ export const sfx = {
   boostReady: () => { tone(1568, 0.05, 0.03); tone(2093, 0.07, 0.03, 0, 0.05); },
 };
 /* dirt is drawn straight into the low-res buffer, one pattern per seam */
-let dirtCanvas: HTMLCanvasElement;   // made in create(), so loading this module has no side effects
+let dirtLayer: Layer;   // allocated when a level starts, never while the module loads
 export function makeDirt(){
-  if (dirtCanvas.width !== api.LW || dirtCanvas.height !== api.LH - api.HUD) { dirtCanvas.width = api.LW; dirtCanvas.height = api.LH - api.HUD; }
-  const d = dirtCanvas.getContext('2d')!, w = dirtCanvas.width, h = dirtCanvas.height;
-  const img = d.createImageData(w, h), px = img.data;
-  const base = api.palRGB[api.palette.roles.dirt], s1 = api.palRGB[api.palette.roles.ds1], s2 = api.palRGB[api.palette.roles.ds2];
+  const w = api.LW, h = api.LH - api.HUD;
+  dirtLayer = api.layer(w, h);
+  const px = dirtLayer.px;
+  const { dirt: base, ds1: s1, ds2: s2 } = api.palette.roles;
   const r = api.mulberry32(api.S.level * 31 + 5), pat = (api.S.level - 1) % 4;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     let c = base;
@@ -38,9 +38,8 @@ export function makeDirt(){
     else if (pat === 1) { if ((x + y) % 6 === 0) c = s1; else if ((x * 7 + y * 13) % 97 === 0) c = s2; }
     else if (pat === 2) { const row = (y / 6) | 0; if (y % 6 === 0 || (x + (row % 2) * 6) % 12 === 0) c = s1; }
     else { if ((y + Math.round(Math.sin(x / 7) * 2)) % 5 === 0) c = s1; else if (r() < 0.012) c = s2; }
-    const o = (y * w + x) * 4; px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = 255;
+    px[y * w + x] = c;
   }
-  d.putImageData(img, 0, 0);
 }
 
 export function carve(x: number, y: number){ if (api.inb(x, y)) api.S.dug[api.idx(x, y)] = 1; }
@@ -583,7 +582,7 @@ export function drawHud(){
   api.g.fillStyle = api.col('hud'); for (let x = 0; x < api.LW; x += 4) api.g.fillRect(x, api.HUD - 2, 2, 1);
 }
 export function draw(){
-  api.g.drawImage(dirtCanvas, 0, api.HUD);
+  api.stamp(dirtLayer, 0, api.HUD);
   api.g.setTransform(api.K, 0, 0, api.K, 0, api.HUD);
   api.g.save(); api.g.beginPath(); api.g.rect(0, -10, api.W * api.C, api.H * api.C + 10); api.g.clip();   /* a little headroom so the cart's lamp and drill aren't trimmed in the top row */   // sprites half through an edge show on both sides, never over the score bar
   drawTunnels();
@@ -607,7 +606,6 @@ export function draw(){
 
 const create: CreateGame = a => {
   api = a;
-  dirtCanvas = document.createElement('canvas');
   return { start: () => genLevel(1), update, draw, onPalette: makeDirt, debug: {
     kill: (c?: string) => killPlayer(c),
     // dig out every block but the one left of the cart, for the all-dug test

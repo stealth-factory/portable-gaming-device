@@ -12,6 +12,12 @@ describe('game disks', () => {
     expect(DISKS.length).toBe(gameDirs.length);
     expect(DISKS.length).toBeGreaterThanOrEqual(2);
   });
+  it.each(DISKS.map(d => [d.id, d] as const))('%s declares the portable contract, revision and age band', (_id, d) => {
+    expect(d.contract).toBe(1);
+    expect(Number.isSafeInteger(d.version)).toBe(true);
+    expect(d.version).toBeGreaterThan(0);
+    expect(d.rating).toBe('4+');
+  });
   it('has unique ids, slugs and menu positions', () => {
     for (const key of ['id', 'slug', 'order'] as const) expect(new Set(DISKS.map(d => d[key])).size).toBe(DISKS.length);
   });

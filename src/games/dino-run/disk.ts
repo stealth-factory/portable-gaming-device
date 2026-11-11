@@ -33,6 +33,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
+  contract: 1, version: 1, rating: '4+',
   id: 'dino', order: 2, slug: 'dino-run', genre: 'RUNNER', players: 1,
   page: { title: 'Dino Run', description: 'Jump the cacti, duck the pterosaurs and run as far as you can across the desert, on the PGD-01 Portable Gaming Device: a 1983-style console in your browser.' },
   title: 'DINO RUN', nameKey: 'dName', file: 'DINORUN.COM', size: 9216, loadSecs: 1.8,

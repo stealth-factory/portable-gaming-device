@@ -20,7 +20,8 @@ describe('the kit\'s rules', () => {
   it.each(files.map(f => [relative(KIT, f), f]))('%s keeps no state at module level and touches nothing on load', (_n, f) => {
     const src = readFileSync(f, 'utf8');
     expect(src).not.toMatch(/^(let|var)\s/m);
-    expect(src).not.toMatch(/\b(document|window|navigator|localStorage|AudioContext|setTimeout|setInterval|requestAnimationFrame)\b/);
+    // Role labels such as window: are data, rather than references to browser globals.
+    expect(src).not.toMatch(/\b(document|window|navigator|localStorage|AudioContext|setTimeout|setInterval|requestAnimationFrame)\b(?!\s*:)/);
   });
   it('imports in a bare process without touching any globals', async () => {
     const before = Object.keys(globalThis).sort();

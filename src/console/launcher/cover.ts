@@ -65,7 +65,7 @@ export interface PaintOpts { skip0?: boolean; src?: [number, number, number, num
 
 /** Paint palette indices (pw × ph) into the rectangle x, y, w, h by nearest neighbour, in `colours` (the theme's four,
     by index). Runs of one index on a row are one fillRect, which keeps a 128 × 96 cover to a couple of thousand rects. */
-export function paintPixels(g: Paint, colours: string[], px: ArrayLike<number>, pw: number, ph: number,
+export function paintPixels(g: Paint, colours: readonly string[], px: ArrayLike<number>, pw: number, ph: number,
   x: number, y: number, w: number, h: number, o: PaintOpts = {}){
   w = Math.round(w); h = Math.round(h); x = Math.round(x); y = Math.round(y);
   if (w <= 0 || h <= 0) return;
@@ -85,6 +85,6 @@ export function paintPixels(g: Paint, colours: string[], px: ArrayLike<number>, 
 
 /** Paint a cover into x, y, w, h. A rectangle of another shape gets the middle of the cover at its own shape
     (an upright card shows the centre 3:4 of a 4:3 capture), never a squashed one. */
-export function paintCover(g: Paint, colours: string[], c: Cover, x: number, y: number, w: number, h: number, map?: number[]){
+export function paintCover(g: Paint, colours: readonly string[], c: Cover, x: number, y: number, w: number, h: number, map?: number[]){
   paintPixels(g, colours, coverPixels(c), c.w, c.h, x, y, w, h, { src: cropTo(c.w, c.h, w / h), map });
 }

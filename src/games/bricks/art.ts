@@ -9,7 +9,7 @@ export const BAT_MINI = [
   ' ###### ',
 ];
 
-function frame(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+function frame(g: ConsoleAPI['g'], x: number, y: number, w: number, h: number) {
   g.fillRect(x, y, w, 1);
   g.fillRect(x, y + h - 1, w, 1);
   g.fillRect(x, y, 1, h);

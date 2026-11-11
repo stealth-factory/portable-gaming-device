@@ -52,6 +52,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
+  contract: 1, version: 1, rating: '4+',
   id: 'bricks', order: 5, slug: 'bricks', genre: 'BAT+BALL', players: 1,
   page: {
     title: 'Bricks',
