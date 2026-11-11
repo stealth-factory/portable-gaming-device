@@ -3,6 +3,20 @@
 Every release of Game Guy, and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.10.0] - 2026-11-11
+
+### Features
+
+- **martian-storm**: Bigger craft that never read as shots (GAM-54) (#83)
+
+### Miscellaneous
+
+- **skills**: Pull in latest private skills (GAM-53) (#80)
+
+### Refactor
+
+- Typecheck the whole project under strict typescript (GAM-8) (#49)
+
 ## [0.9.0] - 2026-11-10
 
 ### Features
