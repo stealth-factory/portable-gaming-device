@@ -94,7 +94,9 @@ function ico(pngs){
   for (const ic of ICONS) {
     await p.setViewportSize({ width: ic.size, height: ic.size });
     await p.setContent(`<!doctype html><html><head><link rel="stylesheet" href="${FONT}"><style>html,body{margin:0;background:transparent}svg{display:block;width:${ic.size}px;height:${ic.size}px}</style></head><body>${ic.svg}</body></html>`);
-    await p.evaluate(() => document.fonts.ready);
+    // fonts.ready also resolves when the download fails, so check Silkscreen really loaded before writing anything.
+    const ok = await p.evaluate(async () => { await document.fonts.ready; return (await document.fonts.load('700 30px Silkscreen')).length > 0 && document.fonts.check('700 30px Silkscreen'); });
+    if (!ok) { await b.close(); throw new Error('Silkscreen did not load from Google Fonts; no icons written'); }
     await p.waitForTimeout(150);
     await p.screenshot({ path: path.join(OUT, ic.out), omitBackground: true, clip: { x: 0, y: 0, width: ic.size, height: ic.size } });
     console.log(ic.out);
