@@ -1,6 +1,7 @@
 /* Martian Storm's disk: its label, loading screen and instructions. Drawn with fillRect and txt only. */
 import type { ConsoleAPI, GameDisk } from '../types';
 import { strings } from './strings';
+import { SPORE_W, drawSpore } from './art';
 
 function band(a: ConsoleAPI, y: number, drift: number, role: string, dash: number, thick: number) {
   const { g, LW } = a;
@@ -16,15 +17,6 @@ function skiff(a: ConsoleAPI, x: number, y: number) {
   g.fillRect(x + 1, y + 4, 9, 2);
   g.fillRect(x, y + 6, 11, 2);
   g.fillRect(x + 5, y + 3, 1, 6);
-}
-
-function spore(a: ConsoleAPI, x: number, y: number) {
-  const g = a.g;
-  g.fillStyle = a.col('grub');
-  g.fillRect(x, y, 1, 1);
-  g.fillRect(x + 4, y, 1, 1);
-  g.fillRect(x, y + 4, 1, 1);
-  g.fillRect(x + 4, y + 4, 1, 1);
 }
 
 /* title, two dust bands that creep, a skiff, and a flight that fills in as the disk reads */
@@ -49,8 +41,8 @@ function drawLoad(a: ConsoleAPI, p: number, t: number) {
   band(a, art + 8, Math.round((t * 9) % 18), 'textDim', 3, 2);
   const shown = Math.round(p * 4);
   const cx = Math.round(LW / 2);
-  const spots = [{ x: -21, y: 0 }, { x: -7, y: 5 }, { x: 7, y: 5 }, { x: 21, y: 0 }];
-  for (let i = 0; i < shown; i++) spore(a, cx + spots[i]!.x - 2, art + 16 + spots[i]!.y);
+  const spots = [{ x: -24, y: 0 }, { x: -8, y: 6 }, { x: 8, y: 6 }, { x: 24, y: 0 }];
+  for (let i = 0; i < shown; i++) drawSpore(a, cx + spots[i]!.x - Math.floor(SPORE_W / 2), art + 14 + spots[i]!.y);
   skiff(a, cx - 5, art + 36);
   a.diskInfo(art + 52, p, t, disk);
 }

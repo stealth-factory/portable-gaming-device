@@ -7,8 +7,11 @@ import {
   LEG_CLOCK, SKIFF_SPEED, SLAB_WAIT, TUCK_CAP, TUCK_SECS,
   barbCount, beatFits, beatGap, beatSchedule, flightCount, flightOffsets, flightVelocity,
   grantToken, landingBonus, offerToken, onSporeGone, pelletSpeed, scrollSpeed, shotMeetsSlab,
-  shotsThisPress, skiffVelocity, slabCount, spendTuck, tokenPhase, tuckCovers,
+  insetBox, shotsThisPress, skiffVelocity, slabCount, spendTuck, tokenPhase, touchBox, tuckCovers,
 } from '../../src/games/martian-storm/rules';
+import {
+  BARB, BARB_H, BARB_W, SKIFF_H, SKIFF_W, SLAB, SLAB_H, SLAB_W, SPORE, SPORE_H, SPORE_W,
+} from '../../src/games/martian-storm/art';
 import type { BeatKind, FlightState } from '../../src/games/martian-storm/rules';
 
 /** The console's generator, copied so these tests never import src/console. */
@@ -157,7 +160,7 @@ describe('a flight of four', () => {
     expect(flightOffsets('v', 1)).toHaveLength(4);
     expect(flightOffsets('file', -1)).toHaveLength(4);
     const file = flightOffsets('file', 1);
-    expect(file[1]!.x - file[0]!.x).toBe(-14);
+    expect(file[1]!.x - file[0]!.x).toBe(-16);
     expect(flightVelocity('v', 1, 20)).toEqual({ vx: 0, vy: 56 });
     expect(flightVelocity('file', -1, 20)).toEqual({ vx: -20, vy: 56 });
   });
@@ -265,5 +268,39 @@ describe('the leaflet', () => {
     expect(strings.en.msLoop).toBe('LOOP');
     expect(strings['zh-hant'].msLoop).toBe('筋斗');
     expect(strings['zh-hans'].msLoop).toBe('筋斗');
+  });
+});
+
+describe('craft you can read (GAM-54)', () => {
+  it('draws every craft at its declared size', () => {
+    for (const [art, w, h] of [[SPORE, SPORE_W, SPORE_H], [BARB, BARB_W, BARB_H], [SLAB, SLAB_W, SLAB_H]] as const) {
+      expect(art).toHaveLength(h);
+      for (const row of art) expect(row).toHaveLength(w);
+    }
+  });
+
+  it('keeps every craft close to the skiff in size, and far bigger than a 2 px pellet', () => {
+    for (const [w, h] of [[SPORE_W, SPORE_H], [BARB_W, BARB_H], [SLAB_W, SLAB_H]]) {
+      expect(w).toBeGreaterThanOrEqual(SKIFF_W - 2);
+      expect(h).toBeGreaterThanOrEqual(SKIFF_H - 1);
+    }
+  });
+
+  it('is easy to hit but forgiving to brush past', () => {
+    const shot = insetBox(0, 0, SPORE_W, SPORE_H);
+    const ram = touchBox(0, 0, SPORE_W, SPORE_H);
+    expect(shot).toEqual({ x: 1, y: 1, w: SPORE_W - 2, h: SPORE_H - 2 });
+    expect(ram).toEqual({ x: 2, y: 2, w: SPORE_W - 4, h: SPORE_H - 4 });
+    expect(touchBox(0, 0, 3, 3)).toEqual({ x: 2, y: 2, w: 0, h: 0 });
+  });
+
+  it('leaves a clear gap between the spores of a flight', () => {
+    for (const shape of ['v', 'file'] as const) {
+      const offs = flightOffsets(shape, 1);
+      for (let i = 0; i < offs.length; i++) for (let j = i + 1; j < offs.length; j++) {
+        const dx = Math.abs(offs[i]!.x - offs[j]!.x), dy = Math.abs(offs[i]!.y - offs[j]!.y);
+        expect(dx >= SPORE_W + 4 || dy >= SPORE_H + 4).toBe(true);
+      }
+    }
   });
 });

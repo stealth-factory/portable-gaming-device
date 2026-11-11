@@ -1,7 +1,8 @@
-/* Martian Storm's pictures. A wedge with one fin, and three alien glyphs. Not a wartime plane. */
+/* Martian Storm's pictures. A wedge with one fin, two aliens and a rock. Not a wartime plane.
+   Craft are solid bodies about the skiff's size; enemy shots are small sparks, so the two never read alike. */
 import type { ConsoleAPI } from '../types';
-import { drawSprite } from '../../kit/play';
-import type { Sprite } from '../../kit/play';
+import { drawSprite } from '../../kit/play/sprite';
+import type { Sprite } from '../../kit/play/types';
 import type { TokenPhase } from './rules';
 
 /** Nose up, one fin down the middle. 11×9. */
@@ -25,45 +26,67 @@ export const SKIFF_MINI: Sprite = [
   '# # #',
 ];
 
-/** Four dots, with a blank margin so a graze on the outer pixel is not the body. */
+/** A jelly pod with two lit eyes and a fringe. 9×8, as wide as most of the skiff, so a flight of four reads
+    as four things to shoot and never as shots. '#' is the body, 'o' the eyes. */
 export const SPORE: Sprite = [
-  '     ',
-  ' # # ',
-  '     ',
-  ' # # ',
-  '     ',
+  '  #####  ',
+  ' ####### ',
+  '##o###o##',
+  '#########',
+  ' ####### ',
+  '# # # # #',
+  '#  # #  #',
+  ' #     # ',
 ];
 
-/** A spike on a bulb. 5×7. */
+/** A horned gunner with its barrel pointing down at you. 11×11. '#' is the shell, '+' its plating, 'o' the eye. */
 export const BARB: Sprite = [
-  '  #  ',
-  '  #  ',
-  ' ### ',
-  '#####',
-  '# # #',
-  ' ### ',
-  '  #  ',
+  '#         #',
+  '##   #   ##',
+  '###########',
+  ' ##+#o#+## ',
+  ' ######### ',
+  '  #+###+#  ',
+  '   #####   ',
+  '    ###    ',
+  '    ###    ',
+  '    ###    ',
+  '     #     ',
 ];
 
-/** A wide stone with one pit. 16×7. */
+/** A tumbling rock, the incoming astro. 22×14. '#' is the stone, '+' its lit rim, '.' the craters' floors. */
 export const SLAB: Sprite = [
-  '################',
-  '##  ########  ##',
-  '################',
-  '#####      #####',
-  '#####      #####',
-  '################',
-  '################',
+  '      ++++++++        ',
+  '   ++++########++     ',
+  '  ++##############    ',
+  ' +#####..#########+   ',
+  ' +####....#########+  ',
+  '+######..###########+ ',
+  '+###################++',
+  '+##########...#######+',
+  ' ##########....######+',
+  ' ###...#####..#######+',
+  '  ##....############# ',
+  '   ##..############   ',
+  '    ##############    ',
+  '       ########       ',
+];
+
+/** Where each hit cracks the rock, so you can see it giving. One cell per pixel, [x, y]. */
+const CRACKS: readonly (readonly [number, number])[][] = [
+  [[14, 2], [13, 3], [13, 4], [12, 5]],
+  [[5, 6], [6, 7], [7, 7], [8, 8], [9, 9]],
+  [[16, 9], [17, 10], [16, 11], [15, 12], [12, 6]],
 ];
 
 export const SKIFF_W = 11;
 export const SKIFF_H = 9;
-export const SPORE_W = 5;
-export const SPORE_H = 5;
-export const BARB_W = 5;
-export const BARB_H = 7;
-export const SLAB_W = 16;
-export const SLAB_H = 7;
+export const SPORE_W = 9;
+export const SPORE_H = 8;
+export const BARB_W = 11;
+export const BARB_H = 11;
+export const SLAB_W = 22;
+export const SLAB_H = 14;
 export const TOKEN_W = 7;
 export const TOKEN_H = 7;
 
@@ -72,15 +95,36 @@ export function drawSkiff(api: ConsoleAPI, x: number, y: number): void {
 }
 
 export function drawSpore(api: ConsoleAPI, x: number, y: number): void {
-  drawSprite(api, SPORE, x, y, 'grub');
+  drawSprite(api, SPORE, x, y, { '#': 'grub', o: 'grubBelly' });
 }
 
 export function drawBarb(api: ConsoleAPI, x: number, y: number): void {
-  drawSprite(api, BARB, x, y, 'gold');
+  drawSprite(api, BARB, x, y, { '#': 'gold', '+': 'goldDark', o: 'bg' });
 }
 
-export function drawSlab(api: ConsoleAPI, x: number, y: number): void {
-  drawSprite(api, SLAB, x, y, 'hud');
+/** The rock, cracked once for each hit it has taken. */
+export function drawSlab(api: ConsoleAPI, x: number, y: number, hits = 0): void {
+  drawSprite(api, SLAB, x, y, { '#': 'hud', '+': 'text', '.': 'dirt' });
+  const g = api.g, x0 = Math.round(x), y0 = Math.round(y);
+  g.fillStyle = api.col('bg');
+  for (let i = 0; i < Math.min(hits, CRACKS.length); i++) for (const [cx, cy] of CRACKS[i]!) g.fillRect(x0 + cx, y0 + cy, 1, 1);
+}
+
+/** An enemy shot: a small bright spark that flickers between + and ×, never a body. (x, y) is the top left of
+    its 2×2 hitbox; the 3×3 spark sits over it. */
+export function drawPellet(api: ConsoleAPI, x: number, y: number, t: number): void {
+  const g = api.g, x0 = Math.round(x) + 1, y0 = Math.round(y) + 1;
+  g.fillStyle = api.col('spark');
+  if (Math.floor(t * 12) % 2 === 0) {
+    g.fillRect(x0, y0 - 1, 1, 3);
+    g.fillRect(x0 - 1, y0, 3, 1);
+  } else {
+    g.fillRect(x0 - 1, y0 - 1, 1, 1);
+    g.fillRect(x0 + 1, y0 - 1, 1, 1);
+    g.fillRect(x0, y0, 1, 1);
+    g.fillRect(x0 - 1, y0 + 1, 1, 1);
+    g.fillRect(x0 + 1, y0 + 1, 1, 1);
+  }
 }
 
 /** The falling gift. The mark changes with the phase so the catch is readable. */

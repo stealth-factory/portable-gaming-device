@@ -14,7 +14,7 @@ export const SLAB_WAIT = 6;
 export const SLAB_HITS = 4;
 export const MAX_CRAFT = 12;
 export const FLIGHT_TRIES = 20;
-export const SPORE_GAP = 14;
+export const SPORE_GAP = 16;
 export const TOKEN_PERIOD = 0.35;
 export const CLEAR_SECS = 1.6;
 
@@ -58,6 +58,12 @@ export function clampSkiff(x: number, y: number, w: number, h: number, lw: numbe
 /** The drawn body, inset so a graze on the outer pixel is not a hit. */
 export function insetBox(x: number, y: number, w: number, h: number): { x: number; y: number; w: number; h: number } {
   return { x: x + 1, y: y + 1, w: Math.max(0, w - 2), h: Math.max(0, h - 2) };
+}
+
+/** A craft's body where it can ram the skiff: two pixels in, so the bigger bodies' horns, fringes and rocky
+    corners don't cost a skiff. Shots still use the generous insetBox, so the craft stay as easy to hit. */
+export function touchBox(x: number, y: number, w: number, h: number): { x: number; y: number; w: number; h: number } {
+  return { x: x + 2, y: y + 2, w: Math.max(0, w - 4), h: Math.max(0, h - 4) };
 }
 
 /** Twin fires a pair or nothing, so the pair is never split by the cap of six. */
@@ -158,10 +164,11 @@ export function beatSchedule(leg: number, rng: () => number): Beat[] {
   return out;
 }
 
-/** Four spores. A file steps 14 px and drifts sideways. A shallow V shares one straight velocity. */
+/** Four spores. A file steps 16 px and drifts sideways. A shallow V shares one straight velocity. Both leave a
+    clear gap between 9 px spores. */
 export function flightOffsets(shape: FlightShape, sign: -1 | 1): { x: number; y: number }[] {
   if (shape === 'file') return [0, 1, 2, 3].map(i => ({ x: -i * SPORE_GAP * sign, y: -i * SPORE_GAP }));
-  if (shape === 'v') return [{ x: -21, y: 0 }, { x: -7, y: 5 }, { x: 7, y: 5 }, { x: 21, y: 0 }];
+  if (shape === 'v') return [{ x: -24, y: 0 }, { x: -8, y: 6 }, { x: 8, y: 6 }, { x: 24, y: 0 }];
   const never: never = shape;
   return never;
 }

@@ -157,13 +157,15 @@ const IMAGES = [
   }, 30); });
   await until(() => { const B = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && B.served && B.by < __gg.LH * 0.55; }, 8000).catch(() => {});
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await play('play-bricks.png', 'bricks');
-  // Martian Storm: its loading screen, then a skiff with a shot on the way up
+  // Martian Storm: its loading screen, then a skiff firing up at a flight of spores
   await p.keyboard.press('KeyG'); await until(() => __gg.S.mode === 'menu');
   await p.evaluate(() => { __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'martian-storm')); __gg.S.loadLen = 4.2; });
   await until(() => __gg.S.loadT > 1.6); await shot('load-storm.png');
   await until(() => __gg.S.mode === 'play');
+  // hold fire until a flight of spores is well down the tube, so the cover shows what you shoot at
   await p.keyboard.down('Space');
-  await p.waitForTimeout(400);
+  await until(() => __gg.S.mode === 'play' && __gg.runtime.debug.state().craft >= 4, 20000).catch(() => {});
+  await p.waitForTimeout(500);
   await p.keyboard.up('Space');
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await play('play-storm.png', 'martian-storm');
   if (!SHARE) { await b.close(); return; }
