@@ -60,7 +60,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 
 ### 6. Brand the console as PGD
 
-- **The name (owner's call, 11 November 2026, GAM-55):** **PGD-01 Portable Gaming Device**, **PGD** for short, model code `PGD-01`. PGD is meant to sound generic: it's the open console shell that other things build on, like a standard, not a product brand. Until then the console was *Game Guy 3000 Deluxe* (`GG-3000 DX`); before that, Tunnel Raider (`TR-83`). The repo was renamed from `game-guy` to `portable-gaming-device` the same day. Past PR titles, commits and `CHANGELOG.md` entries keep the old name.
+- **The name (owner's call, 11 November 2026, GAM-55):** **PGD-01 Portable Gaming Device**, **PGD** for short, model code `PGD-01`. PGD is meant to sound generic: it's the open console shell that other things build on, like a standard, not a product brand. Until then the console was *Game Guy 3000 Deluxe* (`GG-3000 DX`); before that, Tunnel Raider (`TR-83`). The repo was renamed from `game-guy` to `portable-gaming-device` the same day, then moved from `wiiiimm` to the `stealth-factory` organisation (<https://github.com/stealth-factory/portable-gaming-device>, GAM-61; the old URLs redirect). Past PR titles, commits and `CHANGELOG.md` entries keep the old name.
 - The look stays nerdy and retro, a 1983 home console.
 - Where the name appears:
   - **Page header:** wordmark (`PGD-01 Portable Gaming Device`, `Header.tsx`) and the model badge (`.mk-model`, `MODEL` in `src/components/site.ts`), with the tagline beside it.
