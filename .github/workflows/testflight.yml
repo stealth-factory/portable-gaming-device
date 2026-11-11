@@ -1,0 +1,385 @@
+name: TestFlight
+
+# Uploads the iOS app (iPhone, iPhone Duo and iPad; one universal archive) to
+# App Store Connect in two stages:
+#
+#   - every push to main that touches the app: internal testers (no review),
+#     labelled with the version the next release will carry, so a build never
+#     lands on a version that has already gone out;
+#   - a vX.Y.Z tag: tag-release.yml dispatches this at the tag when the
+#     `release: vX.Y.Z` PR merges. The same upload, then the build goes to the
+#     external group and is submitted for Beta App Review (Apple reviews the
+#     first build of each version only).
+#
+# The app's version is the repository's release version (package.json); the
+# build number is whole minutes since the Unix epoch. The build does not
+# rewrite its source: release-pr.yml bumps package.json and tag-release.yml
+# tags that commit.
+#
+# Until native/ios holds the Xcode project (GAM-37), or until the secrets and
+# variables below are set, a push run skips with a notice instead of failing.
+# A manual run is allowed only at main or a v* tag, to re-run either stage;
+# branch builds never reach TestFlight.
+#
+# Signing happens here only, on a GitHub-hosted Mac. The self-hosted Macs run
+# unsigned build and test jobs and never see a key or certificate.
+#
+# Repository secrets, from an App Store Connect Team API key (Users and Access
+# → Integrations → Team Keys, Admin role, so Xcode can manage signing and this
+# workflow can revoke the development certificate it makes):
+#   APP_STORE_KEY_ID, APP_STORE_ISSUER_ID,
+#   APP_STORE_KEY_P8_BASE64 (base64 of the AuthKey_<id>.p8 file).
+# Repository variables (kept out of the repo, as the iOS spec asks):
+#   APPLE_TEAM_ID     the 10-character Apple Developer team id;
+#   IOS_BUNDLE_ID     the app's bundle identifier;
+#   PGD_CATALOGUE_URL optional, the disk catalogue address baked into the app;
+#   TESTFLIGHT_EXTERNAL_GROUP optional, default "Public beta";
+#   TESTFLIGHT_LOCALE optional "What to Test" localisation, default en-US.
+# Full list and the App Store Connect side: docs/releasing.md, "TestFlight".
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    # Whatever ends up inside the app: the native code, and the console
+    # program and disks it bundles from src/. package.json carries the version.
+    paths:
+      - "native/**"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/testflight.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+  # Every upload runs: later runs wait instead of replacing a pending one.
+  # Runs never overlap, which the external stage relies on to tell its build
+  # from an earlier internal one.
+  queue: max
+
+env:
+  # Where the iOS app lives and what to build. XcodeGen's project.yml is used
+  # when present; otherwise the committed project.
+  IOS_DIR: native/ios
+  IOS_PROJECT: PGD.xcodeproj
+  IOS_SCHEME: PGD
+  # The uncommitted settings file the app's configurations include
+  # (`#include? "Local.xcconfig"`); CI writes it from the variables above.
+  IOS_LOCAL_XCCONFIG: native/ios/Config/Local.xcconfig
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      stage: ${{ steps.plan.outputs.stage }}
+      version: ${{ steps.plan.outputs.version }}
+      started: ${{ steps.plan.outputs.started }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install git-cliff
+        run: |
+          set -euo pipefail
+          # The same pinned, checksummed binary release-pr.yml uses, so both
+          # agree on the next version.
+          ver=2.13.1
+          sha=9a1263f24e59a2f508c7b3d3283c9dea94a8bf697f96dbc18cc783cac6284546
+          url="https://github.com/orhun/git-cliff/releases/download/v${ver}"
+          url="${url}/git-cliff-${ver}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL "$url" -o "$RUNNER_TEMP/cliff.tar.gz"
+          echo "${sha}  $RUNNER_TEMP/cliff.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/cliff.tar.gz" -C "$RUNNER_TEMP"
+          sudo install "$RUNNER_TEMP/git-cliff-${ver}/git-cliff" /usr/local/bin/
+
+      - name: Which stage, and which version
+        id: plan
+        env:
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+          APP_STORE_KEY_P8_BASE64: ${{ secrets.APP_STORE_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+        run: |
+          set -euo pipefail
+          echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+          # A run that cannot upload yet. A push says why and passes, so main
+          # stays green while the app or its App Store Connect set-up is on
+          # the way; a manual run or a release tag fails, because someone
+          # asked for a build.
+          skip() {
+            if [ "$GITHUB_EVENT_NAME" = push ]; then
+              echo "::notice::No TestFlight upload: $1"
+              echo "No TestFlight upload: $1" >> "$GITHUB_STEP_SUMMARY"
+              echo "stage=skip" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::$1"
+            exit 1
+          }
+
+          if [ ! -f "$IOS_DIR/project.yml" ] && [ ! -d "$IOS_DIR/$IOS_PROJECT" ]; then
+            skip "there is no iOS project in $IOS_DIR yet (GAM-37)."
+          fi
+          missing=""
+          for name in APP_STORE_KEY_ID APP_STORE_ISSUER_ID APP_STORE_KEY_P8_BASE64 APPLE_TEAM_ID IOS_BUNDLE_ID; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          [ -z "$missing" ] || skip "repository secrets or variables not set:$missing. See docs/releasing.md, \"TestFlight\"."
+
+          current=$(node -p "require('./package.json').version")
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              version="${GITHUB_REF_NAME#v}"
+              if [ "$version" != "$current" ]; then
+                echo "::error::Tag $GITHUB_REF_NAME but package.json says $current."
+                exit 1
+              fi
+              stage=external
+              ;;
+            refs/heads/main)
+              subject=$(git log -1 --format=%s)
+              if [ "$GITHUB_EVENT_NAME" = push ] && [[ "$subject" =~ ^release: ]]; then
+                # The release PR just merged; tag-release.yml tags it and
+                # dispatches the external build at the tag.
+                echo "Release commit: tag-release.yml starts the tagged build." >> "$GITHUB_STEP_SUMMARY"
+                echo "stage=skip" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              # The version the next release will carry, worked out the way
+              # release-pr.yml does: only feat, fix, perf, revert and breaking
+              # changes start a release.
+              version=""
+              if git rev-parse -q --verify "refs/tags/v${current}" >/dev/null; then
+                releasable=$(git log "v${current}..HEAD" --format=%s \
+                  | grep -cE '^(feat|fix|perf|revert)(\(.+\))?!?:|^[a-z]+(\(.+\))?!:' \
+                  || true)
+                if [ "$releasable" -gt 0 ]; then
+                  version=$(git cliff --bumped-version | sed 's/^v//')
+                fi
+              fi
+              if [ -z "$version" ] || [ "$version" = "$current" ]; then
+                # Nothing releasable yet, or the release PR has merged and its
+                # tag has not landed. Still newer than what went out: label it
+                # the next patch, so it never joins a version already shipped.
+                IFS=. read -r major minor patch <<< "$current"
+                version="$major.$minor.$((patch + 1))"
+              fi
+              stage=internal
+              ;;
+            *)
+              echo "::error::TestFlight builds only from main (internal) or a v* tag (external), not $GITHUB_REF."
+              exit 1
+              ;;
+          esac
+          echo "stage=$stage" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "TestFlight $stage build, version $version" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  upload:
+    name: Upload iOS build
+    needs: plan
+    if: needs.plan.outputs.stage == 'internal' || needs.plan.outputs.stage == 'external'
+    # GitHub-hosted only, never the self-hosted runs-on switch: this job holds
+    # the App Store Connect key and makes a signing certificate. The xcode-27
+    # image carries Xcode 27.x; the step below insists on 27.1 or later.
+    runs-on: xcode-27
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: ${{ env.IOS_DIR }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install API key
+        env:
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_KEY_P8_BASE64: ${{ secrets.APP_STORE_KEY_P8_BASE64 }}
+        run: |
+          key="$RUNNER_TEMP/private_keys/AuthKey_$APP_STORE_KEY_ID.p8"
+          mkdir -p "$(dirname "$key")"
+          echo "$APP_STORE_KEY_P8_BASE64" | base64 --decode > "$key"
+          chmod 600 "$key"
+          echo "APP_STORE_KEY_PATH=$key" >> "$GITHUB_ENV"
+
+      # Whole minutes since the Unix epoch at this attempt (about 29 million in
+      # 2026), so every upload, re-runs of older runs included, is higher than
+      # the last.
+      - name: Work out build number
+        run: echo "BUILD_NUMBER=$(( $(date -u +%s) / 60 ))" >> "$GITHUB_ENV"
+
+      - name: Check Xcode
+        run: |
+          xcodebuild -version
+          # An app linked against an SDK older than iOS 27.1 is shown at
+          # iPhone size with black framing on the open iPhone Duo. Refuse it.
+          xcode=$(xcodebuild -version | awk '/^Xcode /{split($2, v, "."); print v[1] * 100 + v[2]; exit}')
+          if [ "${xcode:-0}" -lt 2701 ]; then
+            echo "::error::TestFlight builds need Xcode 27.1 or later (found $(xcodebuild -version | head -1))."
+            exit 1
+          fi
+
+      # The bundle id and team id are not committed (iOS spec, section 9).
+      - name: Write the local settings
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+          PGD_CATALOGUE_URL: ${{ vars.PGD_CATALOGUE_URL }}
+        working-directory: .
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$IOS_LOCAL_XCCONFIG")"
+          {
+            echo "// Written by testflight.yml; never committed."
+            echo "DEVELOPMENT_TEAM = $APPLE_TEAM_ID"
+            echo "PRODUCT_BUNDLE_IDENTIFIER = $IOS_BUNDLE_ID"
+            # xcconfig reads // as a comment, so a URL's slashes are split.
+            [ -z "$PGD_CATALOGUE_URL" ] || echo "PGD_CATALOGUE_URL = ${PGD_CATALOGUE_URL/\/\//\/\$()\/}"
+          } > "$IOS_LOCAL_XCCONFIG"
+          /usr/libexec/PlistBuddy -c "Add :method string app-store-connect" \
+            -c "Add :destination string upload" \
+            -c "Add :teamID string $APPLE_TEAM_ID" \
+            -c "Add :signingStyle string automatic" \
+            -c "Add :uploadSymbols bool true" \
+            -c "Add :manageAppVersionAndBuildNumber bool false" \
+            "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Generate Xcode project
+        run: |
+          if [ -f project.yml ]; then
+            command -v xcodegen >/dev/null || brew install xcodegen
+            xcodegen generate
+          fi
+
+      - name: Archive
+        env:
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          # One universal archive serves iPhone, iPhone Duo and iPad.
+          xcodebuild archive -project "$IOS_PROJECT" -scheme "$IOS_SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$APP_STORE_KEY_PATH" -authenticationKeyID "$APP_STORE_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_ISSUER_ID" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION="$VERSION" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+
+      - name: Check the archive
+        env:
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          plist="$RUNNER_TEMP/App.xcarchive/Info.plist"
+          read_key() { /usr/libexec/PlistBuddy -c "Print :ApplicationProperties:$1" "$plist"; }
+          test "$(read_key CFBundleIdentifier)" = "$IOS_BUNDLE_ID" || { echo "::error::Archive bundle id is $(read_key CFBundleIdentifier), expected $IOS_BUNDLE_ID. Does the project include Local.xcconfig?"; exit 1; }
+          test "$(read_key CFBundleShortVersionString)" = "$VERSION"
+          test "$(read_key CFBundleVersion)" = "$BUILD_NUMBER"
+          # Without this, every build waits on an export compliance answer
+          # and the external stage never finds it ready.
+          app=$(find "$RUNNER_TEMP/App.xcarchive/Products/Applications" -maxdepth 1 -name '*.app' | head -1)
+          encryption=$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$app/Info.plist" 2>/dev/null || echo missing)
+          [ "$encryption" = false ] || { echo "::error::Info.plist must set ITSAppUsesNonExemptEncryption to false (found: $encryption)."; exit 1; }
+
+      - name: Upload to App Store Connect
+        env:
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$APP_STORE_KEY_PATH" -authenticationKeyID "$APP_STORE_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_ISSUER_ID"
+
+      - name: Summary
+        env:
+          STAGE: ${{ needs.plan.outputs.stage }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: echo "Uploaded $VERSION ($BUILD_NUMBER) for $STAGE testers. It shows in TestFlight once App Store Connect finishes processing it." >> "$GITHUB_STEP_SUMMARY"
+
+      # Xcode signed on this fresh Mac by making a new Apple Development
+      # certificate ("Created via API") that nothing can use once the runner is
+      # wiped. Apple caps them per team and then refuses to sign, so revoke it
+      # now, pass or fail. It is found by serial number in this runner's
+      # keychain, so another repository building on the same Apple team keeps
+      # its certificate. Never fails the upload; anything left behind is
+      # cleared with apple-certificates.yml.
+      - name: Revoke this build's development certificate
+        if: always() && env.APP_STORE_KEY_PATH != ''
+        continue-on-error: true
+        env:
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+        run: |
+          security find-certificate -a -p -c "Apple Development" > "$RUNNER_TEMP/signing.pem" || true
+          node "$GITHUB_WORKSPACE/.github/scripts/asc-certificates.mjs" revoke-own "$RUNNER_TEMP/signing.pem"
+
+      - name: Remove API key and local settings
+        if: always()
+        working-directory: .
+        run: rm -rf "$RUNNER_TEMP/private_keys" "$IOS_LOCAL_XCCONFIG" "$RUNNER_TEMP/ExportOptions.plist"
+
+  external:
+    name: External testers and Beta App Review
+    needs: [plan, upload]
+    if: needs.plan.outputs.stage == 'external'
+    runs-on: ubuntu-24.04
+    # Waits for App Store Connect to process the build, which can take a while.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install API key
+        env:
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_KEY_P8_BASE64: ${{ secrets.APP_STORE_KEY_P8_BASE64 }}
+        run: |
+          key="$RUNNER_TEMP/private_keys/AuthKey_$APP_STORE_KEY_ID.p8"
+          mkdir -p "$(dirname "$key")"
+          echo "$APP_STORE_KEY_P8_BASE64" | base64 --decode > "$key"
+          chmod 600 "$key"
+          echo "APP_STORE_KEY_PATH=$key" >> "$GITHUB_ENV"
+
+      - name: What to Test
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          # This version's section of CHANGELOG.md, without its heading, as
+          # tag-release.yml writes the GitHub Release.
+          awk -v h="## [${VERSION}]" \
+            'index($0, h) == 1 {on=1; next} /^## \[/ {on=0} on' \
+            CHANGELOG.md > "$RUNNER_TEMP/whats-new.md"
+          [ -s "$RUNNER_TEMP/whats-new.md" ] || { echo "::error::No $VERSION section in CHANGELOG.md."; exit 1; }
+
+      - name: Submit for review and add to the external group
+        env:
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+          BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          UPLOADED_AFTER: ${{ needs.plan.outputs.started }}
+          EXTERNAL_GROUP: ${{ vars.TESTFLIGHT_EXTERNAL_GROUP || 'Public beta' }}
+          # One universal iOS archive; no macOS, tvOS or visionOS build.
+          PLATFORMS: IOS
+          WHATS_NEW_LOCALE: ${{ vars.TESTFLIGHT_LOCALE || 'en-US' }}
+        run: WHATS_NEW_FILE="$RUNNER_TEMP/whats-new.md" node .github/scripts/testflight-external.mjs
+
+      - name: Remove API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/private_keys"

@@ -96,11 +96,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### stealth-factory/private-skills (3 skills)
+### stealth-factory/private-skills (4 skills)
 
 Source: <https://github.com/stealth-factory/private-skills>. © Stealth Company. The upstream repository has no licence file; these skills are included with Stealth Company's permission and no licence to reuse them is granted here.
 
-`claude-software-factory`, `turborepo-vercel-monorepo`, `xcode-vercel-release-tracks`
+`claude-software-factory`, `self-hosted-macos-runner`, `turborepo-vercel-monorepo`, `xcode-vercel-release-tracks`
 
 ## Fonts
 
