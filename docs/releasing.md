@@ -84,7 +84,22 @@ immediate and leaves git alone. Then land the `fix:` and release again;
 the next promotion replaces the rolled-back deployment.
 
 Do not move `production` backwards by hand: `tag-release.yml` only ever
-fast-forwards it and will refuse to promote over a commit it does not know.
+moves it forwards and will refuse to promote over a change the tag lacks.
+
+## Never merge into `production`
+
+Only `tag-release.yml` moves `production`. A pull request merged straight
+into it (Vercel's bot opens its PRs against the production branch) leaves
+`production` holding a commit `main` does not, and the next promotion
+stops. That happened with #86 and held the live site at v0.10.0 through
+three releases (GAM-62). `production-guard.yml` fails any PR aimed at
+`production`; retarget it to `main`.
+
+If it happens anyway, land the same change on `main` and release.
+`tag-release.yml` moves `production` past commits whose changes the tag
+already contains (merging `production` into the tag would change nothing),
+using `--force-with-lease`, and lists them in its log. If the tag lacks
+any of their changes, it still refuses and names the commits.
 
 ## Things worth knowing
 
