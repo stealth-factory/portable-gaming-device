@@ -13,6 +13,8 @@ import { diskInfo, startConsole, drawBoot, updateBoot, enterMenu, updateMenu, dr
 import { bindHost } from "./host";
 import { makeScreen2D } from "./screen";
 import { layer, makeStamp } from "./layers";
+// Inputs and audio stay synchronous; only booting waits for the pinned drawing face.
+let pixelFontReady = false, powerQueued = false;
 export let W = 15, H = 10;
 export const C = 32, CELL = 24, HUD = 20, K = CELL / C;   // game units per cell, low-res pixels per cell
 export let LW = W * CELL, LH = H * CELL + HUD;              // low-res frame buffer, like a 1980s graphics mode; resized to fit the screen
@@ -48,6 +50,7 @@ export const dust = document.createElement('canvas'); dust.width = 720; dust.hei
   d.moveTo(hx, hy); d.bezierCurveTo(hx + 20, hy + 30, hx - 15, hy + 50, hx + 12, hy + 80); d.stroke();   // a stray hair on the glass
 })();
 export function buildBurn(){
+  if (!pixelFontReady) return;
   // years of the same title screen wore the phosphor: those spots now glow a little less
   burn = document.createElement('canvas'); burn.width = LW; burn.height = LH;
   const b = burn.getContext('2d')!;
@@ -563,6 +566,7 @@ export let tvOn = false, offT = 99;   // the set starts switched off
 S.mode = 'off';
 document.documentElement.setAttribute('data-off', ''); document.documentElement.setAttribute('data-fresh', '');
 export function powerOff(){
+  powerQueued = false;
   document.documentElement.setAttribute('data-off', '');
   tvOn = false; offT = 0; S.mode = 'off'; held.length = 0; stickDir = null; Btn.releaseAll();
   overlay.hidden = true; saveBest();
@@ -571,6 +575,8 @@ export function powerOff(){
   if (ac && !muted) { tone(90, 0.09, 0.06, -40); tone(12000, 0.5, 0.008, -11000); }
 }
 export function powerOn(){
+  if (!pixelFontReady) { powerQueued = true; $('powerBtn').setAttribute('aria-checked', 'true'); return; }
+  powerQueued = false;
   document.documentElement.removeAttribute('data-off');
   tvOn = true; warmT = 0; age.dg = 0; accReset = true;
   $('powerBtn').setAttribute('aria-checked', 'true'); document.documentElement.removeAttribute('data-fresh');
@@ -578,13 +584,13 @@ export function powerOn(){
   track('power_on', { theme: modeKey, layout: layoutName() });
   startConsole('cold');
 }
-export function flipPower(){ ensureAudio(); buzz('tick'); if (ac) { tone(700, 0.03, 0.06, -200); tone(1400, 0.015, 0.05, 0, 0.06); } if (tvOn) powerOff(); else powerOn(); }
+export function flipPower(){ ensureAudio(); buzz('tick'); if (ac) { tone(700, 0.03, 0.06, -200); tone(1400, 0.015, 0.05, 0, 0.06); } if (tvOn || powerQueued) powerOff(); else powerOn(); }
 // tap to toggle, or flick the knob: right for on, left for off
 { let sx: number | null = null, flicked = false;
   $('powerBtn').addEventListener('pointerdown', e => { sx = e.clientX; flicked = false; });
   $('powerBtn').addEventListener('pointerup', e => {
     if (sx === null) return; const dx = e.clientX - sx; sx = null;
-    if (Math.abs(dx) > 12) { flicked = true; if ((dx > 0) !== tvOn) flipPower(); }
+    if (Math.abs(dx) > 12) { flicked = true; if ((dx > 0) !== (tvOn || powerQueued)) flipPower(); }
   });
   $('powerBtn').addEventListener('click', () => { if (flicked) { flicked = false; return; } flipPower(); });
 }
@@ -1024,8 +1030,11 @@ setMode(modeKey); setFx(fx);
 sizeTv();
 fitGrid();
 resize();
-buildBurn();
-if (document.fonts && document.fonts.load) document.fonts.load('16px Silkscreen').then(buildBurn).catch(()=>{});
+void document.fonts.load('16px Silkscreen').then(faces => {
+  if (!faces.length) throw new Error('The console pixel font did not load');
+  pixelFontReady = true; buildBurn();
+  if (powerQueued) powerOn();
+});
 requestAnimationFrame(frame);
 
 /* setters for state the game modules change (an imported binding can't be assigned from outside its module) */

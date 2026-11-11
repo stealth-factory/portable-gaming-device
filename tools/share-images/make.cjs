@@ -47,7 +47,7 @@ const IMAGES = [
     tag: 'Serve an ember, bounce it off one bat, and clear the wall.',
     disks: disk('c2', 'Bricks', 'BRICKS.EXE · 18K', 40, -4, 2) + disk('c4', 'Dino Run', 'DINORUN.COM', 190, 7, 1) },
   { out: 'og-martian-storm.png', tv: 'play-storm.png', h1: 'Martian Storm', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
-    tag: 'Fly a skiff through a Martian dust storm, tuck past the shots and land each leg.',
+    tag: 'Fly a skiff through a Martian dust storm, catch new guns, tuck past the shots and land each leg.',
     disks: disk('c3', 'Martian Storm', 'STORM.EXE · 30K', 40, -4, 2) + disk('c4', 'Bricks', 'BRICKS.EXE', 190, 7, 1) },
 ];
 
@@ -157,14 +157,14 @@ const IMAGES = [
   }, 30); });
   await until(() => { const B = __gg.runtime.debug.state(); return __gg.S.mode === 'play' && B.served && B.by < __gg.LH * 0.55; }, 8000).catch(() => {});
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await play('play-bricks.png', 'bricks');
-  // Martian Storm: its loading screen, then a skiff firing up at a flight of spores
+  // Martian Storm: its loading screen, then a skiff spraying a level 3 spread at a flight of spores
   await p.keyboard.press('KeyG'); await until(() => __gg.S.mode === 'menu');
   await p.evaluate(() => { __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'martian-storm')); __gg.S.loadLen = 4.2; });
   await until(() => __gg.S.loadT > 1.6); await shot('load-storm.png');
   await until(() => __gg.S.mode === 'play');
   // hold fire until a flight of spores is well down the tube, so the cover shows what you shoot at;
   // the skiff can't be hit, so the flipbook after it keeps playing instead of losing a life
-  await p.evaluate(() => __gg.runtime.debug.untouchable(true));
+  await p.evaluate(() => { __gg.runtime.debug.untouchable(true); __gg.runtime.debug.arm('spread', 3); });
   await p.keyboard.down('Space');
   await until(() => __gg.S.mode === 'play' && __gg.runtime.debug.state().craft >= 4, 20000).catch(() => {});
   await p.waitForTimeout(500);

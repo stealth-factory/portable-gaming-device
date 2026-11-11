@@ -104,9 +104,9 @@ Source: <https://github.com/stealth-factory/private-skills>. © Stealth Company.
 
 ## Fonts
 
-The page loads Silkscreen, Noto Sans TC, Noto Sans SC, IBM Plex Mono, Barlow Condensed and Spectral from Google Fonts at run time; each is under the SIL Open Font License 1.1.
+The page loads Silkscreen bold, Noto Sans TC, Noto Sans SC, IBM Plex Mono, Barlow Condensed and Spectral from Google Fonts at run time; each is under the SIL Open Font License 1.1. Silkscreen regular is served locally from the pinned font below and precached for offline use.
 
-`tools/fonts/Silkscreen-Regular.ttf` is the unmodified Silkscreen regular font from [google/fonts at 7e8d490955e9d2629cd3095e8dadd6fafe3c16b8](https://github.com/google/fonts/tree/7e8d490955e9d2629cd3095e8dadd6fafe3c16b8/ofl/silkscreen). The generated advances in `src/kit/platform/font-metrics.json` come from that font. Copyright 2001 The Silkscreen Project Authors (https://github.com/googlefonts/silkscreen). Both keep the SIL Open Font License 1.1, reproduced in full in [`tools/fonts/OFL.txt`](tools/fonts/OFL.txt).
+`tools/fonts/Silkscreen-Regular.ttf` is the unmodified Silkscreen regular font from [google/fonts at 7e8d490955e9d2629cd3095e8dadd6fafe3c16b8](https://github.com/google/fonts/tree/7e8d490955e9d2629cd3095e8dadd6fafe3c16b8/ofl/silkscreen). Vite emits this font as a hashed asset for the web console. The generated advances in `src/kit/platform/font-metrics.json` come from the same font. Copyright 2001 The Silkscreen Project Authors (https://github.com/googlefonts/silkscreen). Both keep the SIL Open Font License 1.1, reproduced in full in [`tools/fonts/OFL.txt`](tools/fonts/OFL.txt).
 
 ## npm packages
 

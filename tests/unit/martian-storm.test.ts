@@ -4,11 +4,13 @@ import { strings } from '../../src/games/martian-storm/strings';
 import { disk } from '../../src/games/martian-storm/disk';
 import type { ConsoleAPI, Dir } from '../../src/games/types';
 import {
-  LEG_CLOCK, SKIFF_SPEED, SLAB_WAIT, TUCK_CAP, TUCK_SECS,
-  barbCount, beatFits, beatGap, beatSchedule, flightCount, flightOffsets, flightVelocity,
-  grantToken, landingBonus, offerToken, onSporeGone, pelletSpeed, scrollSpeed, shotMeetsSlab,
-  insetBox, shotsThisPress, skiffVelocity, slabCount, spendTuck, tokenPhase, touchBox, tuckCovers,
+  BARB_HP, HEART_CAP, HEARTS_START, LEG_CLOCK, LIFE_CAP, SHOT_CAP, SKIFF_SPEED, SLAB_HP, SLAB_WAIT, TUCK_CAP, TUCK_SECS,
+  WEAPON_MAX, barbCount, beatFits, beatGap, beatSchedule, capsuleWeapon, catchGift, catchWeapon, damage, dropFor,
+  flightCount, flightOffsets, flightVelocity, hpFor, landingBonus, legReward, missileSalvo, offerToken, onSporeGone,
+  pelletSpeed, scrollSpeed, insetBox, skiffVelocity, slabCount, spendTuck, steerMissile, takeHit, touchBox, tuckCovers,
+  volley, volleyFits,
 } from '../../src/games/martian-storm/rules';
+import type { Weapon } from '../../src/games/martian-storm/rules';
 import {
   BARB, BARB_H, BARB_W, SKIFF_H, SKIFF_W, SLAB, SLAB_H, SLAB_W, SPORE, SPORE_H, SPORE_W,
 } from '../../src/games/martian-storm/art';
@@ -93,7 +95,7 @@ describe('the tuck', () => {
     const { S, runtime, pressBoost } = harness();
     play(runtime, S);
     expect(S.mode).toBe('play');
-    expect(S.nextLife).toBe(2000);
+    expect(S.nextLife).toBe(5000);
     expect(S.boost).toBe(1);
     expect(S.boostT).toBe(0);
     expect(runtime.debug!.state().tucks).toBe(3);
@@ -127,8 +129,11 @@ describe('the tuck', () => {
     pressBoost();
     runtime.update(1 / 60);
     for (let i = 0; i < 40; i++) runtime.update(1 / 60);
-    runtime.debug!.pellet();
-    runtime.update(1 / 60);
+    for (let n = 0; n < HEARTS_START; n++) {
+      runtime.debug!.unblink();
+      runtime.debug!.pellet();
+      runtime.update(1 / 60);
+    }
     expect(S.mode).toBe('dying');
     expect(runtime.debug!.state().tucks).toBe(2);
     for (let i = 0; i < 80; i++) runtime.update(1 / 60);
@@ -145,13 +150,34 @@ describe('the tuck', () => {
     expect(runtime.debug!.state().shots).toBe(1);
   });
 
-  it('loses a skiff when the same pellet lands with no tuck', () => {
+  it('takes a heart, not the skiff, when the same pellet lands with no tuck', () => {
     const { S, runtime } = harness();
     play(runtime, S);
     runtime.debug!.pellet();
     runtime.update(1 / 60);
-    expect(S.lives).toBe(2);
+    expect(S.lives).toBe(3);
+    expect(S.mode).toBe('play');
+    expect(runtime.debug!.state().hearts).toBe(HEARTS_START - 1);
+    // the blink after a hit shrugs off the next shot
+    runtime.debug!.pellet();
+    runtime.update(1 / 60);
+    expect(runtime.debug!.state().hearts).toBe(HEARTS_START - 1);
+  });
+
+  it('loses the skiff, and the gun, on the last heart; the next skiff has three hearts', () => {
+    const { S, runtime } = harness();
+    play(runtime, S);
+    runtime.debug!.arm('spread', 3);
+    for (let n = 0; n < HEARTS_START; n++) {
+      runtime.debug!.unblink();
+      runtime.debug!.pellet();
+      runtime.update(1 / 60);
+    }
     expect(S.mode).toBe('dying');
+    expect(S.lives).toBe(2);
+    for (let i = 0; i < 80; i++) runtime.update(1 / 60);
+    const st = runtime.debug!.state();
+    expect([st.weapon, st.level, st.hearts]).toEqual(['blaster', 1, HEARTS_START]);
   });
 });
 
@@ -191,31 +217,106 @@ describe('a flight of four', () => {
   });
 });
 
-describe('the token', () => {
-  it('cycles points, tuck, twin, and respects the cap', () => {
-    expect(tokenPhase(0)).toBe('points');
-    expect(tokenPhase(0.349)).toBe('points');
-    expect(tokenPhase(0.35)).toBe('tuck');
-    expect(tokenPhase(0.7)).toBe('twin');
-    expect(tokenPhase(1.05)).toBe('points');
-    expect(grantToken('points', 1, false)).toEqual({ tucks: 1, twin: false, points: 200 });
-    expect(grantToken('tuck', 4, false)).toEqual({ tucks: 5, twin: false, points: 0 });
-    expect(grantToken('tuck', TUCK_CAP, false)).toEqual({ tucks: TUCK_CAP, twin: false, points: 200 });
-    expect(grantToken('twin', 2, false)).toEqual({ tucks: 2, twin: true, points: 0 });
-    expect(grantToken('twin', 2, true)).toEqual({ tucks: 2, twin: true, points: 200 });
+describe('weapons (GAM-59)', () => {
+  it('cycles S, L, M, W on a capsule', () => {
+    expect(capsuleWeapon(0)).toBe('spread');
+    expect(capsuleWeapon(0.5)).toBe('laser');
+    expect(capsuleWeapon(1.0)).toBe('missile');
+    expect(capsuleWeapon(1.5)).toBe('wave');
+    expect(capsuleWeapon(2.0)).toBe('spread');
+    expect(capsuleWeapon(0, 2)).toBe('missile');
+  });
+
+  it('levels up your own gun and switches to another at the same level', () => {
+    expect(catchWeapon('blaster', 1, 'spread')).toEqual({ weapon: 'spread', level: 1, points: 0 });
+    expect(catchWeapon('spread', 1, 'spread')).toEqual({ weapon: 'spread', level: 2, points: 0 });
+    expect(catchWeapon('spread', 2, 'laser')).toEqual({ weapon: 'laser', level: 2, points: 0 });
+    expect(catchWeapon('laser', WEAPON_MAX, 'laser')).toEqual({ weapon: 'laser', level: WEAPON_MAX, points: 200 });
+  });
+
+  it('sprays more with each level, and fits under the shot cap', () => {
+    const guns: Weapon[] = ['blaster', 'spread', 'laser', 'missile', 'wave'];
+    for (const w of guns) {
+      const sizes = [1, 2, 3].map(lv => volley(w, lv).length);
+      expect(sizes[2]).toBeGreaterThanOrEqual(sizes[0]!);
+      for (const spec of volley(w, 3)) expect(spec.vy).toBeLessThan(0);
+    }
+    expect(volley('spread', 3)).toHaveLength(7);
+    expect(volley('laser', 1).every(s => s.pierce)).toBe(true);
+    expect(volley('blaster', 3).some(s => s.pierce)).toBe(false);
+    expect(missileSalvo(1)).toHaveLength(1);
+    expect(missileSalvo(3)).toHaveLength(4);
+    expect(volleyFits(SHOT_CAP - 7, 7)).toBe(true);
+    expect(volleyFits(SHOT_CAP - 6, 7)).toBe(false);
+  });
+
+  it('turns a missile toward its target, no faster than the turn rate', () => {
+    const v = steerMissile(0, -100, 100, 0, 0.1, 100);
+    expect(Math.hypot(v.vx, v.vy)).toBeCloseTo(100);
+    expect(v.vx).toBeGreaterThan(0);
+    expect(Math.atan2(v.vy, v.vx)).toBeCloseTo(-Math.PI / 2 + 0.1);
+  });
+
+  it('puts a whole volley in the air from the game', () => {
+    const { S, runtime, tapFire } = harness();
+    play(runtime, S);
+    runtime.debug!.arm('spread', 3);
+    tapFire();
+    runtime.update(1 / 60);
+    expect(runtime.debug!.state().shots).toBe(7);
+  });
+});
+
+describe('hearts, lives and pickups (GAM-59)', () => {
+  it('takes one heart a hit and loses the skiff on the last', () => {
+    expect(takeHit(3)).toEqual({ hearts: 2, lost: false });
+    expect(takeHit(1)).toEqual({ hearts: 0, lost: true });
+  });
+
+  it('caps hearts at five, tucks at five and skiffs at nine', () => {
+    const have = { hearts: 2, tucks: 3, lives: 3 };
+    expect(catchGift('heart', have)).toEqual({ ...have, hearts: 3, points: 0 });
+    expect(catchGift('heart', { ...have, hearts: HEART_CAP })).toEqual({ ...have, hearts: HEART_CAP, points: 200 });
+    expect(catchGift('tuck', { ...have, tucks: TUCK_CAP }).points).toBe(200);
+    expect(catchGift('life', have).lives).toBe(4);
+    expect(catchGift('life', { ...have, lives: LIFE_CAP })).toEqual({ ...have, lives: LIFE_CAP, points: 200 });
+  });
+
+  it('gives a skiff for each leg cleared, up to nine', () => {
+    expect(legReward(3)).toBe(4);
+    expect(legReward(LIFE_CAP)).toBe(LIFE_CAP);
+  });
+
+  it('has a slab always leave something, and a barb sometimes', () => {
+    for (let r = 0; r < 1; r += 0.01) expect(dropFor('slab', r)).not.toBeNull();
+    expect(dropFor('barb', 0.01)).toBe('life');
+    expect(dropFor('barb', 0.2)).toBe('heart');
+    expect(dropFor('barb', 0.9)).toBeNull();
+  });
+
+  it('catches a heart and a 1UP in the game', () => {
+    const { S, runtime } = harness();
+    play(runtime, S);
+    runtime.debug!.pellet();
+    runtime.update(1 / 60);
+    expect(runtime.debug!.state().hearts).toBe(HEARTS_START - 1);
+    runtime.debug!.give('heart');
+    runtime.debug!.give('life');
+    runtime.update(1 / 60);
+    expect(runtime.debug!.state().hearts).toBe(HEARTS_START);
+    expect(S.lives).toBe(4);
+  });
+
+  it('gives craft hit points so the bigger guns have work to do', () => {
+    expect(hpFor('spore')).toBe(1);
+    expect(hpFor('barb')).toBe(BARB_HP);
+    expect(hpFor('slab')).toBe(SLAB_HP);
+    expect(damage(3, 1)).toEqual({ hp: 2, gone: false });
+    expect(damage(2, 2)).toEqual({ hp: 0, gone: true });
   });
 });
 
 describe('slabs and the leg clock', () => {
-  it('stops a shot, and breaks on the fourth hit', () => {
-    expect(shotMeetsSlab(0)).toEqual({ hits: 1, gone: false, points: 0, stopped: true });
-    expect(shotMeetsSlab(3)).toEqual({ hits: 4, gone: true, points: 80, stopped: true });
-    expect(shotsThisPress(false, 5)).toBe(1);
-    expect(shotsThisPress(false, 6)).toBe(0);
-    expect(shotsThisPress(true, 4)).toBe(2);
-    expect(shotsThisPress(true, 5)).toBe(0);
-  });
-
   it('has no slab before leg 3, and keeps every beat inside 24 s', () => {
     expect(LEG_CLOCK).toBe(24);
     expect(SLAB_WAIT).toBe(6);
@@ -230,8 +331,8 @@ describe('slabs and the leg clock', () => {
     expect(pelletSpeed(1)).toBe(70);
     expect(pelletSpeed(8)).toBe(112);
     expect(landingBonus(2, 4)).toBe(520);
-    expect(beatFits(9, 4)).toBe(false);
-    expect(beatFits(8, 4)).toBe(true);
+    expect(beatFits(13, 4)).toBe(false);
+    expect(beatFits(12, 4)).toBe(true);
     for (let leg = 1; leg <= 8; leg++) {
       const beats = beatSchedule(leg, mulberry32(leg * 10007 + 17));
       const kinds = beats.map(b => b.kind);

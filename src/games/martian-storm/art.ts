@@ -3,7 +3,7 @@
 import type { ConsoleAPI } from '../types';
 import { drawSprite } from '../../kit/play/sprite';
 import type { Sprite } from '../../kit/play/types';
-import type { TokenPhase } from './rules';
+import type { CapsuleWeapon, PickupKind, ShotKind } from './rules';
 
 /** Nose up, one fin down the middle. 11×9. */
 export const SKIFF: Sprite = [
@@ -127,23 +127,82 @@ export function drawPellet(api: ConsoleAPI, x: number, y: number, t: number): vo
   }
 }
 
-/** The falling gift. The mark changes with the phase so the catch is readable. */
-export function drawToken(api: ConsoleAPI, x: number, y: number, phase: TokenPhase): void {
+/** A heart on the bar: filled while you have it, an outline once it is gone. 5×5. */
+export const HEART: Sprite = [
+  '## ##',
+  '#####',
+  '#####',
+  ' ### ',
+  '  #  ',
+];
+const HEART_EMPTY: Sprite = [
+  '## ##',
+  '# # #',
+  '#   #',
+  ' # # ',
+  '  #  ',
+];
+
+/** Three-by-five letters for the capsules. */
+const LETTER: Record<CapsuleWeapon, string[]> = {
+  spread: ['###', '#  ', '###', '  #', '###'],
+  laser: ['#  ', '#  ', '#  ', '#  ', '###'],
+  missile: ['# #', '###', '###', '# #', '# #'],
+  wave: ['# #', '# #', '# #', '###', '# #'],
+};
+
+export function drawHeart(api: ConsoleAPI, x: number, y: number, full: boolean): void {
+  drawSprite(api, full ? HEART : HEART_EMPTY, x, y, full ? 'gold' : 'dirt');
+}
+
+/** A falling pickup in a 7×7 box. A weapon capsule shows the letter of the gun it holds right now. */
+export function drawPickup(api: ConsoleAPI, x: number, y: number, kind: PickupKind, weapon: CapsuleWeapon, t: number): void {
   const g = api.g;
   const x0 = Math.round(x), y0 = Math.round(y);
-  g.fillStyle = api.col('hud');
+  g.fillStyle = api.col(kind === 'life' && Math.floor(t * 6) % 2 === 0 ? 'spark' : 'hud');
   g.fillRect(x0, y0, TOKEN_W, TOKEN_H);
   g.fillStyle = api.col('bg');
   g.fillRect(x0 + 1, y0 + 1, TOKEN_W - 2, TOKEN_H - 2);
-  g.fillStyle = api.col(phase === 'points' ? 'gold' : phase === 'tuck' ? 'spark' : 'cart');
-  if (phase === 'points') g.fillRect(x0 + 2, y0 + 2, 3, 3);
-  else if (phase === 'tuck') {
+  if (kind === 'weapon') {
+    g.fillStyle = api.col('gold');
+    LETTER[weapon].forEach((row, ry) => {
+      for (let rx = 0; rx < row.length; rx++) if (row[rx] === '#') g.fillRect(x0 + 2 + rx, y0 + 1 + ry, 1, 1);
+    });
+  } else if (kind === 'heart') {
+    g.fillStyle = api.col('gold');
+    g.fillRect(x0 + 2, y0 + 2, 1, 1); g.fillRect(x0 + 4, y0 + 2, 1, 1);
+    g.fillRect(x0 + 2, y0 + 3, 3, 1); g.fillRect(x0 + 3, y0 + 4, 1, 1);
+  } else if (kind === 'life') {
+    drawSprite(api, SKIFF_MINI, x0 + 1, y0 + 2, 'cart');
+  } else {
+    g.fillStyle = api.col('spark');
     g.fillRect(x0 + 3, y0 + 1, 1, 1);
     g.fillRect(x0 + 1, y0 + 3, 1, 1);
     g.fillRect(x0 + 5, y0 + 3, 1, 1);
     g.fillRect(x0 + 3, y0 + 5, 1, 1);
-  } else {
-    g.fillRect(x0 + 2, y0 + 2, 1, 3);
-    g.fillRect(x0 + 4, y0 + 2, 1, 3);
   }
 }
+
+/** The skiff's own shots. Bolts are the old 2×4 spark, beams a long bright line, missiles a dart with a
+    flickering tail, wave shots a small diamond. All of them point up the screen, away from the enemy sparks. */
+export function drawShot(api: ConsoleAPI, kind: ShotKind, x: number, y: number, t: number): void {
+  const g = api.g, x0 = Math.round(x), y0 = Math.round(y);
+  if (kind === 'bolt') { g.fillStyle = api.col('spark'); g.fillRect(x0, y0, 2, 4); return; }
+  if (kind === 'beam') {
+    g.fillStyle = api.col('text'); g.fillRect(x0, y0, 2, 10);
+    g.fillStyle = api.col('spark'); g.fillRect(x0, y0, 1, 10);
+    return;
+  }
+  if (kind === 'missile') {
+    g.fillStyle = api.col('gold'); g.fillRect(x0, y0, 2, 4);
+    g.fillStyle = api.col('spark'); g.fillRect(x0, y0 + 4 + (Math.floor(t * 16) % 2), 2, 1);
+    return;
+  }
+  g.fillStyle = api.col('cart');
+  g.fillRect(x0 + 1, y0, 1, 1); g.fillRect(x0, y0 + 1, 3, 1); g.fillRect(x0 + 1, y0 + 2, 1, 1);
+}
+
+/** Each shot's hitbox, from its top left. */
+export const SHOT_BOX: Record<ShotKind, { w: number; h: number }> = {
+  bolt: { w: 2, h: 4 }, beam: { w: 2, h: 10 }, missile: { w: 2, h: 5 }, wave: { w: 3, h: 3 },
+};
