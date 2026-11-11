@@ -305,8 +305,9 @@ function spawnDue() {
   }
 }
 
-function drop(kind: PickupKind, px: number, py: number) {
-  if (pickups.length >= PICKUP_CAP) return;
+/** A pickup starts to fall. `sure` (a slab's reward) goes in even when the cap is full. */
+function drop(kind: PickupKind, px: number, py: number, sure = false) {
+  if (pickups.length >= PICKUP_CAP && !sure) return;
   pickups.push({ kind, x: px, y: py, age: 0, first: capsuleSeq++ % 4 });
 }
 
@@ -335,7 +336,7 @@ function strike(craft: Craft, dmg: number, scored = true): boolean {
     if (scored) score.add(80, cx, craft.y);
     play(api, SLAB_BREAK);
     const got = dropFor('slab', legRng());
-    if (got) drop(got, cx - TOKEN_W / 2, cy);
+    if (got) drop(got, cx - TOKEN_W / 2, cy, true);
     return true;
   }
   const points = craft.kind === 'spore' ? 20 : 40;
@@ -392,6 +393,10 @@ function beginLanding() {
   }
   api.track('level_cleared', { game: 'martian-storm', level: leg });
   landFrom = { x, y };
+  // anything still falling when the skiff heads for the pad is caught on the way down, so a reward from the last
+  // slab is not lost when play stops
+  for (const p of pickups) collect(p);
+  pickups = [];
   if (leg >= 8) {
     grounding = true;
     groundT = CLEAR_SECS;
@@ -449,6 +454,29 @@ function moveShots(dt: number) {
   shots = shots.filter(shot => shot.y + 10 > api.HUD && shot.y < api.LH + 8 && shot.x > -8 && shot.x < api.LW + 8);
 }
 
+/** Give the skiff a pickup it has caught. */
+function collect(p: Pickup) {
+  if (p.kind === 'weapon') {
+    const got: CapsuleWeapon = capsuleWeapon(p.age, p.first);
+    const next = catchWeapon(weapon, level, got);
+    weapon = next.weapon;
+    level = next.level;
+    if (next.points) score.add(next.points, p.x, p.y);
+    else fx.pop(WEAPON_NAME[weapon] + (level > 1 ? ' ' + level : ''), p.x, p.y, { role: 'gold' });
+    play(api, POWER_JINGLE);
+  } else {
+    const next = catchGift(p.kind, { hearts, tucks: Math.min(TUCK_CAP, tucks), lives: api.S.lives });
+    if (p.kind === 'life' && next.lives > api.S.lives) play(api, LIFE_JINGLE);
+    else api.tone(880, 0.06, 0.045);
+    hearts = next.hearts;
+    tucks = next.tucks;
+    api.S.lives = next.lives;
+    if (next.points) score.add(next.points, p.x, p.y);
+    else fx.pop(p.kind === 'heart' ? 'HEART' : p.kind === 'life' ? '1UP' : 'TUCK', p.x, p.y, { role: 'gold' });
+  }
+  api.buzz('pickup');
+}
+
 /** Pickups fall with the dust. The skiff catches one with any part of it, blinking or not, but not mid-tuck. */
 function catchPickups(dt: number) {
   const skiff = { x, y, w: SKIFF_W, h: SKIFF_H };
@@ -457,25 +485,7 @@ function catchPickups(dt: number) {
     p.y += 40 * dt;
     if (p.y > api.LH) return false;
     if (api.S.mode !== 'play' || tuckLeft > 0 || !overlaps(skiff, { x: p.x, y: p.y, w: TOKEN_W, h: TOKEN_H })) return true;
-    if (p.kind === 'weapon') {
-      const got: CapsuleWeapon = capsuleWeapon(p.age, p.first);
-      const next = catchWeapon(weapon, level, got);
-      weapon = next.weapon;
-      level = next.level;
-      if (next.points) score.add(next.points, p.x, p.y);
-      else fx.pop(WEAPON_NAME[weapon] + (level > 1 ? ' ' + level : ''), p.x, p.y, { role: 'gold' });
-      play(api, POWER_JINGLE);
-    } else {
-      const next = catchGift(p.kind, { hearts, tucks: Math.min(TUCK_CAP, tucks), lives: api.S.lives });
-      if (p.kind === 'life' && next.lives > api.S.lives) play(api, LIFE_JINGLE);
-      else api.tone(880, 0.06, 0.045);
-      hearts = next.hearts;
-      tucks = next.tucks;
-      api.S.lives = next.lives;
-      if (next.points) score.add(next.points, p.x, p.y);
-      else fx.pop(p.kind === 'heart' ? 'HEART' : p.kind === 'life' ? '1UP' : 'TUCK', p.x, p.y, { role: 'gold' });
-    }
-    api.buzz('pickup');
+    collect(p);
     return false;
   });
 }
