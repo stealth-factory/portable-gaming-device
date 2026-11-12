@@ -29,3 +29,20 @@ jobs:
       - run: node --test '.github/scripts/*.test.mjs'
       # `build` runs `tsc --noEmit` first.
       - run: npm run build
+
+  # The native engine core (native/core, GAM-35): C++17 with no dependencies, built and tested on Linux
+  # with both compilers so it stays portable to the iOS and Android toolchains.
+  native-core:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        cxx: [g++, clang++]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - run: cmake -S native/core -B build/core -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER="$CXX" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        env:
+          CXX: ${{ matrix.cxx }}
+      - run: cmake --build build/core --parallel
+      - run: ctest --test-dir build/core --output-on-failure
