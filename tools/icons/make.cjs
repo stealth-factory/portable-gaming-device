@@ -1,8 +1,9 @@
-// Makes the app icons and favicon (public/icons/*.png, public/favicon.svg, public/favicon.ico) from one drawing: the set's CRT with the
+// Makes the app icons and favicon (public/icons/*.png, public/favicon.svg, public/favicon.ico, and the iOS app's
+// native/ios/PGD/Assets.xcassets/AppIcon.appiconset/icon-1024.png) from one drawing: the set's CRT with the
 // joystick on the tube, the power lamp, a silver PGD nameplate and the red and amber keys.
 // Run: node tools/icons/make.cjs   (needs Playwright's Chromium and the Silkscreen font from Google Fonts)
 const { chromium } = require('playwright');
-const fs = require('fs'), path = require('path');
+const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const ROOT = path.resolve(__dirname, '../..'), OUT = path.join(ROOT, 'public/icons');
 const FONT = 'https://fonts.googleapis.com/css2?family=Silkscreen:wght@700&display=block';
 
@@ -57,6 +58,8 @@ const ICONS = [
   { out: 'maskable-512.png', size: 512, svg: svg(SQUARE, 0.74) },   // inside the 80 % safe circle
   { out: 'maskable-192.png', size: 192, svg: svg(SQUARE, 0.74) },
   { out: 'apple-touch-icon.png', size: 180, svg: svg(SQUARE, 0.98) },  // iOS rounds the corners itself
+  // The iOS app's icon (GAM-37): square, and opaque, because App Store Connect refuses an icon with an alpha channel.
+  { out: '../../native/ios/PGD/Assets.xcassets/AppIcon.appiconset/icon-1024.png', size: 1024, svg: svg(SQUARE, 0.98), opaque: true },
 ];
 
 // The favicon is too small for a readable plate, so the tube says PGD in the console's own 3 × 5 pixel letters.
@@ -88,6 +91,25 @@ function ico(pngs){
   return Buffer.concat([head, ...pngs.map(x => x.buf)]);
 }
 
+// Re-encodes a screenshot as an RGB PNG (colour type 2, no alpha channel): the page decodes it, Node writes it.
+async function opaquePng(page, png){
+  const { w, h, rgba } = await page.evaluate(async src => {
+    const img = new Image(); img.src = src; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0);
+    return { w: c.width, h: c.height, rgba: Array.from(g.getImageData(0, 0, c.width, c.height).data) };
+  }, 'data:image/png;base64,' + png.toString('base64'));
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) for (let k = 0; k < 3; k++) raw[y * (w * 3 + 1) + 1 + x * 3 + k] = rgba[(y * w + x) * 4 + k];
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type), data]), crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+}
+
 (async () => {
   const b = await chromium.launch();
   const p = await b.newPage({ deviceScaleFactor: 1 });
@@ -98,7 +120,8 @@ function ico(pngs){
     const ok = await p.evaluate(async () => { await document.fonts.ready; return (await document.fonts.load('700 30px Silkscreen')).length > 0 && document.fonts.check('700 30px Silkscreen'); });
     if (!ok) { await b.close(); throw new Error('Silkscreen did not load from Google Fonts; no icons written'); }
     await p.waitForTimeout(150);
-    await p.screenshot({ path: path.join(OUT, ic.out), omitBackground: true, clip: { x: 0, y: 0, width: ic.size, height: ic.size } });
+    if (ic.opaque) fs.writeFileSync(path.join(OUT, ic.out), await opaquePng(p, await p.screenshot({ clip: { x: 0, y: 0, width: ic.size, height: ic.size } })));
+    else await p.screenshot({ path: path.join(OUT, ic.out), omitBackground: true, clip: { x: 0, y: 0, width: ic.size, height: ic.size } });
     console.log(ic.out);
   }
   const fav = favicon();
