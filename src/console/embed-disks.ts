@@ -104,7 +104,8 @@ export function checkPreview(p: Preview){
   size(p.w, p.h, 'preview');
   if (!(Number(p.fps) > 0 && Number(p.fps) <= 60)) throw new Error('preview fps must be from 1 to 60');
   if (!Array.isArray(p.frames) || !p.frames.length) throw new Error('preview needs at least one frame');
-  p.frames.forEach((f, i) => checkFrame(f, p.w, p.h, `preview frame ${i}`));
+  // a plain loop, so holes in the array (which forEach skips) are refused too
+  for (let i = 0; i < p.frames.length; i++) checkFrame(p.frames[i], p.w, p.h, `preview frame ${i}`);
 }
 
 /** What a page sends to insert a disk. */
@@ -130,8 +131,11 @@ export function readSource(src: DiskSource, order: number): { disk: GameDisk; ga
   }
   if (typeof diskJs !== 'string') throw new Error('send disk (the disk.js source) or pgdisk');
   const disk = completeDisk(diskFromScript(diskJs), order);
-  if (cover) { checkCover(cover); disk.cover = cover; }
-  if (preview) { checkPreview(preview); disk.preview = preview; }
+  if (cover) disk.cover = cover;
+  if (preview) disk.preview = preview;
+  // whichever source the artwork came from (sent beside the disk, the .pgdisk, or disk.js itself), check it here
+  if (disk.cover) checkCover(disk.cover);
+  if (disk.preview) checkPreview(disk.preview);
   return { disk, game: gameJs };
 }
 

@@ -80,6 +80,9 @@ describe('inserted disks', () => {
     expect(() => readSource({ disk: DISK_JS, cover: { w: 128, h: 96, data: 'not-base64!' } }, 0)).toThrow(/base64/);
     expect(() => readSource({ disk: DISK_JS, cover: { w: 128, h: 96, data: 'AAAA' } }, 0)).toThrow(/too short/);
     expect(() => readSource({ disk: DISK_JS, preview: { w: 8, h: 8, fps: 8, frames: [] } }, 0)).toThrow(/frame/);
+    expect(() => readSource({ disk: DISK_JS, preview: { w: 8, h: 8, fps: 8, frames: new Array(1) } }, 0)).toThrow(/frame 0/);
+    const ownArt = `var PGDDisk = { disk: { id: 'art', drawLoad() {}, cover: { w: 4, h: 4, data: '!' } } };`;
+    expect(() => readSource({ disk: ownArt }, 0)).toThrow(/base64/);
     expect(readSource({ disk: DISK_JS, cover: { w: 4, h: 4, data: btoa('\0\0\0\0') } }, 0).disk.cover?.w).toBe(4);
   });
   it('reads a real .pgdisk file', async () => {
