@@ -23,5 +23,12 @@ only when the font is usable.
 
 Each load attempt has a ten-second deadline. A failed or empty font response shows
 a translated Retry card; POWER and Enter can also retry. Each attempt creates a
-fresh face, and an old attempt cannot start a late boot after failure or cancellation. The vendored font also supplies the source for
-the native bitmap atlas in GAM-35.
+fresh face, and an old attempt cannot start a late boot after failure or cancellation. The vendored font is also the source of the native core's bitmap atlas
+(GAM-35). Regenerate `native/core/include/pgd/font_atlas.hpp` after changing the font:
+
+```sh
+node tools/fonts/atlas.cjs
+```
+
+It draws each glyph in Chromium at 8 and 16 px and keeps pixels at half coverage or
+more. `tests/unit/native-font.test.ts` fails if the atlas no longer matches the font.

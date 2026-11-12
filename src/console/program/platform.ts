@@ -39,6 +39,8 @@ export interface Platform {
 
   /** Take the pause or game-over card off the tube. */
   hideCard(): void;
+  /** Put the loaded game's game-over card over the tube: its own words, the level reached and the score. */
+  showOverCard(level: number, score: string): void;
   /** Show whether HOLD is on. */
   showHold(on: boolean): void;
   /** Flash one of the set's own buttons as it is pressed. */

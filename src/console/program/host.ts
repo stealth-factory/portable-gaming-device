@@ -6,7 +6,7 @@
 
    Everything that belongs to the machine (sound, storage, the clock, the cards over the tube) comes
    through `host.platform` (see platform.ts). The rest is console state that is still in core.ts and
-   moves into this folder piece by piece. */
+   moves into this folder piece by piece (the loader, then scores and name entry so far). */
 import type { ConsoleAPI, Dir, GameDisk } from '../../games/types';
 import type { Platform } from './platform';
 
@@ -19,6 +19,8 @@ export interface ConsoleHost {
   txt(s: string, x: number, y: number, role: string, align?: 'left' | 'center' | 'right', size?: number): void;
   readonly LW: number;
   readonly LH: number;
+  /** The status bar's height at the top of the tube; the console's own panels draw below it. */
+  readonly HUD: number;
   readonly stickDir: Dir | null;
   readonly tvOn: boolean;
   readonly age: { dipLeft: number };
@@ -26,10 +28,10 @@ export interface ConsoleHost {
   startGame(): void;
   setGame(disk: GameDisk | null): void;
   readonly game: GameDisk;
-  readBest(id: string): number;
-  readBoard(id: string): { n: string; s: number; l: number }[];
   setManual(ctx: string): void;
   clearInput(): void;
+  /** Let go of the arrow keys and WASD held down, as the screen changes under them. */
+  releaseKeys(): void;
   readonly api: ConsoleAPI;
   fetchRuntime(disk: GameDisk): Promise<unknown>;
   runtimeReady(id: string): boolean;
