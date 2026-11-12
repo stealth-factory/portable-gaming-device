@@ -48,3 +48,12 @@ jobs:
           CXX: ${{ matrix.cxx }}
       - run: cmake --build build/core --parallel
       - run: ctest --test-dir build/core --output-on-failure
+      # Every disk file played in the native script host (QuickJS, GAM-36) must give the same conformance stream as
+      # Node gives it, byte for byte.
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/disks/build.mjs --out build/disks
+      - run: node tools/conformance/native-check.mjs build/disks build/core/pgd_disk_run

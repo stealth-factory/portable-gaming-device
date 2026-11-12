@@ -102,6 +102,39 @@ Source: <https://github.com/stealth-factory/private-skills>. © Stealth Company.
 
 `claude-software-factory`, `self-hosted-macos-runner`, `turborepo-vercel-monorepo`, `xcode-vercel-release-tracks`
 
+## Native engine (`native/core/third_party/`)
+
+### QuickJS-ng v0.18.0 (`native/core/third_party/quickjs-ng/`)
+
+The JavaScript engine the iOS and Android apps run game disks in (GAM-36). Source: <https://github.com/quickjs-ng/quickjs>, tag `v0.18.0`, commit `d7215b0ad3fc2c562e8317fd9bca058fd4863804`; only the engine's own sources are copied, unchanged. Licence: MIT. Its Unicode tables (`libunicode-table.h`) are generated from the Unicode Character Database and carry the Unicode License v3 in their header, which is kept with the file.
+
+```text
+The MIT License (MIT)
+ 
+Copyright (c) 2017-2026 Fabrice Bellard
+Copyright (c) 2017-2024 Charlie Gordon
+Copyright (c) 2023-2026 Ben Noordhuis
+Copyright (c) 2023-2026 Saúl Ibarra Corretgé
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
 ## Fonts
 
 The page loads Silkscreen bold, Noto Sans TC, Noto Sans SC, IBM Plex Mono, Barlow Condensed and Spectral from Google Fonts at run time; each is under the SIL Open Font License 1.1. Silkscreen regular is served locally from the pinned font below and precached for offline use.

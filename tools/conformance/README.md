@@ -9,6 +9,15 @@ node tools/conformance/run.mjs i-invade tools/conformance/play.json /tmp/invasio
 
 The first argument is a folder under `src/games`, or a built disk file (`dist/disks/v1/<id>-<version>.pgdisk`, see `tools/disks/README.md`), which runs that file's own `disk.js` and `game.js` the way an app would. The runner bundles that folder's `disk.ts` and `game.ts`, the shared palettes and font metrics using Rolldown, as the existing I Invade autopilot does. Each invocation evaluates the bundle in a fresh JavaScript realm. A Mulberry32 generator replaces that realm's `Math.random` before its modules run. The output contains no timestamps or paths and is identical for the same disk code, input and seed.
 
+Both hosts run the same plain scripts in the disk's realm: the contract shim (`native/shim/shim.js`), the session (`native/shim/host.js`) and the script driver (`driver.js`). The native host does the same in QuickJS:
+
+```sh
+node tools/conformance/native.mjs dist/disks/v1/bricks-1.pgdisk tools/conformance/play.json /tmp/bricks-native.jsonl build/core/pgd_disk_run
+node tools/conformance/native-check.mjs dist/disks/v1 build/core/pgd_disk_run   # every disk, both hosts, byte for byte
+```
+
+`native.mjs` runs `pgd_disk_run` (built with `native/core`, see its README), which writes each frame's command buffer as it left the engine, then decodes it as `run.mjs` does. CI runs `native-check.mjs` after the core's tests.
+
 This host records game play. The system disk and its boot, launcher and loading screens will have their own host when GAM-39 splits the console program from the web platform. It does not simulate those screens or the native rasteriser.
 
 ## Input

@@ -52,11 +52,13 @@ var PGDShim = (function () {
       else { ops[length++] = TAG.json; ops[length++] = string(JSON.stringify(item, finite)); }
     }
     return {
-      /** One command: its opcode, its argument count, then each argument as a tag and a value. */
-      push: function (op, args) {
-        room(2 + args.length * 2);
-        ops[length++] = op; ops[length++] = args.length;
-        for (var i = 0; i < args.length; i++) value(args[i]);
+      /** One command: its opcode, its argument count, then each argument as a tag and a value. `args` may be an
+          `arguments` object; arguments before `from` are not the command's. */
+      push: function (op, args, from) {
+        var start = from || 0, count = args.length - start;
+        room(2 + count * 2);
+        ops[length++] = op; ops[length++] = count;
+        for (var i = start; i < args.length; i++) value(args[i]);
       },
       /** Hand over this frame's commands and start an empty one. */
       take: function () {
@@ -88,7 +90,7 @@ var PGDShim = (function () {
     var fillStyle = palette.pal[0], font = '8px Silkscreen, "Courier New", monospace';
     var held = [], stickDir = null, tapDown = false, tapQueued = false, tapHeld = false, tapX = 0, nextLayer = 0;
     var stack = [], layers = new WeakMap(), buttons = {};
-    function record(name) { buffer.push(OP[name], Array.prototype.slice.call(arguments, 1)); }
+    function record(name) { buffer.push(OP[name], arguments, 1); }
     function colourIndex(colour) {
       var index = palette.pal.indexOf(colour);
       if (index < 0) throw new Error('Colour outside palette: ' + colour);
@@ -98,7 +100,7 @@ var PGDShim = (function () {
     function col(role) { var c = palette.pal[palette.roles[role]]; return c == null ? fillStyle : c; }
 
     var g = {};
-    METHODS.forEach(function (method) { g[method] = function () { buffer.push(OP[method], Array.prototype.slice.call(arguments)); }; });
+    METHODS.forEach(function (method) { var op = OP[method]; g[method] = function () { buffer.push(op, arguments); }; });
     Object.defineProperties(g, {
       fillStyle: { get: function () { return fillStyle; }, set: function (value) { var index = colourIndex(value); fillStyle = value; record('fillStyle', index); } },
       font: { get: function () { return font; }, set: function (value) { measurePixelText('', value); font = value; record('font', value); } },
@@ -131,15 +133,22 @@ var PGDShim = (function () {
       g.font = size + 'px Silkscreen, "Courier New", monospace'; g.fillStyle = col(role);
       record('txt', text, x, y, colourIndex(fillStyle), align, size);
     }
-    function validLayer(layer) {
-      if (layer.px.length !== layer.w * layer.h) return false;
-      for (var i = 0; i < layer.px.length; i++) if (layer.px[i] > 3) return false;
+    function validPixels(px) {
+      for (var i = 0; i < px.length; i++) if (px[i] > 3) return false;
       return true;
     }
-    function same(a, b) {
-      if (!b || a.length !== b.length) return false;
-      for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-      return true;
+    // Whether a layer's pixels differ from the copy last sent (1), match it (0), or differ and hold an index above
+    // 3 (-1). Unchanged pixels were checked when they were sent. A host may supply __pgdLayerDiff(px, sent) for the
+    // same answer in native code: Tunnel Raider stamps an 86,400-pixel layer every frame.
+    var nativeDiff = typeof globalThis.__pgdLayerDiff === 'function' ? globalThis.__pgdLayerDiff : null;
+    function layerDiff(px, sent) {
+      if (sent && px.length === sent.length) {
+        if (nativeDiff && px instanceof Uint8Array) return nativeDiff(px, sent);
+        var i = 0;
+        while (i < px.length && px[i] === sent[i]) i++;
+        if (i === px.length) return 0;
+      }
+      return validPixels(px) ? 1 : -1;
     }
 
     var api = {
@@ -160,10 +169,11 @@ var PGDShim = (function () {
       layer: function (w, h) { integer(w, 1, 4096, 'layer.w'); integer(h, 1, 4096, 'layer.h'); return { w: w, h: h, px: new Uint8Array(w * h) }; },
       // A layer's pixels go into the buffer on its first stamp and again only when they change.
       stamp: function (layer, x, y) {
-        if (!validLayer(layer)) throw new Error('Invalid layer pixels');
-        var cached = layers.get(layer);
+        if (layer.px.length !== layer.w * layer.h) throw new Error('Invalid layer pixels');
+        var cached = layers.get(layer), diff = layerDiff(layer.px, cached && cached.px);
+        if (diff < 0) throw new Error('Invalid layer pixels');
         if (!cached) { cached = { id: nextLayer++, px: null }; layers.set(layer, cached); }
-        if (!same(layer.px, cached.px)) { cached.px = new Uint8Array(layer.px); record('layer', cached.id, layer.w, layer.h, new Uint8Array(layer.px)); }
+        if (diff > 0) { cached.px = new Uint8Array(layer.px); record('layer', cached.id, layer.w, layer.h, new Uint8Array(layer.px)); }
         record('stamp', cached.id, x, y);
       },
       idx: function (x, y) { return y * W + x; }, inb: function (x, y) { return x >= 0 && y >= 0 && x < W && y < H; }, DIRS: DIRS,
@@ -190,7 +200,7 @@ var PGDShim = (function () {
       get tapHeld() { return tapHeld; }, get tapQueued() { return tapQueued; }, get tapX() { return tapX; },
       clearTap: function () { tapQueued = false; },
       setBoostLabel: function (label) { api.setButtons({ boost: label === null ? null : { label: label } }); },
-      tone: function () { buffer.push(OP.tone, Array.prototype.slice.call(arguments)); },
+      tone: function () { buffer.push(OP.tone, arguments); },
       buzz: function (pattern) { record('buzz', pattern); }, track: function () {},
       saveBest: function () { record('best', api.best); },
       finishGame: function () { S.mode = 'over'; api.saveBest(); record('finishGame'); },
