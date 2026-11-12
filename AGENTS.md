@@ -162,7 +162,9 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 | `src/console/strings.ts`, `manual.ts` | The console's own strings and instructions |
 | `src/console/bus.ts` | Tiny store shared by the engine and React islands (language, whose instructions) |
 | `src/console/pwa.ts` | Install button, offline-ready and update prompts |
-| `src/games/types.ts` | The plug-in contract: `GameDisk`, `GameRuntime`, `ConsoleAPI` |
+| `src/games/types.ts` | Disk contract v1: `Screen2D`, palette-index `Layer`, `GameDisk`, `GameRuntime`, `ConsoleAPI` |
+| `src/console/screen.ts`, `layers.ts` | Browser adapters for the disk's drawing surface and palette-index layers; the CRT pipeline keeps its full Canvas context |
+| `src/kit/platform/font.ts`, `palettes.ts` | Shared Silkscreen advances and the seven phosphor themes, used by web and headless hosts; `tools/fonts/metrics.py` regenerates the font table |
 | `src/games/registry.ts` | Finds `*/disk.ts` (eager) and `*/game.ts` (lazy) |
 | `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/`, `bricks/`, `martian-storm/` | The six games; what each folder holds is under [Game folders](#game-folders) |
 | `src/games/README.md` | Making a game disk: every file, the artwork and images, and the steps for a new one |
@@ -186,11 +188,15 @@ Useful places:
 - **Scores:** `gg-best-<id>` and `gg-board-<id>` in localStorage (Tunnel Raider falls back to the standalone game's `eb-best` and `tr-board`); the last name typed is `gg-name`.
 - **Plug-in rule:**
   - **No console imports:** game folders never import from `src/console`. They get everything through `ConsoleAPI` (live getters; read values each frame).
-  - **No side effects:** loading a game's modules must have none; make canvases and the like in `create()`.
+  - **No side effects:** loading a game's modules must have none; allocate state and layers when `create()` or `start()` runs.
+  - **No browser globals:** disks and `src/kit/play` never use `window`, `self`, `document`, `navigator`, `localStorage`, `sessionStorage`, `location`, timers, animation frames, `fetch`, `performance`, `Date` or dynamic `import()`. `Math.random` is allowed and the host can seed it. The browser's `registry.ts` is host code, outside disks.
+  - **Drawing contract:** `api.g` is only `Screen2D`, never a full Canvas context. Use current palette strings for `fillStyle`, Silkscreen at 8 or 16 px for `font`, and `api.txt` for text. `measureText` uses the shared font table. Use `api.layer(w, h)` (`{ w, h, px: Uint8Array }`, indices 0 to 3 in row order) and `api.stamp(layer, x, y)` for cached pictures; index 0 is opaque too. Palette colour changes follow when stamped; a changed role mapping may rebuild indices in `onPalette()` to preserve the web appearance.
+  - **Disk revisions:** every disk declares `contract: 1`, a positive whole-number `version` (increase whenever its built files change), and `rating` (all six currently `4+`). Disks keep running as JavaScript on both hosts.
   - **Add to the API, not the import list:** if a game needs something new from the console, add it to `ConsoleAPI` and to `api` in `core.ts`.
   - **The kit is the exception:** games may import `src/kit/play/` (`import { makeFx } from '../../kit/play'`) and types from `src/kit/platform/`. The kit follows the same rules as a game: no `src/console` imports, nothing on load, no module-level state (factories hold it), and anything new from the console goes through `ConsoleAPI`. `tests/unit/kit/rules.test.ts` checks.
   - **Disks stay light:** a `disk.ts` may import `kit/play/sprite` for its loading screen, but not the rest of the kit.
   - **Browser check:** a new game must be covered by the generic every-disk play-through in `tests/flow.cjs` (boot, load, play, game over, name entry or the table, G back to the menu, at the same three sizes). Any game-specific behaviour (weapons, scoring quirks) needs its own check in that file too.
+  - **Contract check:** `tests/unit/kit/contract.test.ts` rejects banned globals and drawing members outside `Screen2D` in games and the play kit. `tools/conformance/run.mjs` records all six disks under Node at a fixed 1/60 s step with seeded randomness and scripted input; see its README for the stream format. System-disk coverage follows the console split in GAM-39.
 
 ## Game folders
 
@@ -198,7 +204,7 @@ Every game is one folder, `src/games/<folder>/`, plus a few files outside it. [`
 
 | File | Status | What it holds |
 | --- | --- | --- |
-| `src/games/<folder>/disk.ts` | required | `disk: GameDisk`: id, order, slug, `genre`, `players`, page title and description, title, file and size, `loadSecs` (≤ 5, unique) and `steps`, blurb, verb, `tap`, `controls`, `buttons`, game-over keys, `manual`, `strings`, `drawLoad`. Loaded up front, so it stays light (only `strings.ts`, `art.ts` and `kit/play/sprite`). |
+| `src/games/<folder>/disk.ts` | required | `disk: GameDisk`: `contract`, `version`, `rating`, id, order, slug, `genre`, `players`, page title and description, title, file and size, `loadSecs` (≤ 5, unique) and `steps`, blurb, verb, `tap`, `controls`, `buttons`, game-over keys, `manual`, `strings`, `drawLoad`. Loaded up front, so it stays light (only `strings.ts`, `art.ts` and `kit/play/sprite`). |
 | `src/games/<folder>/game.ts` | required | Default export `create(api)` → `{ start, update, draw, onPalette?, debug? }`. Fetched while the drive reads. |
 | `src/games/<folder>/strings.ts` | expected | `strings: Strings` in `en`, `zh-hant`, `zh-hans`: the name, instructions, button labels and game-over words. Keys carry a game prefix (`dHow`); the table is shared and a test fails on clashing keys. |
 | `src/games/<folder>/art.ts` | expected | Original sprites and drawing helpers, drawn only through colour roles (`api.col(role)`). Used by both the loading screen and the game, so no game state. |
