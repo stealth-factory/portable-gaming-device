@@ -3,3 +3,5 @@ dist/
 *.log
 .astro/
 build/
+# The iOS app's bundle id and team id (native/ios/Config/Local.xcconfig.example)
+Local.xcconfig

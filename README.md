@@ -107,8 +107,9 @@ Both scripts load pages with `?test`, which exposes a small `window.__gg` hook f
 - **React components** (`src/components/`): the header, the set (`ConsoleSet`: `Screen`, `Nameplate`, `PhosphorDial`, `Rocker`, `PowerPanel`, `KeyButton`, `Joystick`, `ActionButtons`), the bar under it and the status badge. They render to static HTML at build time with the ids the engine looks for, so they ship no JavaScript.
 - **The leaflet** (`Manual.tsx`) is the one live React island. It follows the engine's language and loaded game through a tiny shared store (`src/console/bus.ts`).
 - **The console engine** (`src/console/`) runs the 60 fps loop:
-  - **`core.ts`:** CRT picture, input, sound, switches, scores and the API games get.
-  - **`loader.ts`:** boot screens, loading and drive sounds, and the launcher's wiring.
+  - **`core.ts`:** CRT picture, input, switches, scores and the API games get.
+  - **`program/`:** the console program, DOM-free so the native apps can run it as their system disk. `loader.ts` (boot screens, loading, the drive's timing and the launcher's wiring) reaches the machine only through `platform.ts`, the `Platform` interface. The rest of `core.ts` moves here in steps (GAM-39).
+  - **`web/`:** the browser side of `Platform`: `platform.ts` builds it, `audio.ts` is the Web Audio sound and floppy drive.
   - **`launcher/`:** the disk menu (cover carousel). DOM-free, so the native apps can run it: `state.ts` and `layout.ts` are pure and unit-tested, `draw.ts` paints through the console API, and `system.ts` is what it asks of the console.
   - **`i18n.ts`:** every string, in three languages.
   - **`pwa.ts`:** install button and offline and update prompts.
