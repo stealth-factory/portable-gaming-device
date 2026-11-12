@@ -29,6 +29,9 @@ TEST("text measures as the shared metrics table does") {
   CHECK_EQ(pgd::measureText("", 8), 0.0);
   CHECK_EQ(pgd::measureText("\xC3\xA9", 8), 5.0);        // é, two UTF-8 bytes, one glyph
   CHECK_EQ(pgd::measureText("\xE4\xB8\xAD", 8), 5.0);    // a character the font lacks: the missing advance
+  CHECK_EQ(pgd::measureText("\xC1\x81", 8), 10.0);         // an overlong 'A': two malformed bytes
+  CHECK_EQ(pgd::measureText("\xED\xA0\x80", 8), 15.0);    // a surrogate: three malformed bytes
+  CHECK_EQ(pgd::measureText("\xF4\x90\x80\x80", 8), 20.0); // past U+10FFFF: four malformed bytes
   CHECK_EQ(pgd::measureText("A\tB", 8), pgd::measureText("A B", 8));
   CHECK_EQ(pgd::measureText("\xFF", 8), 5.0);            // a broken byte counts as one missing character
 }

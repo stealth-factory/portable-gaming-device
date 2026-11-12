@@ -19,6 +19,9 @@ std::uint32_t next(std::string_view s, std::size_t& i) {
     if ((t & 0xC0) != 0x80) { ++i; return 0xFFFD; }
     cp = (cp << 6) | (t & 0x3F);
   }
+  // Overlong forms, surrogates and values past U+10FFFF are malformed too: one byte at a time.
+  static constexpr std::uint32_t kMin[] = {0, 0x80, 0x800, 0x10000};
+  if (cp < kMin[extra] || (cp >= 0xD800 && cp <= 0xDFFF) || cp > 0x10FFFF) { ++i; return 0xFFFD; }
   i += static_cast<std::size_t>(extra) + 1;
   return cp;
 }
