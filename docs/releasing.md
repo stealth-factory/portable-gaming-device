@@ -166,11 +166,14 @@ higher than the last. Branch builds never reach TestFlight, and nothing is
 uploaded until `native/ios` exists: until then (and until the secrets below
 are set) a push run passes with a notice saying why.
 
-**Where it runs.** Signing happens only on GitHub-hosted macOS (the
-`xcode-27` image; the job refuses anything older than Xcode 27.1, which the
-iPhone Duo needs). The self-hosted Macs run the unsigned build and test jobs
-and never hold a key or certificate (see the `self-hosted-macos-runner`
-skill). Xcode signs automatically with the API key and makes a development
+**Where it runs.** On GitHub's standard `xcode-27` runner (Apple silicon,
+macOS 27, Xcode 27; the job refuses anything older than Xcode 27.1, which the
+iPhone Duo needs). Every Mac job in this repo, the unsigned iOS build and test
+included, runs on GitHub's standard hosted runners, which are free for a
+public repository (GAM-70): `xcode-27` for anything that builds the app,
+`macos-26` for other Apple silicon jobs and `macos-26-intel` for Intel ones.
+Never a self-hosted Mac or a paid larger runner (`-large`, `-xlarge`);
+`tests/unit/workflows.test.ts` checks. Xcode signs automatically with the API key and makes a development
 certificate on the throwaway Mac; the job revokes it at the end, pass or
 fail. **Actions → Apple certificates** lists, then with *apply* revokes, any
 left behind ("Your account has reached the maximum number of certificates").

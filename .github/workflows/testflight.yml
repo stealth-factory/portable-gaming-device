@@ -21,8 +21,9 @@ name: TestFlight
 # A manual run is allowed only at main or a v* tag, to re-run either stage;
 # branch builds never reach TestFlight.
 #
-# Signing happens here only, on a GitHub-hosted Mac. The self-hosted Macs run
-# unsigned build and test jobs and never see a key or certificate.
+# Signing happens here only, on a throwaway GitHub-hosted Mac. Every Mac job in
+# this repo runs on GitHub's standard hosted runners (free for a public repo,
+# GAM-70): never a self-hosted Mac or a paid larger runner.
 #
 # Secrets (repository or organisation level), from an App Store Connect Team API key (Users and Access
 # → Integrations → Team Keys, Admin role, so Xcode can manage signing and this
@@ -189,9 +190,10 @@ jobs:
     name: Upload iOS build
     needs: plan
     if: needs.plan.outputs.stage == 'internal' || needs.plan.outputs.stage == 'external'
-    # GitHub-hosted only, never the self-hosted runs-on switch: this job holds
-    # the App Store Connect key and makes a signing certificate. The xcode-27
-    # image carries Xcode 27.x; the step below insists on 27.1 or later.
+    # GitHub's standard xcode-27 runner (Apple silicon, macOS 27, Xcode 27.x;
+    # there is no Intel image for it). The step below insists on 27.1 or later.
+    # Never xcode-27-xlarge (a paid larger runner) or a self-hosted Mac: this
+    # job holds the App Store Connect key and makes a signing certificate.
     runs-on: xcode-27
     timeout-minutes: 60
     outputs:
