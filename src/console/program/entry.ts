@@ -6,6 +6,7 @@
    over the tube and the sounds come through `host.platform`. */
 import { host } from './host';
 import type { Dir } from '../../games/types';
+import { game, startGame } from './machine';
 import { scores, lastName, boardRank, addToBoard, ordinal, BOARD_MAX, NAME_MAX } from './scores';
 
 /** The letter grid: three rows of ten, then space, delete and END (two wide) at the end of the last row. */
@@ -62,7 +63,7 @@ export function entryPick(){ entryType(NKEYS[host.S.entry.cur].k); }
 
 export function entryFinish(){
   const S = host.S, rank = addToBoard(S.entry.name, S.score, S.level);
-  host.platform.track('high_score', { game: host.game.id, rank: rank + 1 });
+  host.platform.track('high_score', { game: game.id, rank: rank + 1 });
   S.boardHi = rank;
   [1047, 1319, 1568, 2093].forEach((f, i) => beep(f, 0.07, 0.04, 0, i * 0.07));
   enterOver(true);
@@ -83,7 +84,7 @@ export function entryKey(code: string){
 /** A tap on the tube, in tube pixels, during entry or while the table shows. Returns true when used. */
 export function entryTap(x: number, y: number){
   const S = host.S;
-  if (S.mode === 'over' && S.showBoard) { if (S.overT > 0.8) host.startGame(); return true; }
+  if (S.mode === 'over' && S.showBoard) { if (S.overT > 0.8) startGame(); return true; }
   if (S.mode !== 'entry') return false;
   const hit = keyRects.find(q => x >= q.x - 1 && x < q.x + q.w + 1 && y >= q.y - 1 && y < q.y + q.h + 1);
   if (hit) { S.entry.cur = hit.i; entryType(NKEYS[hit.i].k); }
@@ -163,5 +164,5 @@ export function drawBoard(){
     if (wide) txt(e ? 'L' + e.l : '', x0 + bw - 58, y, role, 'right');
     txt(e ? String(e.s).padStart(6, '0') : '------', x0 + bw, y, e ? role : 'textDim', 'right');
   }
-  if (Math.floor(S.overT * 2) % 2 === 0) txt('PRESS FIRE TO ' + host.game.verb, LW / 2, y0 + rh * BOARD_MAX + 8, 'hud', 'center');
+  if (Math.floor(S.overT * 2) % 2 === 0) txt('PRESS FIRE TO ' + game.verb, LW / 2, y0 + rh * BOARD_MAX + 8, 'hud', 'center');
 }

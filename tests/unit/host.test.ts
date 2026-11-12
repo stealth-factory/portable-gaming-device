@@ -17,12 +17,17 @@ function fakePlatform(over: Partial<Platform> = {}){
     tone(f){ tones.push(f); },
     click(delay){ clicks.push(delay); },
     motor(start, dur){ motors.push([start, dur]); },
+    buzz(h){ calls.push('buzz:' + h); },
+    loadCode: () => Promise.resolve(() => ({ start(){ calls.push('start'); }, update(){ calls.push('update'); }, draw(){ calls.push('draw'); } })),
     track(name){ calls.push('track:' + name); },
     layoutName: () => 'desk',
     reducedMotion: false,
     hideCard(){ calls.push('hideCard'); },
+    showPauseCard(){ calls.push('pauseCard'); },
     showOverCard(level, score){ calls.push(`over:${level}:${score}`); },
     showHold(on){ calls.push('hold:' + on); },
+    showGame(id){ calls.push('game:' + id); },
+    setManual(ctx){ calls.push('manual:' + ctx); },
     flash(c){ calls.push('flash:' + c); },
     autoloadId: () => null,
     oldList: false,
@@ -38,8 +43,7 @@ function bind(P: Platform, extra: Partial<ConsoleHost> = {}){
     platform: P,
     S: {},
     age: { dipLeft: 0 },
-    setAccReset(){}, setGame(){}, setManual(){}, clearInput(){},
-    fetchRuntime(){ return Promise.resolve(); },
+    setAccReset(){}, clearInput(){}, releaseKeys(){},
     get tvOn(){ return true; },
     ...extra,
   } as unknown as ConsoleHost);
@@ -162,7 +166,7 @@ describe('name entry', () => {
   function entryHost(){
     const f = fakePlatform(), S: any = { mode: 'over', score: 300, level: 3 };
     f.P.wakeAudio();
-    bind(f.P, { S, game: { id: 'x', verb: 'PLAY' } as any, releaseKeys(){}, stickDir: null } as any);
+    bind(f.P, { S, stickDir: null } as any);
     forgetScores(); loadScores('x');
     return { f, S };
   }

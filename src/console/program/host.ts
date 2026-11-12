@@ -5,14 +5,15 @@
    the loaded disk) are getters, so each read sees the current one.
 
    Everything that belongs to the machine (sound, storage, the clock, the cards over the tube) comes
-   through `host.platform` (see platform.ts). The rest is console state that is still in core.ts and
-   moves into this folder piece by piece (the loader, then scores and name entry so far). */
-import type { ConsoleAPI, Dir, GameDisk } from '../../games/types';
+   through `host.platform` (see platform.ts). What is left here is the web console's picture and input,
+   which stay in core.ts: the low-res buffer and its drawing, the tube's size and quirks, the stick and
+   held keys. The mode machine, the loaded game and the api are in this folder (machine.ts, api.ts). */
+import type { ConsoleAPI, Dir } from '../../games/types';
 import type { Platform } from './platform';
 
 export interface ConsoleHost {
   readonly platform: Platform;
-  /** The console's state bag. Still untyped: core owns the fields, the loader only reads and writes them. */
+  /** The console's state bag (machine.ts), untyped: each game owns its own fields. */
   readonly S: any;
   readonly g: CanvasRenderingContext2D;
   col(role: string): string;
@@ -25,16 +26,11 @@ export interface ConsoleHost {
   readonly tvOn: boolean;
   readonly age: { dipLeft: number };
   setAccReset(): void;
-  startGame(): void;
-  setGame(disk: GameDisk | null): void;
-  readonly game: GameDisk;
-  setManual(ctx: string): void;
   clearInput(): void;
   /** Let go of the arrow keys and WASD held down, as the screen changes under them. */
   releaseKeys(): void;
+  /** The api games get, made by makeConsoleAPI (api.ts) over core's picture and input. */
   readonly api: ConsoleAPI;
-  fetchRuntime(disk: GameDisk): Promise<unknown>;
-  runtimeReady(id: string): boolean;
 }
 
 /** Filled by bindHost. Reading a field before that throws, which is what an unbound seam should do. */

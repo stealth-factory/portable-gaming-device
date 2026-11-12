@@ -1,10 +1,11 @@
 /* The console program's Platform, built over the browser (GAM-39). See src/console/program/platform.ts.
 
-   core.ts makes one with the few things that still live there (analytics, the layout name, the card over
-   the tube); everything else is the page itself. */
+   core.ts makes one with the few things that still live there (analytics, the layout name, the cards over
+   the tube, haptics, the leaflet); everything else is the page itself. */
 import type { Platform, PlatformStore } from '../program/platform';
 import { SETTINGS_EVENT } from '../settings';
 import * as audio from './audio';
+import { loadGameCode } from '../../games/registry';
 
 /** localStorage, quietly doing nothing where the browser refuses it (private modes, full storage). */
 export const webStore: PlatformStore = {
@@ -22,6 +23,12 @@ export interface WebPlatformDeps {
   overlay: HTMLElement;
   /** Fill that card with the loaded game's game-over words and show it. */
   showOverCard: Platform['showOverCard'];
+  /** Show the HOLD card. */
+  showPauseCard: Platform['showPauseCard'];
+  /** The set's buzz, with the SOUND-off rule (core's haptics). */
+  buzz: Platform['buzz'];
+  /** The leaflet's instructions (core passes them to the React island). */
+  setManual: Platform['setManual'];
 }
 
 export function makeWebPlatform(deps: WebPlatformDeps): Platform {
@@ -34,12 +41,17 @@ export function makeWebPlatform(deps: WebPlatformDeps): Platform {
     tone: audio.tone,
     click: audio.click,
     motor: audio.motor,
+    buzz: deps.buzz,
+    loadCode: loadGameCode,
     track: deps.track,
     layoutName: deps.layoutName,
     reducedMotion: deps.reducedMotion,
     hideCard(){ deps.overlay.hidden = true; },
     showOverCard: deps.showOverCard,
+    showPauseCard: deps.showPauseCard,
     showHold(on){ $('pauseBtn')?.setAttribute('aria-pressed', String(on)); },
+    showGame(id){ document.documentElement.setAttribute('data-game', id ?? 'menu'); },
+    setManual: deps.setManual,
     flash(control){
       const b = $(control + 'Btn'); if (!b) return;
       b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 140);

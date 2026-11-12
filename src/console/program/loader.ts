@@ -12,6 +12,7 @@ import { BOOT_BUTTONS, MENU_BUTTONS } from '../console-buttons';
 import { bootScript, PROMPT } from '../boot';
 import { menuRows } from '../menu-layout';
 import { readBest, readBoard } from './scores';
+import { game, setGame, startGame, fetchRuntime, runtimeReady } from './machine';
 
 export const BOOT_LEN = 4.0, WARM_LEN = 2.3, MAX_LOAD = 5;
 
@@ -76,13 +77,13 @@ export function diskInfo(y: number, p: number, t: number, d: GameDisk){
 
 /* ---------- boot ---------- */
 export function startConsole(kind: 'cold' | 'warm'){
-  const { S, platform: P, clearInput, age, setAccReset, setGame, setManual } = host;
+  const { S, platform: P, clearInput, age, setAccReset } = host;
   wire(); P.wakeAudio();
   S.mode = 'boot'; S.bootT = 0; S.bootAt = P.now(); S.bootKind = kind; S.bootLen = kind === 'cold' ? BOOT_LEN : WARM_LEN;
   P.hideCard(); clearInput();
   P.showHold(false);
   if (kind === 'cold') { age.dipLeft = 0.2; setAccReset(); }
-  setGame(null); setManual('console'); useButtons(BOOT_BUTTONS);
+  setGame(null); P.setManual('console'); useButtons(BOOT_BUTTONS);
   playBoot(kind);
 }
 export function drawBoot(){
@@ -132,21 +133,21 @@ const system: LauncherSystem = {
   seek: () => { const P = host.platform; if (P.sounding) { P.click(0.02, 0.18, 2300); P.click(0.07, 0.18, 2500); } },
   label: key => String(I18N.en?.[key] ?? GAMES.map(d => d.strings.en?.[key]).find(v => typeof v === 'string') ?? key),
 };
-// made on first use: core.ts (and its api) imports this module, so api isn't ready while this file loads
+// made on first use: the api is made by core after this module loads, so it isn't ready while this file loads
 let made: Launcher | null = null;
 const launcher = () => (made ??= createLauncher(host.api, system));
 /** Where a tap lands on the launcher now, for tests/flow.cjs (`__gg.launcherTargets()`). */
 export const launcherTargets = () => oldList() ? [] : launcher().targets();
 
 export function enterMenu(){
-  const { S, platform: P, setGame, setManual } = host;
+  const { S, platform: P } = host;
   wire();
   S.mode = 'menu'; S.menuT = 0; S.menuDir = null; S.menuRep = 0;
   bests.clear();
   if (S.menuSel == null) { const i = Math.max(0, GAMES.findIndex(d => d.id === lastId())); S.menuSel = i; }
   launcher().enter(S.menuSel);
   loadPreviews();
-  P.hideCard(); setGame(null); setManual('console'); useButtons(MENU_BUTTONS);
+  P.hideCard(); setGame(null); P.setManual('console'); useButtons(MENU_BUTTONS);
 }
 
 /* ---------- the old disk list (?menu=list) ---------- */
@@ -229,7 +230,7 @@ export function drawMenu(){
 
 /* ---------- loading a game ---------- */
 export function loadGame(i: number){
-  const { platform: P, setGame, S, fetchRuntime, clearInput } = host;
+  const { platform: P, S, clearInput } = host;
   const d = GAMES[i]; if (!d) return;
   P.wakeAudio();
   setGame(d);
@@ -255,14 +256,14 @@ export function updateBoot(){
   if (i >= 0) { S.menuSel = i; loadGame(i); } else enterMenu();
 }
 export function updateLoad(_dt: number){
-  const { S, platform: P, runtimeReady, game, startGame } = host;
+  const { S, platform: P } = host;
   S.loadT = (P.now() - S.loadAt) / 1000;
   if (S.loadT < S.loadLen + 0.35) return;
   if (runtimeReady(game.id)) { unreachable.delete(game.id); startGame(); }   // it loaded, so it's on the device after all
   else if (S.loadErr) { S.diskError = 2.5; unreachable.add(game.id); enterMenu(); }   // couldn't fetch the game (offline before it was cached)
 }
 export function drawLoad(){
-  const { game, S, api, runtimeReady } = host;
+  const { S, api } = host;
   let p = progress(game.steps, S.loadT / S.loadLen);
   if (p >= 1 && !runtimeReady(game.id)) p = 0.99;
   game.drawLoad(api, p, S.loadT);
@@ -270,7 +271,7 @@ export function drawLoad(){
 
 /* ---------- SELECT: back to the disk menu through a warm boot ---------- */
 export function pressSelect(){
-  const { platform: P, tvOn, game, S } = host;
+  const { platform: P, tvOn, S } = host;
   P.wakeAudio();
   if (P.sounding) P.tone(1100, 0.015, 0.06);
   P.flash('select');

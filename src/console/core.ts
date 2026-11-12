@@ -1,18 +1,21 @@
 import { MODES, MODE_ORDER, LEGACY } from '../kit/platform/palettes';
 export { CGA_ROLES, MONO_ROLES, MODES, MODE_ORDER, LEGACY } from '../kit/platform/palettes';
 import { track as vaTrack } from '@vercel/analytics';
-import { DISKS, loadGameCode } from "../games/registry";
-import type { Dir, GameDisk, GameRuntime, ConsoleAPI } from "../games/types";
+import { DISKS } from "../games/registry";
+import type { Dir, ConsoleAPI } from "../games/types";
 import { bus } from "./bus";
 import * as Btn from "./buttons";
 import { Stick } from "./stick";
 import { makeHaptics, type Haptic } from "../kit/platform/haptics";
-import { DEFAULTS, scoreKeys, SETTINGS_EVENT } from "./settings";
+import { DEFAULTS, SETTINGS_EVENT } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
-import { diskInfo, startConsole, drawBoot, updateBoot, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame, launcherTargets } from "./program/loader";
+import { startConsole, menuKey, menuTap, pressSelect, loadGame, launcherTargets } from "./program/loader";
 import { bindHost } from "./program/host";
-import { scores, loadScores, saveBest, qualifies, forgetScores } from "./program/scores";
-import { NKEYS, keyRects, startEntry, enterOver, entryKey, entryTap, entryPick, updateEntry, updateOver, drawEntry, drawBoard } from "./program/entry";
+import { scores, loadScores, saveBest } from "./program/scores";
+import { NKEYS, keyRects, entryKey, entryTap } from "./program/entry";
+import { S, game, runtime, setGame, startGame, finishGame, forgetRuntime, togglePause, clearScores, menuFire, inGame, GAME_MODES, update, draw as drawScreen } from "./program/machine";
+import { makeConsoleAPI, mulberry32, setBoostLabel } from "./program/api";
+export { S, game, runtime, setGame, startGame, finishGame, forgetRuntime, togglePause, clearScores, menuFire, inGame, GAME_MODES, update, mulberry32, setBoostLabel };
 import { makeWebPlatform } from "./web/platform";
 import { ac, muted, setMuted, ensureAudio, hush, tone, audioOut } from "./web/audio";
 export { ac, muted, ensureAudio, hush, tone };
@@ -176,31 +179,9 @@ export function setFx(v: boolean){ fx = v; accReset = true; $('fxBtn').setAttrib
 /* ---------- utilities ---------- */
 export const idx = (x: number, y: number) => y * W + x;
 export const inb = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
-export function mulberry32(a: number){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 export const DIRS = { up:{dx:0,dy:-1}, down:{dx:0,dy:1}, left:{dx:-1,dy:0}, right:{dx:1,dy:0} };
 
-/* ---------- the loaded game (its scores are in program/scores.ts) ---------- */
-export let game: GameDisk = DISKS[0];
-/* the loaded game's code: fetched while its disk loads, then kept (one runtime per game) */
-export let runtime: GameRuntime | null = null;
-// a Map, so a disk id can never collide with an Object.prototype name (`constructor`); a disk replaced while its code was
-// still on the way bumps its generation, so the old code is dropped and the new disk's fetched instead
-const runtimes = new Map<string, GameRuntime>();
-const generations = new Map<string, number>();
-export const runtimeReady = (id: string) => runtimes.has(id);
-/** Drop a game's runtime, so its next load makes a fresh one (a disk replaced at run time, or one that crashed). */
-export function forgetRuntime(id: string){ runtimes.delete(id); generations.set(id, (generations.get(id) || 0) + 1); }
-export function fetchRuntime(d: GameDisk): Promise<GameRuntime> {
-  const have = runtimes.get(d.id);
-  if (have) return Promise.resolve(have);
-  const gen = generations.get(d.id) || 0;
-  return loadGameCode(d.id).then(create => {
-    if ((generations.get(d.id) || 0) !== gen) return fetchRuntime(d);   // replaced while loading: fetch the new one
-    let rt = runtimes.get(d.id);
-    if (!rt) { rt = create(api); runtimes.set(d.id, rt); }
-    return rt;
-  });
-}
+/* ---------- the loaded game, its runtime and the mode machine: program/machine.ts ---------- */
 
 /* ---------- audio: PC-speaker square waves and the floppy drive, in web/audio.ts ---------- */
 
@@ -212,18 +193,7 @@ const haptics = makeHaptics({
 });
 export function buzz(h: Haptic){ haptics.buzz(h); }
 
-/* ---------- state ---------- */
-export const S: any = {
-  mode: 'title', prevMode: null, modeT: 0, time: 0,
-  level: 1, score: 0, lives: 3, nextLife: 20000,
-  dug: new Uint8Array(W * H), em: new Uint8Array(W * H), emLeft: 0,
-  bags: [], golds: [], monsters: [], sparks: [], parts: [], pops: [],
-  spawned: 0, total: 0, maxAlive: 3, spawnT: 0,
-  sun: { active: false, used: false, x: W - 2, y: 1 },
-  bonusT: 0, bonusChain: 0, sirenT: 0, sirenHi: false,
-  charge: 1, streak: 0, lastGem: -9,
-  player: null, dist: new Int16Array(W * H), distT: 0,
-};
+/* ---------- state: the state bag S is the console program's (program/machine.ts) ---------- */
 
 /* ---------- input ---------- */
 export const held: Dir[] = [];
@@ -271,7 +241,6 @@ addEventListener('blur', () => { held.length = 0; for (const id of Btn.slotIds()
 /* the tab or app goes into the background mid-game (another tab, the phone's home screen, an app switch): HOLD goes on
    and stays on when the page comes back, so the player resumes deliberately, and any sound still ringing stops.
    Boot, the menu, loading, name entry and game over carry on as they are. */
-export const GAME_MODES = ['ready', 'play', 'dying', 'clear'];
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) return;
   held.length = 0; for (const id of Btn.slotIds()) if (id !== 'boost') Btn.release(id);
@@ -372,8 +341,6 @@ document.addEventListener('visibilitychange', () => {
     el.addEventListener('contextmenu', e => e.preventDefault());
   });
 })();
-/** The loaded game's runtime is in charge (its pad and its own keys apply), as opposed to the console's screens. */
-export const inGame = () => ['ready', 'play', 'dying', 'clear', 'paused'].includes(S.mode);
 /* a game with no stick (`controls: 'pad'`) gets the button pad in the stick's place while it plays; the stick is back
    for the console's own screens (menu, loading, name entry, high scores), so SELECT and RESET restore it too */
 export let padShown = false;
@@ -395,14 +362,6 @@ Btn.setTranslator(k => I18N[lang][k] ?? k);
 /* ---------- instructions: the console's while the menu is up, the loaded game's otherwise (rendered by the React leaflet) ---------- */
 export let manCtx = 'console';
 export function setManual(ctx: string){ manCtx = ctx; bus.set({ manual: ctx }); }
-/* the loaded game: its scores, its buttons and its instructions (null for the console's own screens, which set their own buttons) */
-export function setGame(d: GameDisk | null){
-  if (d) { game = d; loadScores(d.id); Btn.useButtons(d.buttons); }
-  document.documentElement.setAttribute('data-game', d ? d.id : 'menu');
-  if (d) setManual(d.id);
-}
-/** @deprecated games use api.setButtons({ boost: { label } }); kept so older game code still runs */
-export function setBoostLabel(key: string | null){ Btn.setButtons({ boost: key ? { label: key } : null }); }
 export function renderOverlay(){
   const T = I18N[lang];
   const v = { font: [T.fontError, T.fontErrorText, T.fontRetry], title: ['TUNNEL RAIDER', T.titleText, T.start], paused: [T.paused, T.pausedText, T.resume], over: [T[game.overKey], T.overText(ovVars.n, ovVars.s), T[game.againKey]] }[ovKind];
@@ -498,44 +457,10 @@ export function resetSettings(){
   applyLang(DEFAULTS.lang, true);
   track('settings_reset', { layout: layoutName() });
 }
-export function clearScores(){
-  try { for (const k of scoreKeys(Object.keys(localStorage))) localStorage.removeItem(k); } catch (_) {}
-  forgetScores(); S.bestAtStart = 0;
-  if (S.mode === 'over' && S.showBoard) { S.showBoard = false; S.boardHi = -1; overlay.hidden = false; }   // the attract loop only swaps views while there is a table
-  track('scores_cleared', { game: game.id });
-}
 addEventListener(SETTINGS_EVENT, (e: Event) => {
   const what = (e as CustomEvent).detail;
   if (what === 'reset') resetSettings(); else if (what === 'scores') clearScores();
 });
-export function togglePause(forceOn?: boolean){
-  if (typeof tvOn !== 'undefined' && !tvOn) return;
-  if (S.mode === 'paused') { if (forceOn) return; S.mode = S.prevMode; overlay.hidden = true; $('pauseBtn').setAttribute('aria-pressed', 'false'); return; }
-  if (!GAME_MODES.includes(S.mode)) return;
-  S.prevMode = S.mode; S.mode = 'paused'; held.length = 0;
-  $('pauseBtn').setAttribute('aria-pressed', 'true');
-  showOverlay('paused');
-}
-export function startGame(){
-  ensureAudio();
-  S.level = 1; S.score = 0; S.lives = 3; S.nextLife = 20000; S.streak = 0; S.bestAtStart = scores.best; S.showBoard = false; S.boardHi = -1;
-  S.parts.length = 0; S.pops.length = 0;
-  setGame(game);
-  const rt = runtimes.get(game.id);
-  if (!rt) { startConsole('warm'); return; }   // dropped since its load finished (its disk was replaced): back to the menu
-  runtime = rt;
-  runtime.start();
-  track('game_start', { game: game.id, layout: layoutName() });
-  overlay.hidden = true; clearInput();
-  S.mode = 'ready'; S.modeT = game.id === 'tunnel' ? 1.4 : 1.2;
-}
-/* the end of a game: save the best, then name entry if it made the table, otherwise the attract loop */
-export function finishGame(){
-  saveBest(); buzz('over');
-  track('game_over', { game: game.id, score: S.score });
-  if (S.score > 0 && S.score > (S.bestAtStart || 0)) track('new_best', { game: game.id, score: S.score });
-  if (qualifies(S.score)) startEntry(); else enterOver(false);
-}
 export function clearInput(){ held.length = 0; stickDir = null; Btn.releaseAll(); tapQueued = false; tapHeld = false; }
 /* power: off collapses the picture to a line, then a dot that fades; on warms up, degausses and boots */
 export let tvOn = false, offT = 99;   // the set starts switched off
@@ -592,18 +517,7 @@ $('selectBtn').addEventListener('pointerdown', e => { e.preventDefault(); buzz('
 $('selectBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); pressSelect(); } });
 $('resetBtn').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); $('resetBtn').dispatchEvent(new PointerEvent('pointerdown')); } });
 
-/* ---------- main update ---------- */
-export function update(dt: number){
-  S.time += dt;
-  for (let i = S.parts.length - 1; i >= 0; i--) { const q = S.parts[i]; q.life -= dt; q.vy += 220 * dt; q.x += q.vx * dt; q.y += q.vy * dt; if (q.life <= 0) S.parts.splice(i, 1); }
-  for (let i = S.pops.length - 1; i >= 0; i--) { const q = S.pops[i]; q.life -= dt; q.y -= 24 * dt; if (q.life <= 0) S.pops.splice(i, 1); }
-  if (S.mode === 'entry') { updateEntry(dt); return; }
-  if (S.mode === 'over') { updateOver(dt); return; }   // attract loop: the game-over card and the high-score table take turns
-  if (S.mode === 'boot') { updateBoot(); return; }
-  if (S.mode === 'menu') { updateMenu(dt); return; }
-  if (S.mode === 'load') { updateLoad(dt); return; }
-  if (runtime && ['ready', 'play', 'dying', 'clear'].includes(S.mode)) runtime.update(dt);
-}
+/* ---------- main update: update() in program/machine.ts ---------- */
 
 /* ---------- drawing into the low-res buffer (game units, C = 32) ---------- */
 export const g = lx;
@@ -623,14 +537,6 @@ export function banner(t1: string, t2?: string){
   if (t2) txt(t2, LW / 2, y + 30, 'hud', 'center', 8);
 }
 
-// FIRE (button or Space) picks a letter, or starts a new game from the attract loop
-export function menuFire(){
-  if (S.mode === 'menu') { loadGame(S.menuSel); return true; }
-  if (S.mode === 'boot' || S.mode === 'load') return true;
-  if (S.mode === 'entry') { entryPick(); return true; }
-  if (S.mode === 'over' && S.overT > 0.8) { startGame(); return true; }
-  return false;
-}
 addEventListener('pointerup', () => { tapHeld = false; });
 addEventListener('pointercancel', () => { tapHeld = false; });
 cv.addEventListener('pointerdown', e => {
@@ -645,12 +551,7 @@ export function renderFrame(){
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.imageSmoothingEnabled = false;
   g.fillStyle = col('bg'); g.fillRect(0, 0, LW, LH);
-  if (S.mode === 'off') { /* nothing on the tube */ }
-  else if (S.mode === 'boot') drawBoot(); else if (S.mode === 'menu') drawMenu(); else if (S.mode === 'load') drawLoad(); else {
-  if (runtime) runtime.draw();
-  if (S.mode === 'entry') drawEntry();
-  if (S.mode === 'over' && S.showBoard) drawBoard();
-  }
+  drawScreen();
   // snap every pixel to the four colours the hardware could show
   const img = g.getImageData(0, 0, LW, LH), d = img.data, P = palRGB;
   const useAcc = fx, decay = Math.pow(0.5, frameDt / M.half), ad = accImg.data, bg = P[0], reset = accReset;
@@ -885,9 +786,6 @@ pixelFont.load();
 requestAnimationFrame(frame);
 
 /* setters for state the game modules change (an imported binding can't be assigned from outside its module) */
-export function setBest(v: number){ scores.best = v; }
-export function clearFireQueued(){ Btn.clearQueued('fire'); }
-export function clearBoostQueued(){ Btn.clearQueued('boost'); }
 export function clearTap(){ tapQueued = false; }
 export function setAccReset(){ accReset = true; }
 
@@ -914,38 +812,33 @@ function captureCover(){
 /* ---------- the API games get (see src/games/types.ts): live getters over the console's state ---------- */
 const screen = makeScreen2D(g, () => M);
 const stamp = makeStamp(g, () => palRGB);
-export const api: ConsoleAPI = {
+/* The api object itself is the console program's (program/api.ts); core gives it the picture and the input. */
+export const api: ConsoleAPI = makeConsoleAPI({
   layer, stamp,
   get g(){ return screen; }, get LW(){ return LW; }, get LH(){ return LH; }, get HUD(){ return HUD; },
   get W(){ return W; }, get H(){ return H; }, get C(){ return C; }, get K(){ return K; },
   fitGrid, col, get palRGB(){ return palRGB; }, get palette(){ return M; },
   txt, banner, rr, poly, circ, idx, inb, DIRS,
-  get S(){ return S; },
   get held(){ return held as any; }, get stickDir(){ return stickDir as any; }, wantDir: () => wantDir() as any,
-  button: Btn.button, clearButton: Btn.clearQueued, setButtons: Btn.setButtons,
-  get fireQueued(){ return Btn.button('fire').queued; }, get fireHeld(){ return Btn.button('fire').held; },
-  get boostQueued(){ return Btn.button('boost').queued; }, get boostHeld(){ return Btn.button('boost').held; },
   get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; }, get tapX(){ return tapX; },
-  clearFire: clearFireQueued, clearBoost: clearBoostQueued, clearTap, setBoostLabel,
-  tone, buzz,
-  get best(){ return scores.best; }, set best(v: number){ scores.best = v; },
-  saveBest, finishGame, track, mulberry32,
-  diskInfo: (y, p, t, d) => diskInfo(y, p, t, d),
-};
+  clearTap,
+});
 
 /* The loader reads the console through this seam (see host.ts). It has to be bound before the first
    frame, and the requestAnimationFrame above does not run until this module has finished. */
-const platform = makeWebPlatform({ track, layoutName, reducedMotion: reduceMotion, overlay, showOverCard: (n, sc) => showOverlay('over', { n, s: sc }) });
+const platform = makeWebPlatform({
+  track, layoutName, reducedMotion: reduceMotion, overlay, buzz, setManual,
+  showOverCard: (n, sc) => showOverlay('over', { n, s: sc }),
+  showPauseCard: () => showOverlay('paused'),
+});
 bindHost({
   platform,
   S, g, col, txt, age, api,
-  setAccReset, startGame, setGame, setManual, clearInput, releaseKeys: () => { held.length = 0; },
+  setAccReset, clearInput, releaseKeys: () => { held.length = 0; },
   HUD,
-  fetchRuntime, runtimeReady,
   get LW(){ return LW; },
   get LH(){ return LH; },
   get stickDir(){ return stickDir; },
   get tvOn(){ return tvOn; },
-  get game(){ return game; },
 });
 loadScores(game.id);   // the first disk's, until a game is loaded

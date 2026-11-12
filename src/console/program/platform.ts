@@ -6,6 +6,8 @@
    implement it over their engine core, where the program runs as the built-in system disk.
 
    Keep it small and abstract: a call here is a call both hosts must make work the same way. */
+import type { CreateGame } from '../../games/types';
+import type { Haptic } from '../../kit/platform/haptics';
 
 /** Key-value storage on this device. Values are strings; a failed write is ignored, as on the web. */
 export interface PlatformStore {
@@ -30,6 +32,11 @@ export interface Platform {
   click(delay: number, vol?: number, freq?: number): void;
   /** The drive motor running for `dur` seconds from `start` seconds from now: a low rumble with a hum under it. */
   motor(start: number, dur: number): void;
+  /** A buzz on a device that can vibrate (rules in src/kit/platform/haptics.ts); nothing with SOUND off. */
+  buzz(h: Haptic): void;
+
+  /** Fetch a disk's game code (once; the program keeps the runtime it makes). Rejects when the disk can't be reached. */
+  loadCode(id: string): Promise<CreateGame>;
 
   /** Analytics. At most two properties (Vercel Pro); does nothing in the apps. */
   track(name: string, data?: Record<string, string | number | boolean | null>): void;
@@ -39,10 +46,16 @@ export interface Platform {
 
   /** Take the pause or game-over card off the tube. */
   hideCard(): void;
+  /** Put the HOLD card over the tube. */
+  showPauseCard(): void;
   /** Put the loaded game's game-over card over the tube: its own words, the level reached and the score. */
   showOverCard(level: number, score: string): void;
   /** Show whether HOLD is on. */
   showHold(on: boolean): void;
+  /** The disk now loaded (its id), or null for the console's own screens; the web styles the set by it. */
+  showGame(id: string | null): void;
+  /** Whose instructions the leaflet shows: `console` or a disk's id. */
+  setManual(ctx: string): void;
   /** Flash one of the set's own buttons as it is pressed. */
   flash(control: 'select'): void;
 
