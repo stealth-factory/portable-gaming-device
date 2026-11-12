@@ -75,10 +75,10 @@ A command keeps exactly the arguments the disk passed, so `arc` with and without
 
 Opcodes are never renumbered; a new command takes the next number. A change to what an existing command means raises the version.
 
-`txt`, `rr`, `poly`, `circ` and `banner` arrive as the drawing commands they expand into (`txt` sets `font` and `fillStyle`, then sends `txt`). A layer's pixels are sent on its first stamp and again only when they change; a host keeps layer definitions between frames, and every `stamp` refers to the latest definition of its id. Each frame starts with `setTransform(1, 0, 0, 1, 0, 0)`, the background `fillStyle` and a full-screen `fillRect`.
+`txt`, `rr`, `poly`, `circ` and `banner` arrive as the drawing commands they expand into (`txt` sets `font` and `fillStyle`, then sends `txt`). A layer's pixels are sent on its first stamp and again only when they change; a host keeps layer definitions between frames, and every `stamp` refers to the latest definition of its id. In a frame, whatever the game sends during its update (a `tone`, a `buzz`, `buttons`) comes first; the drawing then starts with `setTransform(1, 0, 0, 1, 0, 0)`, the background `fillStyle` and a full-screen `fillRect`. An object or array argument holding `NaN` or an infinity is refused rather than sent as `null`.
 
 ## Tests
 
 `tests/unit/shim.test.ts` checks the layout in Node: a known frame's exact numbers, every tag, string sharing within a frame, layers sent only on change, growth past the first allocation, and that the shim runs in a context with nothing but the language's own globals.
 
-The conformance runner (`tools/conformance/run.mjs`) draws every disk through this shim and `decode.mjs`, which turns a buffer back into stream format 1. Its recorded streams are what `tests/unit/conformance.test.ts` and `tests/unit/disk-files.test.ts` compare, so a buffer that lost or changed a command would fail them.
+The conformance runner (`tools/conformance/run.mjs`) draws every disk through this shim and `decode.mjs`, which turns a buffer back into stream format 1. When it moved onto the shim (GAM-36), all six disks' recorded streams were byte-identical to the runner's own recorder before it. From here on, `tests/unit/conformance.test.ts` and `tests/unit/disk-files.test.ts` compare streams that both pass through the shim, so they can't see a command the shim drops every time; `tests/unit/shim.test.ts` covers that by sending every opcode and checking each one decodes to the command a disk sent.

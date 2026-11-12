@@ -19,6 +19,12 @@ var PGDShim = (function () {
   var METHODS = ['fillRect', 'beginPath', 'rect', 'moveTo', 'lineTo', 'arc', 'arcTo', 'closePath', 'fill', 'clip',
     'translate', 'rotate', 'scale', 'setTransform'];
 
+  // JSON would quietly turn NaN and Infinity into null; a disk that sends one is wrong, so say so.
+  function finite(key, item) {
+    if (typeof item === 'number' && !isFinite(item)) throw new Error('A disk sent a non-finite number in ' + (key || 'an argument'));
+    return item;
+  }
+
   /** The command buffer: numbers in a growing Float64Array, strings and layer pixels in side tables. */
   function makeBuffer() {
     var ops = new Float64Array(4096), length = 0, strings = [], stringAt = new Map(), blobs = [];
@@ -43,7 +49,7 @@ var PGDShim = (function () {
       else if (item === null) { ops[length++] = TAG.null; ops[length++] = 0; }
       else if (item === undefined) { ops[length++] = TAG.undefined; ops[length++] = 0; }
       else if (item instanceof Uint8Array) { ops[length++] = TAG.blob; ops[length++] = blobs.length; blobs.push(item); }
-      else { ops[length++] = TAG.json; ops[length++] = string(JSON.stringify(item)); }
+      else { ops[length++] = TAG.json; ops[length++] = string(JSON.stringify(item, finite)); }
     }
     return {
       /** One command: its opcode, its argument count, then each argument as a tag and a value. */

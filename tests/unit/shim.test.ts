@@ -98,6 +98,33 @@ describe('the shim command buffer', () => {
     expect(commands[4999]).toEqual(['fillRect', 4999, 0, 1, 1]);
   });
 
+  it('carries every opcode as the command the disk sent', () => {
+    const { api, take } = make({ buttons: {} });
+    const g = api.g;
+    g.fillRect(1, 2, 3, 4); g.beginPath(); g.rect(5, 6, 7, 8); g.moveTo(1, 1); g.lineTo(2, 2); g.arc(3, 3, 1, 0, 1);
+    g.arcTo(1, 2, 3, 4, 5); g.closePath(); g.fill(); g.clip(); g.save(); g.restore(); g.translate(1, 2); g.rotate(0.5);
+    g.scale(2, 3); g.setTransform(1, 0, 0, 1, 4, 5); g.fillStyle = '#111111'; g.font = '16px Silkscreen'; g.measureText('AB');
+    api.txt('HI', 1, 2, 'hud', 'center', 16);
+    const layer = api.layer(1, 1); api.stamp(layer, 3, 4);
+    api.tone(220, 0.1); api.buzz('fire'); api.setButtons({ boost: { label: 'nuke' } }); api.best = 9; api.finishGame();
+    const commands = decode(take());
+    expect(commands).toEqual([
+      ['fillRect', 1, 2, 3, 4], ['beginPath'], ['rect', 5, 6, 7, 8], ['moveTo', 1, 1], ['lineTo', 2, 2], ['arc', 3, 3, 1, 0, 1],
+      ['arcTo', 1, 2, 3, 4, 5], ['closePath'], ['fill'], ['clip'], ['save'], ['restore'], ['translate', 1, 2], ['rotate', 0.5],
+      ['scale', 2, 3], ['setTransform', 1, 0, 0, 1, 4, 5], ['fillStyle', 1], ['font', '16px Silkscreen'], ['measureText', 'AB', 12],
+      ['font', '16px Silkscreen, "Courier New", monospace'], ['fillStyle', 2], ['txt', 'HI', 1, 2, 2, 'center', 16],
+      ['layer', 0, 1, 1, 'AA=='], ['stamp', 0, 3, 4], ['tone', 220, 0.1], ['buzz', 'fire'], ['buttons', { boost: { label: 'nuke' } }],
+      ['best', 9], ['finishGame'],
+    ]);
+    expect(new Set(commands.map((c: unknown[]) => c[0]))).toEqual(new Set(OPS.slice(1)));
+  });
+
+  it('refuses a non-finite number inside an object or array argument', () => {
+    const { api } = make();
+    expect(() => api.buzz([10, NaN])).toThrow(/non-finite/);
+    expect(() => api.setButtons({ boost: { label: 'x', n: Infinity } })).toThrow(/non-finite/);
+  });
+
   it('refuses a buffer version or opcode it does not know', () => {
     expect(() => decode({ version: 2, ops: new Float64Array(), strings: [], blobs: [] })).toThrow(/version/);
     expect(() => decode({ version: VERSION, ops: new Float64Array([99, 0]), strings: [], blobs: [] })).toThrow(/opcode/);
