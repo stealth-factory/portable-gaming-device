@@ -1,0 +1,10 @@
+// The app's shared settings, for Debug and Release.
+//
+// Placeholders so a simulator build works on any Mac with no set-up. Local.xcconfig, included last,
+// replaces them: copy Local.xcconfig.example next to this file. testflight.yml writes its own Local.xcconfig
+// and passes the real MARKETING_VERSION and CURRENT_PROJECT_VERSION on the command line.
+PRODUCT_BUNDLE_IDENTIFIER = local.pgd.app
+MARKETING_VERSION = 0.0.0
+CURRENT_PROJECT_VERSION = 1
+
+#include? "Local.xcconfig"

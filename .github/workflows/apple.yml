@@ -1,0 +1,91 @@
+# Builds and tests the iOS app (native/ios, GAM-37) on a simulator, unsigned. TestFlight uploads are
+# testflight.yml's job, on GitHub-hosted Macs only; nothing here holds a key or certificate.
+#
+# Where it runs (self-hosted-macos-runner skill): the repository or organisation variable MACOS_RUNS_ON,
+# as JSON, picks the runner; unset, it is the team's self-hosted Macs. Pull requests from forks always
+# use the GitHub-hosted image, so nobody else's code runs on our Macs. If the Macs are offline, set
+# MACOS_RUNS_ON to '"xcode-27"' and re-run.
+#
+# Two jobs can share one Mac, so each job makes its own simulator and DerivedData and removes them.
+name: apple
+
+on:
+  pull_request:
+    paths:
+      - "native/**"
+      - ".github/workflows/apple.yml"
+  push:
+    branches: [main]
+    paths:
+      - "native/**"
+      - ".github/workflows/apple.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: iOS build and test (simulator)
+    runs-on: ${{ fromJSON((github.event.pull_request.head.repo.fork && '"xcode-27"') || vars.MACOS_RUNS_ON || '["self-hosted","macOS","ARM64"]') }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: native/ios
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Check Xcode
+        run: |
+          xcodebuild -version
+          # The iPhone Duo needs the iOS 27.1 SDK; build and test with what TestFlight uploads with.
+          xcode=$(xcodebuild -version | awk '/^Xcode /{split($2, v, "."); print v[1] * 100 + v[2]; exit}')
+          if [ "${xcode:-0}" -lt 2701 ]; then
+            echo "::error::The iOS app needs Xcode 27.1 or later (found $(xcodebuild -version | head -1))."
+            exit 1
+          fi
+
+      - name: Generate Xcode project
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          xcodegen generate
+
+      - name: Make a simulator for this job
+        run: |
+          set -euo pipefail
+          # The newest installed iOS runtime and the first iPhone it supports.
+          read -r runtime device < <(xcrun simctl list runtimes -j | python3 -c '
+          import json, sys
+          r = [x for x in json.load(sys.stdin)["runtimes"] if x["platform"] == "iOS" and x["isAvailable"]][-1]
+          d = [t for t in r["supportedDeviceTypes"] if t.get("productFamily") == "iPhone"][-1]
+          print(r["identifier"], d["identifier"])')
+          udid=$(xcrun simctl create "ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-ios" "$device" "$runtime")
+          echo "SIM_UDID=$udid" >> "$GITHUB_ENV"
+          echo "Simulator $device on $runtime: $udid"
+
+      - name: Build and test on the simulator
+        run: |
+          xcodebuild test -project PGD.xcodeproj -scheme PGD \
+            -destination "id=$SIM_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/dd-sim" \
+            -resultBundlePath "$RUNNER_TEMP/PGD.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+
+      # The device build TestFlight archives, without signing, so a device-only error shows up here first.
+      - name: Build for devices (unsigned)
+        run: |
+          xcodebuild build -project PGD.xcodeproj -scheme PGD -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/dd-device" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Clean up
+        if: always()
+        run: |
+          [ -z "${SIM_UDID:-}" ] || xcrun simctl delete "$SIM_UDID" || true
+          rm -rf "$RUNNER_TEMP/dd-sim" "$RUNNER_TEMP/dd-device" "$RUNNER_TEMP/PGD.xcresult"

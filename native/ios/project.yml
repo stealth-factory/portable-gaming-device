@@ -1,0 +1,81 @@
+# The PGD iOS app (GAM-37). XcodeGen makes PGD.xcodeproj from this file: run `xcodegen generate` here.
+# The generated project and Info.plist are not committed.
+#
+# The team id and the bundle id are never committed: Config/Local.xcconfig sets them (copy
+# Local.xcconfig.example on a Mac; testflight.yml writes it in CI). Versions are not set here either:
+# CI passes MARKETING_VERSION and CURRENT_PROJECT_VERSION on the command line.
+name: PGD
+options:
+  deploymentTarget:
+    iOS: "27.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+targets:
+  PGD:
+    type: application
+    platform: iOS
+    # Target-level, so its settings (the bundle id from Local.xcconfig) are not overridden by the project's.
+    configFiles:
+      Debug: Config/App.xcconfig
+      Release: Config/App.xcconfig
+    sources:
+      - path: PGD
+    settings:
+      base:
+        PRODUCT_NAME: PGD
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
+    info:
+      path: PGD/Info.plist
+      properties:
+        CFBundleDisplayName: PGD
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        # No cryptography beyond the system's; without this every upload waits on an export compliance answer.
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # Every orientation and no UIRequiresFullScreen, so Split View and the iPhone Duo's inner display work.
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIUserInterfaceStyle: Dark
+  PGDTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: PGDTests
+    dependencies:
+      - target: PGD
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: local.pgd.tests
+        TARGETED_DEVICE_FAMILY: "1,2"
+schemes:
+  PGD:
+    build:
+      targets:
+        PGD: all
+        PGDTests: [test]
+    test:
+      config: Debug
+      targets:
+        - PGDTests
+    archive:
+      config: Release
