@@ -553,18 +553,17 @@ Two things to know if you generate disks outside this repo:
 
 ## 13. Hosting PGD in another app
 
-> **In progress ([GAM-64](https://linear.app/stealth-company/issue/GAM-64/use-the-console-from-other-react-apps)).** This section describes the planned API so game authors know where it's heading. Names may change until that work merges, and this section will be updated with it.
+> **In review ([GAM-64](https://linear.app/stealth-company/issue/GAM-64/use-the-console-from-other-react-apps), [PR #129](https://github.com/stealth-factory/portable-gaming-device/pull/129)).** Once it merges, `react/README.md` is the reference for the host API; this section covers only what a game author needs to know about it.
 
-A React app (such as a builder where an AI harness writes games) will be able to embed the console and load games into it at run time:
+A React app, such as a builder where an AI harness writes games, can embed the console with `<PGDConsole>` from `portable-gaming-device/react` and load games into it at run time. The console runs in an iframe, because the engine takes over the page it runs on.
 
-- **`<PGDConsole>`** from `portable-gaming-device/react`, installed as a git dependency with React as a peer dependency. It shows a PGD build in an iframe, because the engine takes over the page it runs on.
-- **Props:** `src` (the PGD build to show), `game`, `power`, `lang`, `phosphor`, `sound`, `paused` and `chrome`.
-- **Events:** `onReady` (lists the disks), `onStateChange` (power, mode, game, score, level and lives), `onEvent` (the console's own events, such as `game_start`, `game_over` and `high_score`) and `onGameOver`.
-- **A ref** with `load()`, `reset()`, `menu()` and `power()`.
-- **`insertDisk({ disk, game })`**: takes the same plain scripts as a `.pgdisk` (`disk.js` defining `PGDDisk`, `game.js` defining `PGDGame`), adds the disk to the launcher or replaces one with the same `id` so a harness can iterate, and can boot straight into it. It reports `disk_inserted` or `disk_error`.
-- **Who may insert disks:** only the origins the PGD build allows (the builder's, the same origin and localhost), since an inserted disk runs code on PGD's own site.
+What matters for a game:
 
-A generated disk is held to everything in this guide. The rules in [section 10](#10-rules-every-disk-follows) matter most, because they are what lets a host run code it didn't write.
+- **The same two scripts as a `.pgdisk`.** `insertDisk({ disk, game }, { boot })` takes strings: `disk.js`, a plain script defining `PGDDisk` (with `PGDDisk.disk`), and `game.js`, defining `PGDGame` (with `PGDGame.create(api)`). It also takes a whole file as `{ pgdisk: bytes }`. The `disks` prop does the same for a list of disks, and there `game` may be a function `(id) => string | Promise<string>` that the console calls only when the player loads that disk.
+- **Only `id` and `drawLoad` are required** on an inserted disk; the host fills in defaults for the rest. Fill them in anyway: the launcher, the leaflet and the game-over card read them.
+- **Same `id`, new disk.** Inserting a disk whose `id` is already there replaces it, so a harness can iterate on one game.
+- **Errors come back to the host.** `onDiskError({ game, stage, message })` reports a disk that fails to insert (`'insert'`), to load (`'load'`) or while it plays (`'run'`). A throw during play also sends the console back to the menu, so check `stage: 'run'` errors in a harness's loop.
+- **Who may insert disks:** the same origin, localhost, and the origins in the PGD build's `PUBLIC_PGD_EMBED_ORIGINS`. An inserted disk runs code on PGD's own site, which is why [section 10](#10-rules-every-disk-follows) matters most here.
 
 ## 14. Checklist for AI harnesses
 
@@ -595,7 +594,7 @@ Before handing a disk to a player, check that it:
 | Two players at once | One set of controls | Not planned |
 | Saving progress other than the best score | `api.best` and the table only | `ConsoleAPI` |
 | Packing a `.pgdisk` from outside the repo | Folders under `src/games/` only, with a generated cover | `tools/disks/` |
-| Loading a game into a running console from another app | Planned ([GAM-64](https://linear.app/stealth-company/issue/GAM-64/use-the-console-from-other-react-apps)) | [Section 13](#13-hosting-pgd-in-another-app) |
+| Loading a game into a running console from another app | In review ([GAM-64](https://linear.app/stealth-company/issue/GAM-64/use-the-console-from-other-react-apps)) | [Section 13](#13-hosting-pgd-in-another-app) |
 
 ## The ConsoleAPI at a glance
 
