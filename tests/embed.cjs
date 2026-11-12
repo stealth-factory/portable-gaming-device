@@ -61,6 +61,22 @@ const check = (ok, what) => { if (!ok) fail.push(what); };
   check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.mode === 'menu')), 'and the console goes back to the menu');
   await p.frames()[1].evaluate(() => { window.__boom = false; });
 
+  // HOLD sent from the menu pauses the next game as it starts
+  await p.evaluate(() => { window.log.length = 0; window.send({ command: 'pause', on: true }); window.send({ command: 'load', game: 'test-disk' }); });
+  check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.mode === 'paused' && m.state.game === 'test-disk')), 'a pause sent early holds the next game');
+  await p.evaluate(() => window.send({ command: 'pause', on: false }));
+  check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.mode === 'play')), 'and lets it go');
+
+  // replacing the disk that's playing stops it and goes back to the menu
+  await p.evaluate(d => { window.log.length = 0; window.send({ command: 'insert', disk: { disk: d }, request: 3 }); }, DISK);
+  check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.mode === 'menu')), 'replacing the playing disk goes back to the menu');
+
+  // a loading screen that throws is reported and the console goes back to the menu
+  const BAD = `var PGDDisk = { disk: { id: 'bad-load', drawLoad() { throw new Error('nope'); } } };`;
+  await p.evaluate(d => { window.log.length = 0; window.send({ command: 'insert', disk: { disk: d }, boot: true, request: 4 }); }, BAD);
+  check(await seen(p, () => window.log.some(m => m.type === 'event' && m.name === 'disk_error' && /^load: drawLoad: nope/.test(m.data.error))), 'a drawLoad that throws is reported');
+  check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.mode === 'menu')), 'and the console goes back to the menu after it');
+
   await p.evaluate(() => window.send({ command: 'phosphor', phosphor: 'amberP3' }));
   check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.phosphor === 'amberP3')), 'phosphor command');
   await p.evaluate(() => window.send({ command: 'power', on: false }));

@@ -12,7 +12,7 @@ import { DISKS, addDisk, isAdded } from '../games/registry';
 import { VERSION } from '../components/site';
 import { S, game, tvOn, powerOn, powerOff, setMode, modeKey, MODE_ORDER, MODES, applyLang, lang, LANGS, toggleMute, muted, togglePause, ensureAudio, onTrack, forgetRuntime } from './core';
 import { mergeStrings } from './i18n';
-import { startConsole, pressSelect } from './program/loader';
+import { startConsole, pressSelect, forgetUnreachable } from './program/loader';
 import { readSource, gameFromScript, guard, mayInsert, type DiskSource } from './embed-disks';
 
 const params = new URLSearchParams(location.search);
@@ -91,23 +91,59 @@ if (embed !== null && window.parent !== window) {
     event('disk_error', { game: id, error: `insert: ${error}` }); reply(request, false, { error });
   };
 
+  /** Wrap the disk's own drawing (the loading screen, the cover and the preview) so a throw is reported, not fatal. */
+  function guardDrawing(disk: GameDisk){
+    const id = disk.id;
+    const drawLoad = disk.drawLoad;
+    let loadFailed = false;
+    disk.drawLoad = function(this: GameDisk, ...a: Parameters<GameDisk['drawLoad']>){
+      if (loadFailed) return;
+      try { drawLoad.apply(this, a); }
+      catch (err) { loadFailed = true; event('disk_error', { game: id, error: `load: drawLoad: ${message(err)}` }); setTimeout(() => { if (tvOn) startConsole('warm'); }, 0); }
+    };
+    for (const k of ['drawCover', 'drawPreview'] as const) {
+      const f = disk[k]; if (typeof f !== 'function') continue;
+      disk[k] = function(this: GameDisk, ...a: Parameters<NonNullable<GameDisk[typeof k]>>){
+        try { (f as (...x: unknown[]) => void).apply(this, a); }
+        catch (err) { disk[k] = undefined; event('disk_error', { game: id, error: `insert: ${k}: ${message(err)}` }); }   // the launcher falls back
+      };
+    }
+  }
+
   function insert(src: DiskSource, boot: boolean | undefined, request: number | undefined){
     let disk: GameDisk, code: string | null;
     try { ({ disk, game: code } = readSource(src, 1000 + DISKS.length)); } catch (err) { refuse(null, request, message(err)); return; }
     const id = disk.id;
+    guardDrawing(disk);
+    const loadError = (err: unknown) => event('disk_error', { game: id, error: `load: ${message(err)}` });
     const load = async (): Promise<CreateGame> => {
-      try {
-        const create = gameFromScript(code ?? await askForGame(id));
-        return api => guard(create(api), crashed(id));
-      } catch (err) { event('disk_error', { game: id, error: `load: ${message(err)}` }); throw err; }
+      let create: CreateGame;
+      try { create = gameFromScript(code ?? await askForGame(id)); } catch (err) { loadError(err); throw err; }
+      return api => {
+        try { return guard(create(api), crashed(id)); } catch (err) { loadError(err); throw err; }
+      };
     };
+    // replacing the disk that is in the drive (loading or playing): stop it, so its old code doesn't carry on
+    const inDrive = game.id === id && !['off', 'boot', 'menu'].includes(S.mode);
     try { addDisk(disk, load); } catch (err) { refuse(id, request, message(err)); return; }
     mergeStrings(disk.strings);
     forgetRuntime(id);
+    forgetUnreachable(id);
     event('disk_inserted', { game: id, version: disk.version });
     reply(request, true, { disk: about(disk) });
     sayReady();
     if (boot) loadDisk(id);
+    else if (inDrive && tvOn) startConsole('warm');
+  }
+
+  /* HOLD from the page: applied now if a game is running, otherwise when the next one starts (once: the player can still
+     press HOLD themselves after that) */
+  let wantPause: boolean | null = null;
+  const PAUSABLE = ['ready', 'play', 'dying', 'clear'];
+  function applyPause(){
+    if (wantPause === null) return;
+    if (wantPause && PAUSABLE.includes(S.mode)) { togglePause(true); wantPause = null; }
+    else if (!wantPause) { if (S.mode === 'paused') togglePause(); wantPause = null; }
   }
 
   function run(c: PGDCommand, from: string){
@@ -120,7 +156,7 @@ if (embed !== null && window.parent !== window) {
       case 'phosphor': if (MODES[c.phosphor] && c.phosphor !== modeKey) setMode(c.phosphor); break;
       case 'lang': if (LANGS.includes(c.lang) && c.lang !== lang) applyLang(c.lang, false); break;
       case 'sound': if (c.on === muted) toggleMute(); break;
-      case 'pause': if (c.on) togglePause(true); else if (S.mode === 'paused') togglePause(); break;
+      case 'pause': wantPause = !!c.on; applyPause(); break;
       case 'insert':
         if (!mayInsert(from, location.origin, allowList)) refuse(null, c.request, `${from} may not insert disks (add it to PUBLIC_PGD_EMBED_ORIGINS)`);
         else insert(c.disk as DiskSource, c.boot, c.request);
@@ -145,6 +181,7 @@ if (embed !== null && window.parent !== window) {
 
   // state: at once when power, mode, disk, language, phosphor or sound change; score, level and lives at most 4 times a second
   const watch = (now: number) => {
+    if (wantPause) applyPause();
     const s = stateNow();
     const k = [s.power, s.mode, s.game, s.lang, s.phosphor, s.sound].join('|'), l = [s.score, s.level, s.lives].join('|');
     if (k !== key || (l !== live && now - liveAt >= 250)) { key = k; live = l; liveAt = now; post({ pgd: 1, type: 'state', state: s }); }
@@ -154,10 +191,13 @@ if (embed !== null && window.parent !== window) {
   // the set's height on desk layouts, so the page can size the frame to fit it (upright layouts fill the frame instead)
   let sent = '';
   const size = () => {
-    const layout = root.getAttribute('data-layout') || 'desk', height = Math.ceil(root.scrollHeight), k = `${layout}|${height}`;
+    const wrap = document.querySelector<HTMLElement>('.wrap');
+    const layout = root.getAttribute('data-layout') || 'desk', height = Math.ceil(wrap ? wrap.getBoundingClientRect().height : root.scrollHeight), k = `${layout}|${height}`;
     if (k !== sent) { sent = k; post({ pgd: 1, type: 'size', height, layout }); }
   };
-  new ResizeObserver(size).observe(document.body);
+  const ro = new ResizeObserver(size);
+  ro.observe(document.body);
+  const wrapEl = document.querySelector('.wrap'); if (wrapEl) ro.observe(wrapEl);
   new MutationObserver(size).observe(root, { attributes: true, attributeFilter: ['data-layout'] });
 
   sayReady();

@@ -105,6 +105,8 @@ export function drawBoot(){
 const oldList = () => host.platform.oldList;
 // disks whose code couldn't be fetched (offline before they were cached): NOT ON DEVICE until the set is back online
 const unreachable = new Set<string>();
+/** A disk put in the box again (the embed bridge replacing one): forget that its last load failed. */
+export function forgetUnreachable(id: string){ unreachable.delete(id); }
 const lastId = () => host.platform.store.get('gg-last');
 // the launcher asks for every disk's best on every frame, so read storage once per visit to the menu:
 // scores only change while a game runs, or when the leaflet's Settings clears them

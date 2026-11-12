@@ -42,7 +42,8 @@ function keyOf(d) {
     if (!bufferIds.has(b)) bufferIds.set(b, ++nextBuffer);
     return `pgdisk:${bufferIds.get(b)}:${d.pgdisk.byteOffset || 0}:${d.pgdisk.byteLength}`;
   }
-  return `${d.disk}\u0000${typeof d.game === 'string' ? d.game : ''}`;
+  const extra = d.cover || d.preview ? `\u0000${JSON.stringify([d.cover ?? null, d.preview ?? null])}` : '';
+  return `${d.disk}\u0000${typeof d.game === 'string' ? d.game : ''}${extra}`;
 }
 
 export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
@@ -63,8 +64,12 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
 
   // The frame's address only changes with src and chrome. The first game and language go in the address so the
   // first boot lands on them; later changes are sent as commands, so the console keeps running.
-  const first = useRef({ game, lang });
-  const url = useMemo(() => embedUrl(src, { game: first.current.game, lang: first.current.lang, chrome }), [src, chrome]);
+  // (when src or chrome change, the new frame starts on the latest game and language)
+  const urlGame = useRef(game);
+  const url = useMemo(() => {
+    urlGame.current = latest.current.game;
+    return embedUrl(src, { game: latest.current.game, lang: latest.current.lang, chrome });
+  }, [src, chrome]);
   const origin = useMemo(() => originOf(src), [src]);
 
   const send = useCallback(cmd => {
@@ -77,10 +82,10 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
   const insert = useCallback((d, options = {}) => new Promise((resolve, reject) => {
     if (!d || typeof d !== 'object') { reject(new Error('insertDisk needs a disk')); return; }
     const r = requests.current, request = ++r.next, { source, later } = diskSource(d);
-    r.waiting.set(request, { resolve: disk => { if (later) r.games.set(disk.id, later); resolve(disk); }, reject });
+    r.waiting.set(request, { resolve: disk => { if (later) r.games.set(disk.id, later); resolve(disk); }, reject, session: null });
     const cmd = { command: 'insert', disk: source, boot: !!options.boot, request };
     // before the console is ready, hold it until it is
-    if (ready.current) send(cmd); else r.pending.push(cmd);
+    if (ready.current) { r.waiting.get(request).session = session.current; send(cmd); } else r.pending.push(cmd);
   }), [send]);
 
   // push the props to the console: when it's ready, and whenever one changes after that
@@ -99,7 +104,11 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
           const key = keyOf(d);
           if (r.sent.has(key)) { const id = r.sent.get(key); if (id && typeof d.game === 'function') r.games.set(id, d.game); continue; }
           r.sent.set(key, null);
-          insert(d).then(disk => { r.sent.set(key, disk.id); }, () => { r.sent.delete(key); });   // failures reach onDiskError
+          insert(d).then(disk => {
+            // a disk with the same id from other sources has been replaced by this one: forget it, so it can come back
+            for (const [k, id] of r.sent) if (id === disk.id && k !== key) r.sent.delete(k);
+            r.sent.set(key, disk.id);
+          }, () => { r.sent.delete(key); });   // failures reach onDiskError
         }
       }
     }
@@ -120,9 +129,13 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
         ready.current = true; session.current = m.ready.session;
         if (firstReady) {
           r.sent.clear();
+          // inserts sent to an earlier page in the frame will never be answered
+          for (const [id, w] of r.waiting) if (w.session !== null) { r.waiting.delete(id); w.reject(new Error('the console reloaded before it answered')); }
           // disks first, so a `game` that names one of them finds it when the boot ends
-          sync(['disks', 'lang', 'phosphor', 'sound', 'power']);
-          for (const cmd of r.pending.splice(0)) send(cmd);
+          sync(['disks', 'lang', 'phosphor', 'sound', 'paused', 'power']);
+          for (const cmd of r.pending.splice(0)) { const w = r.waiting.get(cmd.request); if (w) w.session = session.current; send(cmd); }
+          // a `game` changed before the console was listening: the address still names the old one
+          if (p.game && p.game !== urlGame.current) { urlGame.current = p.game; send({ command: 'load', game: p.game }); }
         }
         if (p.onReady) p.onReady(m.ready);
       } else if (m.type === 'state') {
@@ -156,6 +169,13 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
     return () => window.removeEventListener('message', onMessage);
   }, [url, origin, send, sync]);
 
+  // inserts still waiting when the component goes away will never be answered
+  useEffect(() => () => {
+    const r = requests.current;
+    for (const w of r.waiting.values()) w.reject(new Error('the console was unmounted'));
+    r.waiting.clear(); r.pending.length = 0;
+  }, []);
+
   // later prop changes become commands (only once the console is listening; the ready message syncs the rest)
   const shown = useRef(false);
   useEffect(() => { if (shown.current && ready.current) sync(['power']); }, [power, sync]);
@@ -164,7 +184,7 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
   useEffect(() => { if (shown.current && ready.current) sync(['sound']); }, [sound, sync]);
   useEffect(() => { if (shown.current && ready.current) sync(['paused']); }, [paused, sync]);
   useEffect(() => { if (shown.current && ready.current) sync(['disks']); }, [disks, sync]);
-  useEffect(() => { if (shown.current && ready.current && game) send({ command: 'load', game }); }, [game, send]);
+  useEffect(() => { if (shown.current && ready.current && game) { urlGame.current = game; send({ command: 'load', game }); } }, [game, send]);
   useEffect(() => { shown.current = true; }, []);
 
   useImperativeHandle(ref, () => ({

@@ -116,7 +116,7 @@ export interface PGDConsoleProps {
   phosphor?: PGDPhosphor;
   /** The SOUND switch. */
   sound?: boolean;
-  /** HOLD: pause a game in progress (true) or carry on (false). */
+  /** HOLD: pause a game in progress (true) or carry on (false). Set to true with no game running, it pauses the next game as it starts. */
   paused?: boolean;
   /** Games to put in the box, beside the console's own. They're on the disk menu like any other; loading one fetches
       its game (calling `game` when it's a function). Sent when the console is ready and again whenever the array changes. */
@@ -135,7 +135,7 @@ export interface PGDConsoleProps {
   onEvent?: (name: string, data: PGDEventData | undefined) => void;
   /** A game ended: the disk's id and the final score. */
   onGameOver?: (result: { game: string; score: number }) => void;
-  /** An inserted disk failed: `stage` is insert (bad disk.js or not allowed), load (bad game.js) or run (it threw while playing). */
+  /** An inserted disk failed: `stage` is insert (bad disk.js, not allowed, or a cover or preview that threw), load (bad game.js, or drawLoad or create threw) or run (it threw while playing). */
   onDiskError?: (error: { game: string | null; stage: 'insert' | 'load' | 'run'; message: string }) => void;
 }
 
@@ -150,6 +150,7 @@ export interface PGDConsoleHandle {
   /** Load a disk by id or slug (switches the set on if it's off). */
   load(game: string): void;
   /** Put a disk in the box; resolves with it once it's there, rejects with the reason it isn't. */
+  /** Rejects if the console refuses the disk, reloads before answering, or the component unmounts. */
   insertDisk(disk: PGDCustomDisk, options?: { boot?: boolean }): Promise<PGDDisk>;
   /** Send any bridge command. */
   send(command: PGDCommand): void;

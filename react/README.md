@@ -32,7 +32,7 @@ It renders on the server as a plain `<iframe>` and touches `window` only in effe
 | `lang` | `en`, `zh-hant` or `zh-hans`. |
 | `phosphor` | `greenP1`, `greenP39`, `radarP7`, `amberP3`, `whiteP4`, `cga1` or `cga0`. |
 | `sound` | The SOUND switch. |
-| `paused` | HOLD: pause a game in progress, or carry on. |
+| `paused` | HOLD: pause a game in progress, or carry on. `true` with no game running pauses the next one as it starts. |
 | `disks` | Your own games, on the disk menu beside the console's (see below). |
 | `chrome` | `true` also shows the page around the set: the header, the instructions bar and the leaflet. |
 | `title`, `className`, `style` | For the iframe. Without a `height` in `style`, the frame takes the set's height on the desk layout, and a 6:5 box on the others. Below 480 px wide the set switches to its upright phone layout, which fills whatever box it gets. |
@@ -45,7 +45,7 @@ It renders on the server as a plain `<iframe>` and touches `window` only in effe
 | `onStateChange(state)` | Any of `power`, `mode`, `game`, `lang`, `phosphor` and `sound` changes, and `score`, `level` and `lives` at most four times a second. `mode` is one of `off`, `boot`, `menu`, `load`, `ready`, `play`, `dying`, `clear`, `paused`, `entry` and `over`. `game` is null on the boot screen and the menu. |
 | `onEvent(name, data)` | Every event the console tracks, with the same names and fields as its analytics (the table in the [main README](../README.md#analytics): `game_load`, `game_start`, `game_over`, `high_score` …), plus `disk_inserted` and `disk_error`. |
 | `onGameOver({ game, score })` | A game ended. |
-| `onDiskError({ game, stage, message })` | One of your disks failed. `stage` is `insert` (a bad disk.js, or an origin that isn't allowed), `load` (a bad game.js, or no game sent) or `run` (it threw while playing). After a `run` failure, the console goes back to the disk menu. |
+| `onDiskError({ game, stage, message })` | One of your disks failed. `stage` is `insert` (a bad disk.js, an origin that isn't allowed, or a `drawCover` or `drawPreview` that threw: the launcher then shows the floppy label), `load` (a bad game.js, no game sent, or `drawLoad` or `create` threw) or `run` (it threw while playing). After a `load` or `run` failure, the console goes back to the disk menu. Replacing the disk that is loading or playing also goes back to the menu, so the old code stops. |
 
 ## The ref
 
