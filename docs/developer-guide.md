@@ -561,8 +561,8 @@ What matters for a game:
 
 - **The same two scripts as a `.pgdisk`.** `insertDisk({ disk, game }, { boot })` takes strings: `disk.js`, a plain script defining `PGDDisk` (with `PGDDisk.disk`), and `game.js`, defining `PGDGame` (with `PGDGame.create(api)`). It also takes a whole file as `{ pgdisk: bytes }`. The `disks` prop does the same for a list of disks, and there `game` may be a function `(id) => string | Promise<string>` that the console calls only when the player loads that disk.
 - **Only `id` and `drawLoad` are required** on an inserted disk; the host fills in defaults for the rest. Fill them in anyway: the launcher, the leaflet and the game-over card read them.
-- **Same `id`, new disk.** Inserting a disk whose `id` is already there replaces it, so a harness can iterate on one game.
-- **Errors come back to the host.** `onDiskError({ game, stage, message })` reports a disk that fails to insert (`'insert'`), to load (`'load'`) or while it plays (`'run'`). A throw during play also sends the console back to the menu, so check `stage: 'run'` errors in a harness's loop.
+- **Same `id`, new disk.** Inserting a disk whose `id` is already there replaces it, so a harness can iterate on one game. If the old one is loading or playing, the console stops it and goes back to the menu (or straight into the new one with `boot`).
+- **Errors come back to the host.** `onDiskError({ game, stage, message })` reports a disk that fails to insert (`'insert'`, including a `drawCover` or `drawPreview` that throws, after which the launcher shows the floppy label), to load (`'load'`: a bad `game.js`, or a `drawLoad` or `create` that throws) or while it plays (`'run'`). A `load` or `run` failure also sends the console back to the menu, so check those errors in a harness's loop.
 - **Who may insert disks:** the same origin, localhost, and the origins in the PGD build's `PUBLIC_PGD_EMBED_ORIGINS`. An inserted disk runs code on PGD's own site, which is why [section 10](#10-rules-every-disk-follows) matters most here.
 
 ## 14. Checklist for AI harnesses
