@@ -51,6 +51,7 @@ class Synth {
 
   explicit Synth(double sampleRate, std::uint32_t seed = 0x2545F491u);
   Synth(const Synth&) = delete;
+  friend struct SynthProbe;   // tests: steps inside render, to replay a hush racing the audio thread
   Synth& operator=(const Synth&) = delete;
 
   // ---- control side ----
@@ -102,13 +103,16 @@ class Synth {
     double phase = 0, humPhase = 0;
     double up = 0, down = 0, humRise = 0;   // motor envelope times, seconds
     std::uint32_t rng = 1;
+    std::size_t seq = 0;               // the queue position of the command that started it
     Biquad filter;
   };
 
   bool push(const Command& c);
-  bool pop(Command& c);
+  bool pop(Command& c, std::size_t& seq);
   std::size_t queued() const;
-  void start(const Command& c);
+  void start(const Command& c, std::size_t seq);
+  void applyHush(std::size_t cut);   // cut the voices and commands queued before position `cut`
+  void drain();                      // start the commands queued so far
   void mix(float* buf, std::size_t n);
   float noise(std::uint32_t& s) const;
 

@@ -87,10 +87,11 @@ std::size_t Synth::queued() const {
   return tail_.load(std::memory_order_acquire) - head_.load(std::memory_order_relaxed);
 }
 
-bool Synth::pop(Command& c) {
+bool Synth::pop(Command& c, std::size_t& seq) {
   const std::size_t h = head_.load(std::memory_order_relaxed);
   if (h == tail_.load(std::memory_order_acquire)) return false;
   c = queue_[h % kQueue];
+  seq = h;
   head_.store(h + 1, std::memory_order_release);
   return true;
 }
@@ -140,9 +141,10 @@ float Synth::noise(std::uint32_t& s) const {
   return static_cast<float>(static_cast<double>(s) / 2147483648.0 - 1.0);
 }
 
-void Synth::start(const Command& c) {
+void Synth::start(const Command& c, std::size_t seq) {
   Voice v;
   v.kind = c.kind;
+  v.seq = seq;
   v.start = static_cast<std::int64_t>(c.at) + std::llround(std::max(0.0, c.delay) * sr_);
   // a command queued while the last render ran may already be late: start it now, from its beginning
   v.start = std::max(v.start, static_cast<std::int64_t>(frames_.load(std::memory_order_relaxed)));
@@ -223,19 +225,30 @@ void Synth::mix(float* buf, std::size_t n) {
   }
 }
 
+void Synth::applyHush(std::size_t cut) {
+  if (cut == seenCut_) return;
+  seenCut_ = cut;
+  // only what was asked for before the hush: a voice keeps the queue position of its command, so a
+  // sound queued after the hush and started before this render saw it carries on
+  for (auto& v : voices_)
+    if (v.kind != Kind::None && v.seq < cut) v.kind = Kind::None;
+  Command c;
+  std::size_t seq = 0;
+  while (head_.load(std::memory_order_relaxed) < cut && pop(c, seq)) {}
+}
+
+void Synth::drain() {
+  // only the commands already queued: a game thread that keeps queuing cannot hold up the samples
+  Command c;
+  std::size_t seq = 0;
+  for (std::size_t n = queued(); n > 0 && pop(c, seq); --n) start(c, seq);
+}
+
 void Synth::render(float* out, std::size_t frames, int channels) {
   if (!out) return;
   if (channels < 1) channels = 1;
-  // only the commands already queued: a game thread that keeps queuing cannot hold up the samples
-  Command c;
-  const std::size_t cut = hushCut_.load(std::memory_order_acquire);
-  if (cut != seenCut_) {
-    seenCut_ = cut;
-    for (auto& v : voices_) v.kind = Kind::None;
-    // drop what was queued before the hush: while head is behind cut (cut - head is 1 to kQueue then)
-    for (std::size_t d = cut - head_.load(std::memory_order_relaxed); d != 0 && d <= kQueue && pop(c); --d) {}
-  }
-  for (std::size_t n = queued(); n > 0 && pop(c); --n) start(c);
+  applyHush(hushCut_.load(std::memory_order_acquire));
+  drain();
   float buf[kChunk];
   std::size_t done = 0;
   while (done < frames) {

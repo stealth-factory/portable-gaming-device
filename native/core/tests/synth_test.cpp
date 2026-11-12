@@ -8,6 +8,16 @@
 
 using pgd::Synth;
 
+namespace pgd {
+/** Runs render's steps one at a time, so a test can put a hush between them as the game thread might. */
+struct SynthProbe {
+  static std::size_t cut(Synth& s) { return s.hushCut_.load(); }
+  static void applyHush(Synth& s, std::size_t cut) { s.applyHush(cut); }
+  static void drain(Synth& s) { s.drain(); }
+};
+}  // namespace pgd
+using pgd::SynthProbe;
+
 namespace {
 constexpr double kRate = 48000;
 
@@ -233,6 +243,23 @@ TEST("synth: a hush cuts only what was queued before it, even before a render") 
   CHECK(s.tone(440, 0.5));
   const auto out = run(s, at(0.4));
   CHECK(pitch(out, at(0.05), at(0.35)) > 400);
+}
+
+TEST("synth: a sound queued after a hush survives a render that read the cut before it") {
+  Synth s(kRate);
+  CHECK(s.tone(220, 1.0));
+  run(s, at(0.05));
+  // the audio thread reads the cut, then the game thread hushes and queues a tone, then the audio thread
+  // drains the queue and starts that tone with the stale cut
+  const std::size_t stale = SynthProbe::cut(s);
+  CHECK(s.hush());
+  CHECK(s.tone(440, 0.5, 0.045, 0, 0.1));
+  SynthProbe::applyHush(s, stale);
+  SynthProbe::drain(s);
+  // the next render sees the hush: the 220 Hz tone goes, the 440 Hz one asked for after it plays
+  const auto out = run(s, at(0.5));
+  CHECK(silent(out, 0, at(0.09)));
+  CHECK(pitch(out, at(0.15), at(0.45)) > 400);
 }
 
 TEST("synth: delays and lengths over an hour are refused") {
