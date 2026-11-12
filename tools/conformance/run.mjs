@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createContext, runInContext } from 'node:vm';
 import { makeHost, parseScript } from './host.mjs';
+import { loadShim } from '../../native/shim/decode.mjs';
 import { unzip } from '../disks/pgdisk.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -51,7 +52,9 @@ try {
   }
   const palette = MODES[script.palette];
   if (!palette) throw new Error(`Unknown palette: ${script.palette}`);
-  const host = makeHost({ disk, script, palette, measurePixelText });
+  // The contract shim runs in the disk's realm, as it does beside the disk in the apps' script host.
+  const shim = loadShim(source => runInContext(source, context, { filename: 'native/shim/shim.js' }));
+  const host = makeHost({ disk, script, palette, measurePixelText, shim });
   const runtime = create(host.api);
   runtime.start();
   host.api.S.mode = 'ready';
