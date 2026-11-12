@@ -7,20 +7,24 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createContext, runInContext } from 'node:vm';
 import { makeHost, parseScript } from './host.mjs';
+import { unzip } from '../disks/pgdisk.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const [folder, input, output] = process.argv.slice(2);
 const folders = readdirSync(join(ROOT, 'src/games'), { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
-if (!folders.includes(folder) || !input || !output || process.argv.length !== 5) {
-  throw new Error(`Usage: node tools/conformance/run.mjs <${folders.join('|')}> <input.json> <output.jsonl>`);
+const packaged = folder?.endsWith('.pgdisk');
+if ((!packaged && !folders.includes(folder)) || !input || !output || process.argv.length !== 5) {
+  throw new Error(`Usage: node tools/conformance/run.mjs <${folders.join('|')}|file.pgdisk> <input.json> <output.jsonl>`);
 }
 const script = parseScript(JSON.parse(readFileSync(input, 'utf8')));
 const temp = mkdtempSync(join(tmpdir(), 'pgd-conformance-'));
 try {
   const entry = join(temp, 'entry.ts');
   writeFileSync(entry, [
-    `export { disk } from ${JSON.stringify(join(ROOT, 'src/games', folder, 'disk.ts'))};`,
-    `export { default as create } from ${JSON.stringify(join(ROOT, 'src/games', folder, 'game.ts'))};`,
+    ...(packaged ? [] : [
+      `export { disk } from ${JSON.stringify(join(ROOT, 'src/games', folder, 'disk.ts'))};`,
+      `export { default as create } from ${JSON.stringify(join(ROOT, 'src/games', folder, 'game.ts'))};`,
+    ]),
     `export { MODES } from ${JSON.stringify(join(ROOT, 'src/kit/platform/palettes.ts'))};`,
     `export { measurePixelText } from ${JSON.stringify(join(ROOT, 'src/kit/platform/font.ts'))};`,
   ].join('\n'));
@@ -31,8 +35,20 @@ try {
   // Each run has a fresh JavaScript realm: module-level game state and Math.random cannot leak between runs.
   const context = createContext({ Date: undefined, performance: undefined });
   runInContext(`Math.random = (${mulberry32.toString()})(${script.seed});`, context);
-  runInContext(code, context);
-  const { disk, create, MODES, measurePixelText } = runInContext('PGDDisk', context);
+  let disk, create, MODES, measurePixelText;
+  if (packaged) {
+    // A disk file (GAM-34): its two plain scripts, as an app runs them, beside the host's own palettes and font table.
+    runInContext(code.replace(/^var PGDDisk\b/m, 'var PGDHost'), context);
+    ({ MODES, measurePixelText } = runInContext('PGDHost', context));
+    const files = unzip(readFileSync(resolve(folder)));
+    runInContext(files['disk.js'].toString('utf8'), context);
+    runInContext(files['game.js'].toString('utf8'), context);
+    disk = runInContext('PGDDisk', context).disk;
+    create = runInContext('PGDGame', context).create;
+  } else {
+    runInContext(code, context);
+    ({ disk, create, MODES, measurePixelText } = runInContext('PGDDisk', context));
+  }
   const palette = MODES[script.palette];
   if (!palette) throw new Error(`Unknown palette: ${script.palette}`);
   const host = makeHost({ disk, script, palette, measurePixelText });

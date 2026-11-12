@@ -29,6 +29,8 @@ jobs:
       - run: node --test '.github/scripts/*.test.mjs'
       # `build` runs `tsc --noEmit` first.
       - run: npm run build
+      # The disk files and catalogue the build just wrote (GAM-34): signature, sizes and hashes.
+      - run: node tools/disks/verify.mjs
 
   # The native engine core (native/core, GAM-35): C++17 with no dependencies, built and tested on Linux
   # with both compilers so it stays portable to the iOS and Android toolchains.

@@ -1,0 +1,26 @@
+{
+  "bricks": {
+    "version": 1,
+    "sha256": "a510a0a4a5f25568561e4c8142cb688b99e7f2592a865077c4aff0a3515db279"
+  },
+  "dino": {
+    "version": 1,
+    "sha256": "c7a4644ce03b3ec1fcd13e8d2403962e5ed9bf041d92be97ffd4771a974c77b6"
+  },
+  "iinvade": {
+    "version": 1,
+    "sha256": "024e8acd9e8631c63d6169ed1183d3660fd2489fcc62f320703cbb2b92373092"
+  },
+  "invader": {
+    "version": 1,
+    "sha256": "59b3d7789bb0d39b1e073f5118e9345b67fe822b24bc4514026dcede82893651"
+  },
+  "martian-storm": {
+    "version": 1,
+    "sha256": "1186172621128a83b3193035149dd189d237c1401fce00f1e6b2f63179f4ce82"
+  },
+  "tunnel": {
+    "version": 1,
+    "sha256": "3b08eb0bccc8e50487e072df8900d5caf0f8e100f843bc61c6925c44134873a5"
+  }
+}

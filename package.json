@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "npm run typecheck && astro build",
+    "build": "npm run typecheck && astro build && node tools/disks/build.mjs",
     "preview": "astro preview --port 4173",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

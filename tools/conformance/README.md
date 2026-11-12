@@ -7,7 +7,7 @@ node tools/conformance/run.mjs tunnel-raider tools/conformance/play.json /tmp/tu
 node tools/conformance/run.mjs i-invade tools/conformance/play.json /tmp/invasion.jsonl
 ```
 
-The first argument is a folder under `src/games`. The runner bundles that folder's `disk.ts` and `game.ts`, the shared palettes and font metrics using Rolldown, as the existing I Invade autopilot does. Each invocation evaluates the bundle in a fresh JavaScript realm. A Mulberry32 generator replaces that realm's `Math.random` before its modules run. The output contains no timestamps or paths and is identical for the same disk code, input and seed.
+The first argument is a folder under `src/games`, or a built disk file (`dist/disks/v1/<id>-<version>.pgdisk`, see `tools/disks/README.md`), which runs that file's own `disk.js` and `game.js` the way an app would. The runner bundles that folder's `disk.ts` and `game.ts`, the shared palettes and font metrics using Rolldown, as the existing I Invade autopilot does. Each invocation evaluates the bundle in a fresh JavaScript realm. A Mulberry32 generator replaces that realm's `Math.random` before its modules run. The output contains no timestamps or paths and is identical for the same disk code, input and seed.
 
 This host records game play. The system disk and its boot, launcher and loading screens will have their own host when GAM-39 splits the console program from the web platform. It does not simulate those screens or the native rasteriser.
 

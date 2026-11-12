@@ -41,7 +41,7 @@ It exports `disk: GameDisk` (see [`types.ts`](types.ts) for every field):
 | Field | What it is |
 | --- | --- |
 | `id`, `order`, `slug` | Storage and analytics id, place on the menu, and the page path. All three are unique. |
-| `contract`, `version`, `rating` | `contract: 1`; a positive whole-number revision, increased whenever the disk's built files change; the lowest App Store age band it suits (all six currently `4+`). |
+| `contract`, `version`, `rating` | `contract: 1`; a positive whole-number revision, increased whenever the disk's built file changes (then run `node tools/disks/build.mjs --lock`; see `tools/disks/README.md`); the lowest App Store age band it suits (all six currently `4+`). |
 | `page` | English title and description for the game's page and its link preview. |
 | `title`, `nameKey` | The title in the pixel font, and the I18N key for it in the leaflet. |
 | `file`, `size` | The file the drive "reads" (`DINORUN.COM`) and its size in bytes. |
