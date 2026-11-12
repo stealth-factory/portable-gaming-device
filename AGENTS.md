@@ -167,7 +167,8 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 | `src/kit/platform/font.ts`, `palettes.ts` | Shared Silkscreen advances and the seven phosphor themes, used by web and headless hosts; `tools/fonts/metrics.py` regenerates the font table |
 | `src/games/registry.ts` | Finds `*/disk.ts` (eager) and `*/game.ts` (lazy) |
 | `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/`, `bricks/`, `martian-storm/` | The six games; what each folder holds is under [Game folders](#game-folders) |
-| `src/games/README.md` | Making a game disk: every file, the artwork and images, and the steps for a new one |
+| `docs/developer-guide.md` | The game developer guide (GAM-65): the game loop, `ConsoleAPI`, input, buttons and their layout, sound, scores, every disk field, the kit, `.pgdisk`, hosting, and what a game can't do yet. Keep it in step with `types.ts` |
+| `src/games/README.md` | Making a game disk in this repo: every file, the artwork and images, and the steps for a new one |
 | `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
 | `src/kit/platform/` | Console services as DOM-free rules the core wires to the page. `haptics.ts` (GAM-5) is the first: named buzz patterns, the SOUND-off rule and which buzz wins, with the core supplying the vibrate call; button slots, gamepad and pause are to follow. See the [Shared game kit spec](https://linear.app/stealth-company/document/shared-game-kit-spec-338041de484b) |
 | `public/` | Icons, favicon, share images (`og-image.png`, `og-<slug>.png` per game) |
@@ -202,7 +203,7 @@ Useful places:
 
 ## Game folders
 
-Every game is one folder, `src/games/<folder>/`, plus a few files outside it. [`src/games/README.md`](src/games/README.md) explains each one, the artwork and images, and the steps for a new disk; keep the two in step. **Required** fails the build or the unit tests without it; **expected** is what every game has and review will ask for; **generated** comes from a tool and is never edited by hand.
+Every game is one folder, `src/games/<folder>/`, plus a few files outside it. [`src/games/README.md`](src/games/README.md) explains each one, the artwork and images, and the steps for a new disk, and [`docs/developer-guide.md`](docs/developer-guide.md) documents the API a game uses; keep all three in step. **Required** fails the build or the unit tests without it; **expected** is what every game has and review will ask for; **generated** comes from a tool and is never edited by hand.
 
 | File | Status | What it holds |
 | --- | --- | --- |
