@@ -10,6 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(pgd_core STATIC
   src/raster.cpp
+  src/synth.cpp
   src/text.cpp
 )
 target_include_directories(pgd_core PUBLIC include)
@@ -22,7 +23,8 @@ endif()
 option(PGD_CORE_TESTS "Build the core's unit tests" ON)
 if(PGD_CORE_TESTS)
   enable_testing()
-  add_executable(pgd_core_tests tests/main.cpp tests/raster_test.cpp tests/palettes_test.cpp tests/text_test.cpp)
-  target_link_libraries(pgd_core_tests PRIVATE pgd_core)
+  add_executable(pgd_core_tests tests/main.cpp tests/raster_test.cpp tests/palettes_test.cpp tests/text_test.cpp tests/synth_test.cpp)
+  find_package(Threads REQUIRED)   # the synth's test queues from one thread while another renders
+  target_link_libraries(pgd_core_tests PRIVATE pgd_core Threads::Threads)
   add_test(NAME pgd_core_tests COMMAND pgd_core_tests)
 endif()
