@@ -7,7 +7,7 @@
 // unit test tests/unit/disk-files.test.ts fails CI until the lock matches. See tools/disks/README.md.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { buildDisk, catalogue, folders, LOCK, rawPublic, ROOT, signBytes, signingKey } from './pgdisk.mjs';
+import { buildDisk, catalogue, folders, LOCK, rawPublic, ROOT, signBytes, signingKey, trustedKeys } from './pgdisk.mjs';
 
 const args = process.argv.slice(2);
 const lockOnly = args.includes('--lock');
@@ -32,10 +32,16 @@ if (lockOnly) {
   writeFileSync(LOCK, JSON.stringify(lock, null, 2) + '\n');
   console.log(`wrote ${LOCK}`);
 } else {
+  const { kind, key } = signingKey();
+  // A release key must be the one the apps build in, or every release app would reject this catalogue.
+  if (kind === 'release') {
+    const trusted = trustedKeys().release;
+    if (!trusted) throw new Error('PGD_DISK_SIGNING_KEY is set but tools/disks/keys/release.pub is not committed');
+    if (rawPublic(trusted) !== rawPublic(key)) throw new Error('PGD_DISK_SIGNING_KEY does not match tools/disks/keys/release.pub');
+  }
   mkdirSync(out, { recursive: true });
   for (const d of disks) writeFileSync(join(out, d.name), d.zip);
   const index = catalogue(disks);
-  const { kind, key } = signingKey();
   writeFileSync(join(out, 'index.json'), index);
   writeFileSync(join(out, 'index.json.sig'), signBytes(Buffer.from(index), key));
   console.log(`wrote ${disks.length} disks and the catalogue to ${out}, signed with the ${kind} key ${rawPublic(key)}`);

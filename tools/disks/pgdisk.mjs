@@ -162,7 +162,7 @@ export function signingKey(env = process.env) {
 
 /** A public key as the 32 raw bytes, base64: the form committed in tools/disks/keys and built into the apps. */
 export function rawPublic(key) {
-  return createPublicKey(key).export({ format: 'der', type: 'spki' }).subarray(-32).toString('base64');
+  return (key.type === 'public' ? key : createPublicKey(key)).export({ format: 'der', type: 'spki' }).subarray(-32).toString('base64');
 }
 
 /** The committed public keys, by name ('development', 'release'), skipping any not created yet. */

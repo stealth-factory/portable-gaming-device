@@ -39,7 +39,7 @@ Both scripts are plain scripts with no `import` or `export`, so JavaScriptCore a
 `tools/disks/keys/*.pub` holds the public keys as 32 raw bytes in base64. These are what the apps build in.
 
 - **`development.pub`** is the development key. Its private half is derived from a phrase in `pgdisk.mjs`, so anyone can sign with it: local builds, pull-request previews and the tests. Only development builds of the apps trust it.
-- **`release.pub`** is the release key. It doesn't exist yet. The owner creates the pair once, commits the public half here, and keeps the private half as the `PGD_DISK_SIGNING_KEY` secret. Its value is the PKCS #8 PEM, or the 32-byte seed in base64. The secret goes in the Vercel production environment, which builds the live site. Release builds of the apps trust only this key, and `verify.mjs --release` accepts only this key. The private key is never committed, because the repo is public.
+- **`release.pub`** is the release key. It doesn't exist yet. The owner creates the pair once, commits the public half here, and keeps the private half as the `PGD_DISK_SIGNING_KEY` secret. Its value is the PKCS #8 PEM, or the 32-byte seed in base64. The secret goes in the Vercel production environment, which builds the live site. Release builds of the apps trust only this key, and `verify.mjs --release` accepts only this key. The private key is never committed, because the repo is public. When the secret is set, `build.mjs` stops unless it matches the committed `release.pub`. This way a wrong secret fails the build rather than shipping a catalogue that release apps would reject.
 
 Until the release key exists, the live catalogue is signed with the development key.
 
