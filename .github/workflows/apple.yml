@@ -1,12 +1,11 @@
 # Builds and tests the iOS app (native/ios, GAM-37) on a simulator, unsigned. TestFlight uploads are
 # testflight.yml's job, on GitHub-hosted Macs only; nothing here holds a key or certificate.
 #
-# Where it runs (self-hosted-macos-runner skill): the repository or organisation variable MACOS_RUNS_ON,
-# as JSON, picks the runner; unset, it is the team's self-hosted Macs. Pull requests from forks always
-# use the GitHub-hosted image, so nobody else's code runs on our Macs. If the Macs are offline, set
-# MACOS_RUNS_ON to '"xcode-27"' and re-run.
+# Where it runs: GitHub's standard `xcode-27` runner (Apple silicon, macOS 27 with Xcode 27), free for a
+# public repository (GAM-70). Never a self-hosted Mac, a paid larger runner or a runner picked by a
+# variable; tests/unit/workflows.test.ts checks.
 #
-# Two jobs can share one Mac, so each job makes its own simulator and DerivedData and removes them.
+# Each job makes its own simulator and DerivedData and removes them.
 name: apple
 
 on:
@@ -30,7 +29,7 @@ concurrency:
 jobs:
   ios:
     name: iOS build and test (simulator)
-    runs-on: ${{ fromJSON((github.event.pull_request.head.repo.fork && '"xcode-27"') || vars.MACOS_RUNS_ON || '["self-hosted","macOS","ARM64"]') }}
+    runs-on: xcode-27
     timeout-minutes: 40
     defaults:
       run:
