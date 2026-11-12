@@ -83,3 +83,9 @@ for (const l of Object.keys(I18N)) {
   Object.assign(I18N[l], CONSOLE_STRINGS[l]);
   for (const d of DISKS) if (d.strings && d.strings[l]) Object.assign(I18N[l], d.strings[l]);
 }
+
+/** Merge a disk's strings into the table (a disk added at run time; the built-in disks are merged above). */
+export function mergeStrings(strings: Partial<Record<Lang, Record<string, unknown>>> | undefined){
+  if (!strings) return;
+  for (const l of Object.keys(I18N)) if (isLang(l) && strings[l]) Object.assign(I18N[l], strings[l]);
+}

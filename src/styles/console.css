@@ -252,6 +252,9 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 .nbtn:active{transform:translateY(1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
 .nbtn:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 .exitfull{display:none;position:fixed;z-index:20;top:calc(10px + env(safe-area-inset-top, 0px));right:max(16px, env(safe-area-inset-right, 0px));width:40px;height:40px;border-radius:50%;border:1px solid #3a372f;background:rgba(20,19,16,.75);color:var(--label);font-size:16px;cursor:pointer}
+/* embedded in another page's iframe (?embed, src/console/embed.ts): just the set, no page around it */
+[data-embed="set"] header,[data-embed="set"] .manual-bar,[data-embed="set"] .below,[data-embed="set"] .rotate-hint{display:none}
+:root[data-embed="set"] .wrap{padding-block:8px}
 /* full screen: just the picture; touch screens keep the stick and spark at the sides */
 [data-full] body{overflow:hidden;background:#000}
 [data-full] .exitfull{display:block}

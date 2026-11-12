@@ -24,8 +24,27 @@ export function loadPreviews(): Promise<void> {
 
 export const DISKS: GameDisk[] = Object.values(diskModules).map(m => m.disk).sort((a, b) => a.order - b.order);
 
+/* ---------- disks added while the console runs (GAM-64: games an AI harness makes, sent in through the embed bridge) ---------- */
+const BUILT_IN = new Set(DISKS.map(d => d.id));
+const added = new Map<string, () => Promise<CreateGame>>();
+
+/** Put a disk in the box at run time, or replace one added earlier with the same id. Its game code is fetched
+    by `load` when the disk is loaded, like a built-in game's. Built-in disks can't be replaced. */
+export function addDisk(disk: GameDisk, load: () => Promise<CreateGame>): void {
+  if (BUILT_IN.has(disk.id)) throw new Error(`"${disk.id}" is a built-in disk`);
+  const i = DISKS.findIndex(d => d.id === disk.id);
+  if (i >= 0) DISKS.splice(i, 1);
+  DISKS.push(disk);
+  DISKS.sort((a, b) => a.order - b.order);
+  added.set(disk.id, load);
+}
+/** Whether a disk was added at run time (see addDisk). */
+export const isAdded = (id: string) => added.has(id);
+
 /** Fetch a game's code (once; later calls reuse the module). */
 export async function loadGameCode(id: string): Promise<CreateGame> {
+  const load = added.get(id);
+  if (load) return load();
   const entry = Object.entries(gameModules).find(([path]) => path === `./${dirOf(id)}/game.ts`);
   if (!entry) throw new Error(`No game.ts for disk "${id}"`);
   return (await entry[1]()).default;

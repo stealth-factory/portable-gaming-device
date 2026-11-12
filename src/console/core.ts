@@ -107,9 +107,14 @@ export function updateDial(i: number){
   document.querySelectorAll('#dialLabels .dl').forEach((b, j) => b.setAttribute('aria-current', String(j === i)));
 }
 /* ---------- analytics: Vercel Web Analytics custom events, at most two properties each (the Pro plan limit) ---------- */
-export function track(name: string, data?: Record<string, string | number | boolean | null>){
+type TrackData = Record<string, string | number | boolean | null>;
+const trackSubs = new Set<(name: string, data?: TrackData) => void>();
+export function track(name: string, data?: TrackData){
   try { vaTrack(name, data); } catch (_) {}
+  trackSubs.forEach(f => { try { f(name, data); } catch (_) {} });
 }
+/** Hear every tracked event as it happens (the embed bridge passes them to the page around the console). */
+export function onTrack(fn: (name: string, data?: TrackData) => void){ trackSubs.add(fn); return () => { trackSubs.delete(fn); }; }
 export const layoutName = () => document.documentElement.getAttribute('data-layout') || 'desk';
 export function turnTo(i: number){
   i = Math.max(0, Math.min(MODE_ORDER.length - 1, i));
@@ -180,6 +185,8 @@ export let game: GameDisk = DISKS[0];
 export let runtime: GameRuntime | null = null;
 const runtimes: Record<string, GameRuntime> = {};
 export const runtimeReady = (id: string) => !!runtimes[id];
+/** Drop a game's runtime, so its next load makes a fresh one (a disk replaced at run time, or one that crashed). */
+export function forgetRuntime(id: string){ delete runtimes[id]; }
 export function fetchRuntime(d: GameDisk){
   if (runtimes[d.id]) return Promise.resolve(runtimes[d.id]);
   return loadGameCode(d.id).then(create => (runtimes[d.id] = runtimes[d.id] || create(api)));

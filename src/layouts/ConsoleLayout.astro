@@ -71,7 +71,7 @@ const pageTitle = autoload ? `${title} · PGD-01 Portable Gaming Device` : 'PGD-
    desk: mouse or trackpad · phone-portrait: touch, upright, narrow · tablet-portrait: touch, upright, 700px+
    console: touch held sideways, game fills the screen. Inline so the right layout is there before first paint. */
 (function(){
-  var root = document.documentElement;
+  var root = document.documentElement, embed = /[?&]embed\b/.test(location.search);
   function touchy(){
     return matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 1 && matchMedia('(hover: none)').matches)
       || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));   // iPadOS reports itself as a Mac
@@ -79,7 +79,8 @@ const pageTitle = autoload ? `${title} · PGD-01 Portable Gaming Device` : 'PGD-
   function detect(){
     var vv = window.visualViewport, w = vv ? vv.width : innerWidth, h = vv ? vv.height : innerHeight, lay = 'desk';
     if (touchy()) lay = w > h ? 'console' : (Math.min(w, h) >= 700 ? 'tablet-portrait' : 'phone-portrait');
-    else if (w < 720 && h > w * 1.15) lay = 'phone-portrait';   // a tall, narrow window (side panel, resized browser) plays upright too
+    else if (embed ? w < 480 : w < 720 && h > w * 1.15) lay = 'phone-portrait';   // a tall, narrow window (side panel, resized browser) plays upright too
+    // in another page's frame (?embed) the page may size the frame to the set, so only the width decides: see src/console/embed.ts
     if (root.getAttribute('data-layout') !== lay) root.setAttribute('data-layout', lay);
   }
   detect();
