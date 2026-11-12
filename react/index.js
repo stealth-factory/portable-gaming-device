@@ -135,8 +135,9 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
           // disks first, so a `game` that names one of them finds it when the boot ends
           sync(['disks', 'lang', 'phosphor', 'sound', 'paused', 'power']);
           for (const cmd of r.pending.splice(0)) { const w = r.waiting.get(cmd.request); if (w) w.session = session.current; send(cmd); }
-          // a `game` changed before the console was listening: the address still names the old one
-          if (p.game && p.game !== urlGame.current) { urlGame.current = p.game; send({ command: 'load', game: p.game }); }
+          // the address boots the game it was made with (urlGame, kept as it is so every reload compares against it):
+          // a different `game` since then, before this console was listening or before a reload, is loaded now
+          if (p.game && p.game !== urlGame.current) send({ command: 'load', game: p.game });
         }
         if (p.onReady) p.onReady(m.ready);
       } else if (m.type === 'state') {
@@ -159,9 +160,11 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
       } else if (m.type === 'need') {
         const make = r.games.get(m.id);
         if (!make) { send({ command: 'game', request: m.request, error: `no game for "${m.id}"` }); return; }
+        // request numbers start again on every page load: answer only the page that asked
+        const asked = session.current, answer = cmd => { if (session.current === asked && ready.current) send(cmd); };
         Promise.resolve().then(() => make(m.id)).then(
-          code => send({ command: 'game', request: m.request, game: String(code) }),
-          err => send({ command: 'game', request: m.request, error: String((err && err.message) || err) }),
+          code => answer({ command: 'game', request: m.request, game: String(code) }),
+          err => answer({ command: 'game', request: m.request, error: String((err && err.message) || err) }),
         );
       }
     };
@@ -186,7 +189,7 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
   useEffect(() => { if (shown.current && ready.current) sync(['sound']); }, [sound, sync]);
   useEffect(() => { if (shown.current && ready.current) sync(['paused']); }, [paused, sync]);
   useEffect(() => { if (shown.current && ready.current) sync(['disks']); }, [disks, sync]);
-  useEffect(() => { if (shown.current && ready.current && game) { urlGame.current = game; send({ command: 'load', game }); } }, [game, send]);
+  useEffect(() => { if (shown.current && ready.current && game) send({ command: 'load', game }); }, [game, send]);
   useEffect(() => { shown.current = true; }, []);
 
   useImperativeHandle(ref, () => ({

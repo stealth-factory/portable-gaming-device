@@ -84,6 +84,29 @@ export function readPgdisk(bytes: Uint8Array): Record<string, string> {
   return files;
 }
 
+/** Check a cover or flipbook frame before it reaches the launcher, which decodes it while drawing a frame. */
+function checkFrame(data: unknown, w: number, h: number, what: string){
+  if (typeof data !== 'string') throw new Error(`${what} data must be a base64 string`);
+  let bin: string;
+  try { bin = atob(data); } catch (_) { throw new Error(`${what} data is not base64`); }
+  if (bin.length < Math.ceil(w * h / 4)) throw new Error(`${what} data is too short for ${w} × ${h}`);
+}
+const size = (w: unknown, h: unknown, what: string) => {
+  if (!Number.isInteger(w) || !Number.isInteger(h) || (w as number) < 1 || (h as number) < 1 || (w as number) > 512 || (h as number) > 512)
+    throw new Error(`${what} needs whole-number w and h from 1 to 512`);
+};
+export function checkCover(c: Cover){
+  if (!c || typeof c !== 'object') throw new Error('cover must be { w, h, data }');
+  size(c.w, c.h, 'cover'); checkFrame(c.data, c.w, c.h, 'cover');
+}
+export function checkPreview(p: Preview){
+  if (!p || typeof p !== 'object') throw new Error('preview must be { w, h, fps, frames }');
+  size(p.w, p.h, 'preview');
+  if (!(Number(p.fps) > 0 && Number(p.fps) <= 60)) throw new Error('preview fps must be from 1 to 60');
+  if (!Array.isArray(p.frames) || !p.frames.length) throw new Error('preview needs at least one frame');
+  p.frames.forEach((f, i) => checkFrame(f, p.w, p.h, `preview frame ${i}`));
+}
+
 /** What a page sends to insert a disk. */
 export interface DiskSource {
   /** disk.js source */
@@ -107,8 +130,8 @@ export function readSource(src: DiskSource, order: number): { disk: GameDisk; ga
   }
   if (typeof diskJs !== 'string') throw new Error('send disk (the disk.js source) or pgdisk');
   const disk = completeDisk(diskFromScript(diskJs), order);
-  if (cover) disk.cover = cover;
-  if (preview) disk.preview = preview;
+  if (cover) { checkCover(cover); disk.cover = cover; }
+  if (preview) { checkPreview(preview); disk.preview = preview; }
   return { disk, game: gameJs };
 }
 

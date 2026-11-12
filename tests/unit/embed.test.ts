@@ -76,6 +76,11 @@ describe('inserted disks', () => {
     expect(() => completeDisk({ id: 'ok', drawLoad() {}, contract: 2 }, 0)).toThrow(/contract/);
     expect(() => readSource({}, 0)).toThrow(/disk/);
     expect(() => gameFromScript('var nothing = 1;')).toThrow(/PGDGame/);
+    // artwork the launcher would fail to decode mid-frame is refused at insert
+    expect(() => readSource({ disk: DISK_JS, cover: { w: 128, h: 96, data: 'not-base64!' } }, 0)).toThrow(/base64/);
+    expect(() => readSource({ disk: DISK_JS, cover: { w: 128, h: 96, data: 'AAAA' } }, 0)).toThrow(/too short/);
+    expect(() => readSource({ disk: DISK_JS, preview: { w: 8, h: 8, fps: 8, frames: [] } }, 0)).toThrow(/frame/);
+    expect(readSource({ disk: DISK_JS, cover: { w: 4, h: 4, data: btoa('\0\0\0\0') } }, 0).disk.cover?.w).toBe(4);
   });
   it('reads a real .pgdisk file', async () => {
     const built = await pg.buildDisk('dino-run');
