@@ -71,15 +71,24 @@ jobs:
             echo "pushed ${tag}"
             # `console` follows the newest release: never move it back to an
             # older one (a rebuild of an old tag still gets its own tag above).
-            current=""
-            if git fetch -q --depth=1 origin refs/heads/console:refs/remotes/origin/console 2>/dev/null; then
+            # ls-remote exits 2 only when the branch is missing; any other
+            # failure stops here rather than being read as "no console yet".
+            current="" lease="--force-with-lease=refs/heads/console:"
+            rc=0; git ls-remote --exit-code --heads origin console >/dev/null || rc=$?
+            if [ "$rc" = 0 ]; then
+              git fetch -q --depth=1 origin refs/heads/console:refs/remotes/origin/console
+              sha=$(git rev-parse origin/console)
               current=$(git show origin/console:package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
+              lease="--force-with-lease=refs/heads/console:${sha}"
+            elif [ "$rc" != 2 ]; then
+              echo "could not read the console branch (git ls-remote exit ${rc})" >&2; exit 1
             fi
             newest=$(printf '%s\n%s\n' "$version" "${current:-0.0.0}" | sort -V | tail -n 1)
             if [ -n "$current" ] && [ "$newest" != "$version" ]; then
               echo "console is at ${current}, newer than ${version}; leaving it"
             else
-              git push -f origin "HEAD:refs/heads/console"
+              # the lease fails the push if console moved since it was read
+              git push "$lease" origin "HEAD:refs/heads/console"
               echo "moved console to ${tag}"
             fi
           else
