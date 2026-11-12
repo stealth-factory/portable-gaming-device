@@ -3,7 +3,7 @@ import { bindHost, host, type ConsoleHost } from '../../src/console/program/host
 import type { Platform } from '../../src/console/program/platform';
 import { loadGame, playDisk, pressSelect, progress, startConsole } from '../../src/console/program/loader';
 import { scores, loadScores, saveBest, readBest, qualifies, forgetScores, lastName } from '../../src/console/program/scores';
-import { startEntry, entryKey, entryTap, updateOver, NKEYS } from '../../src/console/program/entry';
+import { startEntry, entryKey, entryTap, updateOver, drawEntry, keyRects, NKEYS } from '../../src/console/program/entry';
 
 /** A platform that records what the program asks of it. `sounding` turns on at the first wakeAudio. */
 function fakePlatform(over: Partial<Platform> = {}){
@@ -192,9 +192,14 @@ describe('name entry', () => {
 
   it('picks the key under a tap', () => {
     const { S } = entryHost();
-    startEntry();
+    const g = { fillStyle: '', fillRect(){} };
+    bindHost({ g, col: () => '#fff', txt(){}, LW: 240, LH: 200, HUD: 20 } as unknown as ConsoleHost);
+    startEntry(); S.entry.name = '';
+    drawEntry();
     expect(entryTap(-100, -100)).toBe(true);
     expect(S.entry.name).toBe('');
-    expect(NKEYS.at(-1)!.k).toBe('END');
+    const b = keyRects.find(q => NKEYS[q.i].k === 'B')!;
+    entryTap(b.x + b.w / 2, b.y + b.h / 2);
+    expect(S.entry.name).toBe('B');
   });
 });
