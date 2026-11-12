@@ -326,7 +326,7 @@ An optional slot the game doesn't map stays hidden and leaves its keys to the ot
 ```ts
 buttons: { fire: { label: 'jump' }, boost: { label: 'duck' } },              // Dino Run
 buttons: { fire: { label: 'serve' } },                                      // Bricks: BOOST dark
-buttons: { fireL: { label: 'iiL' }, fire: { label: 'iiMid' }, fireR: { label: 'iiR' } },   // three across
+buttons: { fire: { label: 'spark' }, boost: { label: 'msLoop' }, fireR: { label: 'msBomb' } },   // Martian Storm: BOMB beside FIRE
 ```
 
 - **A slot left out goes dark** and ignores presses; an optional slot left out stays hidden.
@@ -339,11 +339,11 @@ buttons: { fireL: { label: 'iiL' }, fire: { label: 'iiMid' }, fireR: { label: 'i
 ```ts
 api.setButtons({ boost: { label: 'nuke' } });     // Invader Force: an atomic bomb is ready
 api.setButtons({ pad5: { enabled: true } });      // I Invade: the meteor swarm has charged
-api.setButtons({ fireR: { label: 'iiR' } });      // show an optional slot for now
+api.setButtons({ fireR: { label: 'scBomb', enabled: true } });   // show an optional slot the disk left out, and light it
 api.setButtons({ boost: null });                  // back to what the disk declared
 ```
 
-Each entry changes the label, `enabled`, or both; `null` puts the slot back to the disk's declaration (and hides an optional slot the disk didn't map). Unknown slots are ignored, so asking for one the set doesn't have is safe. The console puts the declared map back at the start of every game. Disabling a slot also drops its pending press.
+Each entry changes the label, `enabled`, or both; a field you leave out keeps its current value, and an optional slot the disk didn't declare starts dark, so pass `enabled: true` to light it. `null` puts the slot back to the disk's declaration (and hides an optional slot the disk didn't map). Unknown slots are ignored, so asking for one the set doesn't have is safe. The console puts the declared map back at the start of every game. Disabling a slot also drops its pending press.
 
 ### The stick or the pad: `controls`
 
@@ -543,7 +543,12 @@ Each script carries its own copy of any kit or strings it uses. A host runs both
 
 Two things to know if you generate disks outside this repo:
 
-- **There is no stand-alone packer yet.** `tools/disks/build.mjs` packs only folders under `src/games/`, and it needs each folder's generated `cover.ts`. To make a `.pgdisk` from elsewhere today, copy the folder in, generate the cover (`make.cjs --covers-only`) and build.
+- **There is no stand-alone packer yet.** `tools/disks/build.mjs` packs only folders under `src/games/`, and it needs each folder's generated `cover.ts`. To make a `.pgdisk` from elsewhere today:
+  1. Copy the folder into `src/games/`.
+  2. Add a `play('play-<short>.png', '<folder>')` capture for it in `tools/share-images/make.cjs` (see [`src/games/README.md`](../src/games/README.md#artwork-and-images)). The cover is written only from that capture.
+  3. Build the site without packing disks, since the packer needs the cover you don't have yet, and serve it: `npx astro build && npm run preview` (it listens on `http://localhost:4173`).
+  4. Write the cover: `NODE_PATH=$(npm root -g) node tools/share-images/make.cjs --covers-only`.
+  5. Build everything, disks included: `npm run build`.
 - **Only signed disks run in the native apps.** A disk you build yourself runs in the web console and the headless runner; the apps load only disks in a catalogue signed with a key they trust.
 
 ## 13. Hosting PGD in another app
