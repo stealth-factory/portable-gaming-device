@@ -83,6 +83,9 @@ void Raster::scan(const std::vector<SubPath>& paths, Span span) const {
   for (const SubPath& sp : paths) {
     const std::size_t n = sp.pts.size();
     if (n < 2) continue;
+    // A transform can push a finite point past the range of a double. Drop that subpath whole, as
+    // Canvas drops a call with a non-finite argument, so no NaN reaches the rows or the sort.
+    if (!std::all_of(sp.pts.begin(), sp.pts.end(), [](const Point& q) { return finite(q.x) && finite(q.y); })) continue;
     for (std::size_t i = 0; i < n; ++i) {
       const Point a = sp.pts[i], b = sp.pts[(i + 1) % n];   // every subpath is closed for filling
       if (a.y == b.y) continue;

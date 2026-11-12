@@ -33,7 +33,9 @@ struct Layer {
   int w = 0, h = 0;
   std::vector<std::uint8_t> px;
   Layer() = default;
-  Layer(int w_, int h_) : w(w_), h(h_), px(static_cast<std::size_t>(w_) * h_, 0) {}
+  // A negative size makes an empty layer rather than a huge allocation.
+  Layer(int w_, int h_)
+      : w(w_ > 0 ? w_ : 0), h(h_ > 0 ? h_ : 0), px(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 0) {}
 };
 
 class Raster {

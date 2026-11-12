@@ -321,3 +321,24 @@ TEST("stamp ignores a layer whose pixels don't fill its size") {
   r.stamp(l, 0, 0);
   CHECK_EQ(count(r, 0), 64);
 }
+
+TEST("a subpath pushed past a double's range is dropped, the rest still fills") {
+  Raster r(8, 8);
+  r.setFill(1);
+  r.beginPath();
+  r.rect(0, 0, 4, 4);
+  r.moveTo(0, 0);
+  r.lineTo(1e308, 0);
+  r.lineTo(0, 1e308);
+  r.scale(10, 10);      // later points are transformed when added, so this overflows to infinity
+  r.lineTo(1e308, 1e308);
+  r.fillPath();
+  CHECK_EQ(count(r, 1), 16);
+}
+
+TEST("a negative layer size makes an empty layer") {
+  Layer l(-3, 5);
+  CHECK_EQ(l.w, 0);
+  CHECK_EQ(l.h, 5);
+  CHECK_EQ(int(l.px.size()), 0);
+}
