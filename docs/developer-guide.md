@@ -150,7 +150,7 @@ const create: CreateGame = api => {
 export default create;
 ```
 
-Drop the folder into `src/games/` and run `npm run dev`. The disk appears seventh in the launcher and gets its own page at `/star-catch`, with no list to edit. To ship it in this repo, it also needs a generated cover, a share image and tests: see [`src/games/README.md`](../src/games/README.md#a-new-disk-step-by-step). Without `cover.ts` the web console still runs it, but `npm run build` stops when it packs the disk files.
+Drop the folder into `src/games/` and run `npm run dev`; outside this repo, bundle it into two plain scripts and a host app can send it to a running console instead ([section 13](#13-hosting-pgd-in-another-app)). The disk appears seventh in the launcher and gets its own page at `/star-catch`, with no list to edit. To ship it in this repo, it also needs a generated cover, a share image and tests: see [`src/games/README.md`](../src/games/README.md#a-new-disk-step-by-step). Without `cover.ts` the web console still runs it, but `npm run build` stops when it packs the disk files.
 
 ## 2. How a game runs
 
@@ -541,8 +541,9 @@ The iOS and Android apps don't bundle games; they download disk files listed in 
 
 Each script carries its own copy of any kit or strings it uses. A host runs both in one fresh realm with its own seeded `Math.random` and without `Date` or `performance`. The catalogue, `index.json`, is signed with Ed25519, and each file is checked by size and SHA-256. Details, keys and the version lock: [`tools/disks/README.md`](../tools/disks/README.md).
 
-Two things to know if you generate disks outside this repo:
+Three things to know if you generate disks outside this repo:
 
+- **You may not need a `.pgdisk` at all.** A host app can send the two scripts as strings ([section 13](#13-hosting-pgd-in-another-app)). A file matters for the native apps and for sharing a disk whole.
 - **There is no stand-alone packer yet.** `tools/disks/build.mjs` packs only folders under `src/games/`, and it needs each folder's generated `cover.ts`. To make a `.pgdisk` from elsewhere today:
   1. Copy the folder into `src/games/`.
   2. Add a `play('play-<short>.png', '<folder>')` capture for it in `tools/share-images/make.cjs` (see [`src/games/README.md`](../src/games/README.md#artwork-and-images)). The cover is written only from that capture.
@@ -553,14 +554,16 @@ Two things to know if you generate disks outside this repo:
 
 ## 13. Hosting PGD in another app
 
-> **In review ([GAM-64](https://linear.app/stealth-company/issue/GAM-64/use-the-console-from-other-react-apps), [PR #129](https://github.com/stealth-factory/portable-gaming-device/pull/129)).** Once it merges, `react/README.md` is the reference for the host API; this section covers only what a game author needs to know about it.
+A React app, such as a builder where an AI harness writes games, can embed the console with `<PGDConsole>` from `portable-gaming-device/react` (installed from this repo with `npm install github:stealth-factory/portable-gaming-device#<tag>`) and load games into it at run time. The console runs in an iframe, because the engine takes over the page it runs on. [`react/README.md`](../react/README.md) is the reference for the component: its props, callbacks, ref and message protocol. The site's own [`/host`](../src/pages/host.astro) page uses it, and is a quick way to try a disk: paste the two scripts in, or drop a `.pgdisk` file.
 
-A React app, such as a builder where an AI harness writes games, can embed the console with `<PGDConsole>` from `portable-gaming-device/react` and load games into it at run time. The console runs in an iframe, because the engine takes over the page it runs on.
+This section covers only what a game author needs to know.
 
 What matters for a game:
 
 - **The same two scripts as a `.pgdisk`.** `insertDisk({ disk, game }, { boot })` takes strings: `disk.js`, a plain script defining `PGDDisk` (with `PGDDisk.disk`), and `game.js`, defining `PGDGame` (with `PGDGame.create(api)`). It also takes a whole file as `{ pgdisk: bytes }`. The `disks` prop does the same for a list of disks, and there `game` may be a function `(id) => string | Promise<string>` that the console calls only when the player loads that disk.
-- **Only `id` and `drawLoad` are required** on an inserted disk; the host fills in defaults for the rest. Fill them in anyway: the launcher, the leaflet and the game-over card read them.
+- **Only `id` and `drawLoad` are required** on an inserted disk (`id` in lower case, digits and hyphens); the console fills in the rest, with a 2 s load, the genre `CUSTOM` and an empty leaflet. Fill them in anyway: the launcher, the leaflet and the game-over card read them.
+- **Plain scripts, no imports.** An inserted disk is handed the `api` and nothing else from PGD, and the game kit isn't on the page as a global. It is not sandboxed, though: its scripts run in the console page's own scope, so browser globals such as `fetch` and `localStorage` are within reach. Keep to [section 10](#10-rules-every-disk-follows) anyway, or the disk won't run in the native apps. To use the kit, bundle it into your scripts as `tools/disks/build.mjs` does (Rolldown with `format: 'iife'` and the names `PGDDisk` and `PGDGame`), or write the game without it.
+- **A cover is optional.** Pass `cover` in the generated `cover.ts` shape (`{ w, h, data }`) and `preview` in the `preview.ts` shape (`{ w, h, fps, frames }`) alongside the scripts, or give the disk a `drawCover`. Without either, the launcher shows the title on a floppy label.
 - **Same `id`, new disk.** Inserting a disk whose `id` is already there replaces it, so a harness can iterate on one game. If the old one is loading or playing, the console stops it and goes back to the menu (or straight into the new one with `boot`).
 - **Errors come back to the host.** `onDiskError({ game, stage, message })` reports a disk that fails to insert (`'insert'`, including a `drawCover` or `drawPreview` that throws, after which the launcher shows the floppy label), to load (`'load'`: a bad `game.js`, or a `drawLoad` or `create` that throws) or while it plays (`'run'`). A `load` or `run` failure also sends the console back to the menu, so check those errors in a harness's loop.
 - **Who may insert disks:** the same origin, localhost, and the origins in the PGD build's `PUBLIC_PGD_EMBED_ORIGINS`. An inserted disk runs code on PGD's own site, which is why [section 10](#10-rules-every-disk-follows) matters most here.
@@ -594,7 +597,6 @@ Before handing a disk to a player, check that it:
 | Two players at once | One set of controls | Not planned |
 | Saving progress other than the best score | `api.best` and the table only | `ConsoleAPI` |
 | Packing a `.pgdisk` from outside the repo | Folders under `src/games/` only, with a generated cover | `tools/disks/` |
-| Loading a game into a running console from another app | In review ([GAM-64](https://linear.app/stealth-company/issue/GAM-64/use-the-console-from-other-react-apps)) | [Section 13](#13-hosting-pgd-in-another-app) |
 
 ## The ConsoleAPI at a glance
 
