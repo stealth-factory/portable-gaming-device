@@ -21,8 +21,9 @@ on:
 permissions:
   contents: write
 
+# One group for every ref, so two publishes never race to move `console`.
 concurrency:
-  group: console-release-${{ github.ref }}
+  group: console-release
   cancel-in-progress: false
 
 jobs:
@@ -67,8 +68,20 @@ jobs:
             tag="console-${REF_NAME}"
             git tag -a -f "$tag" -m "$tag"
             git push -f origin "refs/tags/${tag}"
-            git push -f origin "HEAD:refs/heads/console"
-            echo "pushed ${tag} and moved console to it"
+            echo "pushed ${tag}"
+            # `console` follows the newest release: never move it back to an
+            # older one (a rebuild of an old tag still gets its own tag above).
+            current=""
+            if git fetch -q --depth=1 origin refs/heads/console:refs/remotes/origin/console 2>/dev/null; then
+              current=$(git show origin/console:package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
+            fi
+            newest=$(printf '%s\n%s\n' "$version" "${current:-0.0.0}" | sort -V | tail -n 1)
+            if [ -n "$current" ] && [ "$newest" != "$version" ]; then
+              echo "console is at ${current}, newer than ${version}; leaving it"
+            else
+              git push -f origin "HEAD:refs/heads/console"
+              echo "moved console to ${tag}"
+            fi
           else
             git push -f origin "HEAD:refs/heads/console-main"
             echo "pushed console-main"

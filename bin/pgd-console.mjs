@@ -9,7 +9,7 @@
    the copy swaps it for --base, the path your site serves the folder at. Served from your own origin, the console
    takes disks from your app with no PUBLIC_PGD_EMBED_ORIGINS. No dependencies: Node 18 or later. */
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PLACEHOLDER = '/__pgd_base__';
@@ -21,7 +21,8 @@ export function normaliseBase(base = '/pgd/'){
   if (/^[a-z]+:\/\//i.test(b) || b.startsWith('//')) throw new Error('--base is a path on your site, like /pgd/, not a full address');
   if (!b.startsWith('/')) b = `/${b}`;
   if (!b.endsWith('/')) b = `${b}/`;
-  if (/[\s"'<>`\\]/.test(b)) throw new Error(`--base ${base} has characters a path can't hold`);
+  // ? and # would end the path in every URL the copy writes; spell them %3F and %23 in a folder name
+  if (/[\s"'<>`\\?#]/.test(b)) throw new Error(`--base ${base} has characters a path can't hold`);
   return b;
 }
 
@@ -39,6 +40,10 @@ export function copyConsole(dest, { base = '/pgd/', source = join(dirname(fileUR
     throw new Error(`no built console in ${source}. Install a console tag (github:stealth-factory/portable-gaming-device#console-vX.Y.Z), or build one here with npm run build:console`);
   }
   const { version } = JSON.parse(readFileSync(meta, 'utf8'));
+  // the copy wipes dest first, so dest must not be the console it copies from, or hold it
+  const from = realpathSync(source), to = resolve(dest);
+  const real = existsSync(to) ? realpathSync(to) : to;
+  if (from === real || from.startsWith(real + sep)) throw new Error(`${dest} is where the console is copied from; name another folder`);
   // the copy replaces the folder, so never wipe one that holds anything but an earlier copy (public/, say)
   if (existsSync(dest) && readdirSync(dest).length && !existsSync(join(dest, 'pgd-console.json'))) {
     throw new Error(`${dest} already holds other files. Name a folder of its own, e.g. public/pgd`);

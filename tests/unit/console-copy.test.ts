@@ -33,6 +33,8 @@ describe('normaliseBase', () => {
     expect(() => normaliseBase('//cdn.example.com/pgd')).toThrow(/not a full address/);
     expect(() => normaliseBase('/p g d/')).toThrow(/characters/);
     expect(() => normaliseBase('/a"b/')).toThrow(/characters/);
+    expect(() => normaliseBase('/games/c#/')).toThrow(/characters/);
+    expect(() => normaliseBase('/pgd?v=1/')).toThrow(/characters/);
   });
 });
 
@@ -64,6 +66,12 @@ describe('copyConsole', () => {
     writeFileSync(join(site, 'robots.txt'), 'keep me');
     expect(() => copyConsole(site, { source: src })).toThrow(/other files/);
     expect(readFileSync(join(site, 'robots.txt'), 'utf8')).toBe('keep me');
+  });
+  it('never copies over the console it copies from', () => {
+    const src = fakeConsole();
+    expect(() => copyConsole(src, { source: src })).toThrow(/copied from/);
+    expect(() => copyConsole(join(src, '..'), { source: src })).toThrow(/copied from|other files/);
+    expect(existsSync(join(src, 'pgd-console.json'))).toBe(true);
   });
   it('says how to get a console when there is none', () => {
     expect(() => copyConsole(join(tmp(), 'pgd'), { source: tmp() })).toThrow(/console-vX\.Y\.Z/);
