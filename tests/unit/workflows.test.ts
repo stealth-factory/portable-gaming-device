@@ -32,12 +32,19 @@ function runnerLabels(src: string): { line: number; label: string }[] {
     if (!m) return;
     let value = m[1];
     if (value === "") {
-      // A block list: `- label` lines underneath.
-      // Blank and comment-only lines inside the list are skipped, not the end.
+      // A block list: `- label` lines underneath. Blank and comment-only
+      // lines inside the list are skipped, not the end. Anything else first
+      // (a `group:`/`labels:` mapping, which picks a runner group) is
+      // recorded as written, so it fails rather than passing with no labels.
+      let found = false;
       for (let j = i + 1; j < lines.length; j++) {
         if (/^\s*(#.*)?$/.test(lines[j])) continue;
         const item = /^\s*-\s*(.+?)\s*(#.*)?$/.exec(lines[j]);
-        if (!item) break;
+        if (!item) {
+          if (!found) out.push({ line: j + 1, label: lines[j].trim() });
+          break;
+        }
+        found = true;
         out.push({ line: j + 1, label: item[1] });
       }
       return;
@@ -90,6 +97,10 @@ describe("workflow runners", () => {
       "",
       "      - self-hosted",
       "      - macOS",
+      "  f:",
+      "    runs-on:",
+      "      group: mac-runners",
+      "      labels: self-hosted",
       "  d:",
       "    runs-on: ${{ fromJSON(vars.MACOS_RUNS_ON || '\"xcode-27\"') }}",
     ].join("\n");
@@ -102,6 +113,7 @@ describe("workflow runners", () => {
       "xcode-27-xlarge",
       "self-hosted",
       "macOS",
+      "group: mac-runners",
       "${{ fromJSON(vars.MACOS_RUNS_ON || '\"xcode-27\"') }}",
     ]);
     expect(labels.map(standard)).toEqual([
@@ -109,6 +121,7 @@ describe("workflow runners", () => {
       false,
       false,
       true,
+      false,
       false,
       false,
       false,
