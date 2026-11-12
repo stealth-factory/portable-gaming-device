@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { bindHost, host, type ConsoleHost } from '../../src/console/program/host';
 import type { Platform } from '../../src/console/program/platform';
 import { loadGame, playDisk, pressSelect, progress, startConsole } from '../../src/console/program/loader';
+import { scores, loadScores, saveBest, readBest, qualifies, forgetScores, lastName } from '../../src/console/program/scores';
+import { startEntry, entryKey, entryTap, updateOver, drawEntry, keyRects, NKEYS } from '../../src/console/program/entry';
 
 /** A platform that records what the program asks of it. `sounding` turns on at the first wakeAudio. */
 function fakePlatform(over: Partial<Platform> = {}){
@@ -19,6 +21,7 @@ function fakePlatform(over: Partial<Platform> = {}){
     layoutName: () => 'desk',
     reducedMotion: false,
     hideCard(){ calls.push('hideCard'); },
+    showOverCard(level, score){ calls.push(`over:${level}:${score}`); },
     showHold(on){ calls.push('hold:' + on); },
     flash(c){ calls.push('flash:' + c); },
     autoloadId: () => null,
@@ -128,5 +131,75 @@ describe('load progress', () => {
     expect(progress(steps, 1)).toBe(1);
     expect(progress(steps, 2)).toBe(1);
     expect(progress(steps, -1)).toBe(0);
+  });
+});
+
+describe('scores', () => {
+  it('reads a cleaned table and keeps the best through the store', () => {
+    const f = fakePlatform();
+    f.stored['gg-board-x'] = JSON.stringify([{ n: 'ab1c', s: 50, l: 2 }, { n: 'zed', s: 90, l: 0 }, { n: 'bad', s: -1 }]);
+    bind(f.P);
+    loadScores('x');
+    expect(scores.board).toEqual([{ n: 'ZED', s: 90, l: 1 }, { n: 'ABC', s: 50, l: 2 }]);
+    expect(scores.best).toBe(90);
+    scores.best = 120; saveBest();
+    expect(f.stored['gg-best-x']).toBe('120');
+    expect(qualifies(10)).toBe(true);
+    expect(qualifies(0)).toBe(false);
+  });
+
+  it('falls back to the standalone game\'s keys for Tunnel Raider', () => {
+    const f = fakePlatform();
+    f.stored['eb-best'] = '777'; f.stored['tr-name'] = 'old';
+    bind(f.P);
+    forgetScores();
+    expect(readBest('tunnel')).toBe(777);
+    expect(lastName()).toBe('');   // forgetting also forgets the name
+  });
+});
+
+describe('name entry', () => {
+  function entryHost(){
+    const f = fakePlatform(), S: any = { mode: 'over', score: 300, level: 3 };
+    f.P.wakeAudio();
+    bind(f.P, { S, game: { id: 'x', verb: 'PLAY' } as any, releaseKeys(){}, stickDir: null } as any);
+    forgetScores(); loadScores('x');
+    return { f, S };
+  }
+
+  it('types a name, files it in the table and shows the table first', () => {
+    const { f, S } = entryHost();
+    startEntry();
+    expect(S.mode).toBe('entry');
+    for (const c of ['KeyA', 'KeyC', 'Backspace', 'KeyE']) entryKey(c);
+    expect(S.entry.name).toBe('AE');
+    entryKey('Enter');
+    expect(S.mode).toBe('over');
+    expect(S.showBoard).toBe(true);
+    expect(scores.board[0]).toEqual({ n: 'AE', s: 300, l: 3 });
+    expect(f.stored['gg-name']).toBe('AE');
+    expect(f.calls).toContain('track:high_score');
+    expect(f.calls.at(-1)).toBe('hideCard');
+  });
+
+  it('swaps the card and the table in the attract loop', () => {
+    const { f, S } = entryHost();
+    startEntry(); entryKey('Enter');
+    updateOver(7.5);
+    expect(S.showBoard).toBe(false);
+    expect(f.calls.at(-1)).toBe('over:3:000300');
+  });
+
+  it('picks the key under a tap', () => {
+    const { S } = entryHost();
+    const g = { fillStyle: '', fillRect(){} };
+    bindHost({ g, col: () => '#fff', txt(){}, LW: 240, LH: 200, HUD: 20 } as unknown as ConsoleHost);
+    startEntry(); S.entry.name = '';
+    drawEntry();
+    expect(entryTap(-100, -100)).toBe(true);
+    expect(S.entry.name).toBe('');
+    const b = keyRects.find(q => NKEYS[q.i].k === 'B')!;
+    entryTap(b.x + b.w / 2, b.y + b.h / 2);
+    expect(S.entry.name).toBe('B');
   });
 });

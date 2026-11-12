@@ -11,6 +11,8 @@ import { DEFAULTS, scoreKeys, SETTINGS_EVENT } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
 import { diskInfo, startConsole, drawBoot, updateBoot, updateMenu, drawMenu, menuKey, menuTap, updateLoad, drawLoad, pressSelect, loadGame, launcherTargets } from "./program/loader";
 import { bindHost } from "./program/host";
+import { scores, loadScores, saveBest, qualifies, forgetScores } from "./program/scores";
+import { NKEYS, keyRects, startEntry, enterOver, entryKey, entryTap, entryPick, updateEntry, updateOver, drawEntry, drawBoard } from "./program/entry";
 import { makeWebPlatform } from "./web/platform";
 import { ac, muted, setMuted, ensureAudio, hush, tone, audioOut } from "./web/audio";
 export { ac, muted, ensureAudio, hush, tone };
@@ -172,7 +174,7 @@ export const inb = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
 export function mulberry32(a: number){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 export const DIRS = { up:{dx:0,dy:-1}, down:{dx:0,dy:1}, left:{dx:-1,dy:0}, right:{dx:1,dy:0} };
 
-/* ---------- scores: each game keeps its own best and top-ten table on this device (localStorage only) ---------- */
+/* ---------- the loaded game (its scores are in program/scores.ts) ---------- */
 export let game: GameDisk = DISKS[0];
 /* the loaded game's code: fetched while its disk loads, then kept (one runtime per game) */
 export let runtime: GameRuntime | null = null;
@@ -182,36 +184,6 @@ export function fetchRuntime(d: GameDisk){
   if (runtimes[d.id]) return Promise.resolve(runtimes[d.id]);
   return loadGameCode(d.id).then(create => (runtimes[d.id] = runtimes[d.id] || create(api)));
 }
-export let best = 0;
-export const BOARD_MAX = 10, NAME_MAX = 9;
-const bestKey = (id: string) => 'gg-best-' + id, boardKey = (id: string) => 'gg-board-' + id;
-const OLD_KEYS: Record<string, { best: string; board: string }> = { tunnel: { best: 'eb-best', board: 'tr-board' } };   // from the standalone Tunnel Raider
-const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
-const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch (_) {} };
-export const cleanName = (v: unknown) => String(v || '').toUpperCase().replace(/[^A-Z ]/g, '').slice(0, NAME_MAX);
-export function readBoard(id: string){
-  const raw = lsGet(boardKey(id)) ?? (OLD_KEYS[id] ? lsGet(OLD_KEYS[id].board) : null);
-  try {
-    const b = JSON.parse(raw || '[]');
-    if (Array.isArray(b)) return b.filter(e => e && Number.isFinite(e.s) && e.s > 0).map(e => ({ n: cleanName(e.n).trim() || 'RAIDER', s: Math.floor(e.s), l: Math.max(1, e.l | 0) })).sort((a, b) => b.s - a.s).slice(0, BOARD_MAX);
-  } catch (_) {}
-  return [];
-}
-const bestCache: Record<string, number> = {};
-export function readBest(id: string){
-  if (bestCache[id] != null) return bestCache[id];
-  const raw = lsGet(bestKey(id)) ?? (OLD_KEYS[id] ? lsGet(OLD_KEYS[id].best) : null);
-  const b = readBoard(id);
-  return (bestCache[id] = Math.max(parseInt(raw || '0', 10) || 0, b.length ? b[0].s : 0));
-}
-export function saveBest(){ bestCache[game.id] = best; lsSet(bestKey(game.id), String(best)); }
-export let board: { n: string; s: number; l: number }[] = [], lastName = cleanName(lsGet('gg-name') ?? lsGet('tr-name'));
-export function loadScores(id: string){ board = readBoard(id); best = readBest(id); }
-loadScores(game.id);
-export function saveBoard(){ lsSet(boardKey(game.id), JSON.stringify(board)); lsSet('gg-name', lastName); }
-export const boardRank = (sc: number) => { const i = board.findIndex(e => sc > e.s); return i < 0 ? board.length : i; };   // ties go below the older score
-export const qualifies = (sc: number) => sc > 0 && boardRank(sc) < BOARD_MAX;
-export const ordinal = (n: number) => n + (n === 1 ? 'ST' : n === 2 ? 'ND' : n === 3 ? 'RD' : 'TH');
 
 /* ---------- audio: PC-speaker square waves and the floppy drive, in web/audio.ts ---------- */
 
@@ -253,7 +225,7 @@ function serveKey() {
 }
 addEventListener('keydown', e => {
   if ((e.target as Element)?.closest?.('.manual')) return;   // keys pressed on the leaflet's own buttons (Settings) are theirs, not the game's
-  if (S.mode === 'entry' && !e.metaKey && !e.ctrlKey && !e.altKey) { if (entryKey(e)) e.preventDefault(); return; }
+  if (S.mode === 'entry' && !e.metaKey && !e.ctrlKey && !e.altKey) { if (entryKey(e.code)) e.preventDefault(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (S.mode === 'menu' && menuKey(e.code)) { e.preventDefault(); return; }
   if (e.code === 'KeyG') { pressSelect(); e.preventDefault(); return; }
@@ -511,9 +483,7 @@ export function resetSettings(){
 }
 export function clearScores(){
   try { for (const k of scoreKeys(Object.keys(localStorage))) localStorage.removeItem(k); } catch (_) {}
-  for (const id of Object.keys(bestCache)) delete bestCache[id];
-  lastName = ''; S.bestAtStart = 0;
-  loadScores(game.id);
+  forgetScores(); S.bestAtStart = 0;
   if (S.mode === 'over' && S.showBoard) { S.showBoard = false; S.boardHi = -1; overlay.hidden = false; }   // the attract loop only swaps views while there is a table
   track('scores_cleared', { game: game.id });
 }
@@ -531,7 +501,7 @@ export function togglePause(forceOn?: boolean){
 }
 export function startGame(){
   ensureAudio();
-  S.level = 1; S.score = 0; S.lives = 3; S.nextLife = 20000; S.streak = 0; S.bestAtStart = best; S.showBoard = false; S.boardHi = -1;
+  S.level = 1; S.score = 0; S.lives = 3; S.nextLife = 20000; S.streak = 0; S.bestAtStart = scores.best; S.showBoard = false; S.boardHi = -1;
   S.parts.length = 0; S.pops.length = 0;
   setGame(game);
   runtime = runtimes[game.id];
@@ -609,11 +579,7 @@ export function update(dt: number){
   for (let i = S.parts.length - 1; i >= 0; i--) { const q = S.parts[i]; q.life -= dt; q.vy += 220 * dt; q.x += q.vx * dt; q.y += q.vy * dt; if (q.life <= 0) S.parts.splice(i, 1); }
   for (let i = S.pops.length - 1; i >= 0; i--) { const q = S.pops[i]; q.life -= dt; q.y -= 24 * dt; if (q.life <= 0) S.pops.splice(i, 1); }
   if (S.mode === 'entry') { updateEntry(dt); return; }
-  if (S.mode === 'over') {   // attract loop: CAVE-IN card and the high-score table take turns
-    S.overT += dt;
-    if (board.length) { const sb = ((S.overT + (S.boardFirst ? 0 : 7)) % 12) < 7; if (sb !== S.showBoard) { S.showBoard = sb; overlay.hidden = sb; } }
-    return;
-  }
+  if (S.mode === 'over') { updateOver(dt); return; }   // attract loop: the game-over card and the high-score table take turns
   if (S.mode === 'boot') { updateBoot(); return; }
   if (S.mode === 'menu') { updateMenu(dt); return; }
   if (S.mode === 'load') { updateLoad(dt); return; }
@@ -638,69 +604,11 @@ export function banner(t1: string, t2?: string){
   if (t2) txt(t2, LW / 2, y + 30, 'hud', 'center', 8);
 }
 
-/* ---------- name entry and the table, drawn on the tube like an arcade cabinet ---------- */
-export const NKEYS: { k: string; r: number; c: number; w: number }[] = [];
-'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((k, i) => NKEYS.push({ k, r: Math.floor(i / 10), c: i % 10, w: 1 }));
-NKEYS.push({ k: ' ', r: 2, c: 6, w: 1 }, { k: 'DEL', r: 2, c: 7, w: 1 }, { k: 'END', r: 2, c: 8, w: 2 });
-export let keyRects: { x: number; y: number; w: number; h: number; i: number }[] = [];
-export function startEntry(){
-  S.mode = 'entry'; overlay.hidden = true;
-  S.entry = { name: lastName, cur: lastName ? NKEYS.length - 1 : 0, rank: boardRank(S.score), dir: null, rep: 0, t: 0 };
-  held.length = 0;
-  if (ac && !muted) [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.09, 0.04, 0, i * 0.09));
-}
-export function enterOver(boardFirst: boolean){
-  S.mode = 'over'; S.overT = 0; S.boardFirst = boardFirst;
-  showOverlay('over', { n: S.level, s: String(S.score).padStart(6, '0') });
-  S.showBoard = boardFirst && board.length > 0; overlay.hidden = S.showBoard;
-}
-export function entryMove(d: Dir){
-  const E = S.entry, k = NKEYS[E.cur];
-  if (d === 'left' || d === 'right') { const n = NKEYS.length; E.cur = (E.cur + (d === 'right' ? 1 : n - 1)) % n; }
-  else {
-    const r = (k.r + (d === 'down' ? 1 : 2)) % 3, col = Math.min(k.c, 9);
-    E.cur = NKEYS.findIndex(q => q.r === r && col >= q.c && col < q.c + q.w);
-    if (E.cur < 0) E.cur = NKEYS.findIndex(q => q.r === r && q.c + q.w > 8);
-  }
-  if (ac && !muted) tone(660, 0.02, 0.03);
-}
-export function entryType(k: string){
-  const E = S.entry;
-  if (k === 'END') return entryFinish();
-  if (k === 'DEL') { if (E.name) { E.name = E.name.slice(0, -1); if (ac && !muted) tone(330, 0.04, 0.04, -80); } return; }
-  if (E.name.length >= NAME_MAX || (k === ' ' && !E.name)) { if (ac && !muted) tone(140, 0.08, 0.04); return; }
-  E.name += k; if (ac && !muted) tone(1175, 0.03, 0.04);
-  if (E.name.length >= NAME_MAX) E.cur = NKEYS.length - 1;   // full: jump to END
-}
-export function entryFinish(){
-  const E = S.entry, name = E.name.trim() || 'RAIDER', rank = boardRank(S.score);
-  board.splice(rank, 0, { n: name, s: S.score, l: S.level }); board = board.slice(0, BOARD_MAX);
-  lastName = name; saveBoard();
-  track('high_score', { game: game.id, rank: rank + 1 });
-  S.boardHi = rank;
-  if (ac && !muted) [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, 0.07, 0.04, 0, i * 0.07));
-  enterOver(true);
-}
-export function entryKey(e: KeyboardEvent){
-  const dir = KEYMAP[e.code];
-  if (dir && e.code.startsWith('Arrow')) { entryMove(dir); return true; }
-  if (e.code === 'Space') { entryType(NKEYS[S.entry.cur].k); return true; }
-  if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Escape') { entryFinish(); return true; }
-  if (e.code === 'Backspace' || e.code === 'Delete') { entryType('DEL'); return true; }
-  const m = /^Key([A-Z])$/.exec(e.code);
-  if (m) { S.entry.cur = NKEYS.findIndex(q => q.k === m[1]); entryType(m[1]); return true; }
-  return false;
-}
-export function updateEntry(dt: number){
-  const E = S.entry; E.t += dt; E.rep -= dt;
-  if (stickDir !== E.dir) { E.dir = stickDir; if (stickDir) { entryMove(stickDir); E.rep = 0.4; } }
-  else if (stickDir && E.rep <= 0) { entryMove(stickDir); E.rep = 0.15; }
-}
 // FIRE (button or Space) picks a letter, or starts a new game from the attract loop
 export function menuFire(){
   if (S.mode === 'menu') { loadGame(S.menuSel); return true; }
   if (S.mode === 'boot' || S.mode === 'load') return true;
-  if (S.mode === 'entry') { entryType(NKEYS[S.entry.cur].k); return true; }
+  if (S.mode === 'entry') { entryPick(); return true; }
   if (S.mode === 'over' && S.overT > 0.8) { startGame(); return true; }
   return false;
 }
@@ -712,63 +620,8 @@ cv.addEventListener('pointerdown', e => {
   if (game.tap && (S.mode === 'play' || S.mode === 'ready')) { e.preventDefault(); tapQueued = true; tapHeld = true; tapX = x; return; }   // games that take taps (jump, fire)
   if (S.mode !== 'entry' && !(S.mode === 'over' && S.showBoard)) return;
   e.preventDefault(); ensureAudio();
-  if (S.mode === 'over') { if (S.overT > 0.8) startGame(); return; }
-  const hit = keyRects.find(q => x >= q.x - 1 && x < q.x + q.w + 1 && y >= q.y - 1 && y < q.y + q.h + 1);
-  if (hit) { S.entry.cur = hit.i; entryType(NKEYS[hit.i].k); }
+  entryTap(x, y);
 });
-export function panel(){
-  g.fillStyle = col('bg'); g.fillRect(0, HUD, LW, LH - HUD);
-  g.fillStyle = col('hud'); for (let x = 4; x < LW - 4; x += 4) { g.fillRect(x, HUD + 4, 2, 1); g.fillRect(x, LH - 5, 2, 1); }
-}
-export function drawEntry(){
-  const E = S.entry, blink = Math.floor(E.t * 3) % 2 === 0;
-  panel();
-  const cw = Math.min(24, Math.floor((LW - 12) / 10)), ch = 17, gw = cw * 10;
-  const top = HUD + Math.max(10, Math.round((LH - HUD - 158) / 2));
-  txt('NEW HIGH SCORE', LW / 2, top, blink ? 'gold' : 'text', 'center', 16);
-  txt(`${ordinal(E.rank + 1)}  ${String(S.score).padStart(6, '0')}  L${S.level}`, LW / 2, top + 22, 'hud', 'center');
-  // nine name slots with a flashing cursor
-  const sw = Math.min(14, Math.floor((LW - 20) / NAME_MAX)), sx = Math.round(LW / 2 - sw * NAME_MAX / 2), sy = top + 40;
-  for (let i = 0; i < NAME_MAX; i++) {
-    const x = sx + i * sw, ch1 = E.name[i];
-    if (ch1 && ch1 !== ' ') txt(ch1, x + sw / 2, sy, 'text', 'center', 16);
-    const cursor = i === E.name.length && E.name.length < NAME_MAX;
-    if (!cursor || blink) { g.fillStyle = col(cursor ? 'gold' : 'hud'); g.fillRect(x + 2, sy + 17, sw - 4, cursor ? 2 : 1); }
-  }
-  // the letter grid: stick or arrows to move, FIRE to pick
-  const gx = Math.round(LW / 2 - gw / 2), gy = sy + 30;
-  keyRects = [];
-  NKEYS.forEach((q, i) => {
-    const x = gx + q.c * cw, y = gy + q.r * ch, w = q.w * cw - 2, h = ch - 3, on = i === E.cur;
-    keyRects.push({ x, y, w, h, i });
-    if (on) { g.fillStyle = col('text'); g.fillRect(x, y, w, h); }
-    const role = on ? 'bg' : (q.k.length > 1 ? 'hud' : 'text'), cx = Math.round(x + w / 2), cy = y + Math.round(h / 2);
-    g.fillStyle = col(role);
-    if (q.k === ' ') { g.fillRect(cx - 4, cy + 1, 9, 1); g.fillRect(cx - 4, cy - 1, 1, 2); g.fillRect(cx + 4, cy - 1, 1, 2); }
-    else if (q.k === 'DEL') { for (let j = 0; j < 4; j++) g.fillRect(cx - 3 + j, cy - j, 1, j * 2 + 1); g.fillRect(cx + 1, cy - 1, 4, 3); }
-    else txt(q.k, cx, cy - 4, role, 'center');
-  });
-  txt('STICK TO MOVE · FIRE TO PICK', LW / 2, gy + ch * 3 + 6, 'textDim', 'center');
-}
-export function drawBoard(){
-  panel();
-  const blink = Math.floor(S.overT * 4) % 2 === 0, AH = LH - HUD;
-  const rh = Math.max(11, Math.min(15, Math.floor((AH - 62) / BOARD_MAX))), wide = LW >= 300;
-  const top = HUD + Math.max(10, Math.round((AH - (42 + rh * BOARD_MAX + 18)) / 2));
-  txt('HIGH SCORES', LW / 2, top, 'text', 'center', 16);
-  const bw = Math.min(LW - 20, wide ? 240 : 200), x0 = Math.round(LW / 2 - bw / 2), y0 = top + 30;
-  for (let i = 0; i < BOARD_MAX; i++) {
-    const e = board[i], y = y0 + i * rh, hi = i === S.boardHi;
-    if (hi && !blink) continue;
-    const role = hi ? 'gold' : i < 3 ? 'text' : 'hud';
-    txt(ordinal(i + 1), x0 + 24, y, role, 'right');
-    txt(e ? e.n : '.........', x0 + 34, y, e ? role : 'textDim');
-    if (wide) txt(e ? 'L' + e.l : '', x0 + bw - 58, y, role, 'right');
-    txt(e ? String(e.s).padStart(6, '0') : '------', x0 + bw, y, e ? role : 'textDim', 'right');
-  }
-  if (Math.floor(S.overT * 2) % 2 === 0) txt('PRESS FIRE TO ' + game.verb, LW / 2, y0 + rh * BOARD_MAX + 8, 'hud', 'center');
-}
-
 export function renderFrame(){
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.imageSmoothingEnabled = false;
@@ -1013,14 +866,14 @@ pixelFont.load();
 requestAnimationFrame(frame);
 
 /* setters for state the game modules change (an imported binding can't be assigned from outside its module) */
-export function setBest(v: number){ best = v; }
+export function setBest(v: number){ scores.best = v; }
 export function clearFireQueued(){ Btn.clearQueued('fire'); }
 export function clearBoostQueued(){ Btn.clearQueued('boost'); }
 export function clearTap(){ tapQueued = false; }
 export function setAccReset(){ accReset = true; }
 
 /* test hook for the Playwright checks; only with ?test in the address */
-if (/[?&]test\b/.test(location.search)) (window as any).__gg = { S, get board(){ return board; }, get keyRects(){ return keyRects; }, NKEYS, cv, get LW(){ return LW; }, get LH(){ return LH; }, overlay, killPlayer: (c?: string) => runtime?.debug?.kill?.(c), loadGame, DISKS, get game(){ return game; }, get runtime(){ return runtime; }, finishGame, get audioOut(){ return audioOut(); }, tone, lowres, cover: captureCover, launcherTargets, setGrid };
+if (/[?&]test\b/.test(location.search)) (window as any).__gg = { S, get board(){ return scores.board; }, get keyRects(){ return keyRects; }, NKEYS, cv, get LW(){ return LW; }, get LH(){ return LH; }, overlay, killPlayer: (c?: string) => runtime?.debug?.kill?.(c), loadGame, DISKS, get game(){ return game; }, get runtime(){ return runtime; }, finishGame, get audioOut(){ return audioOut(); }, tone, lowres, cover: captureCover, launcherTargets, setGrid };
 
 /** Test builds: the low-res buffer as it was last shown, one palette index (0 to 3) per pixel, before the CRT pass. */
 function lowres(){
@@ -1056,18 +909,19 @@ export const api: ConsoleAPI = {
   get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; }, get tapX(){ return tapX; },
   clearFire: clearFireQueued, clearBoost: clearBoostQueued, clearTap, setBoostLabel,
   tone, buzz,
-  get best(){ return best; }, set best(v: number){ best = v; },
+  get best(){ return scores.best; }, set best(v: number){ scores.best = v; },
   saveBest, finishGame, track, mulberry32,
   diskInfo: (y, p, t, d) => diskInfo(y, p, t, d),
 };
 
 /* The loader reads the console through this seam (see host.ts). It has to be bound before the first
    frame, and the requestAnimationFrame above does not run until this module has finished. */
-const platform = makeWebPlatform({ track, layoutName, reducedMotion: reduceMotion, overlay });
+const platform = makeWebPlatform({ track, layoutName, reducedMotion: reduceMotion, overlay, showOverCard: (n, sc) => showOverlay('over', { n, s: sc }) });
 bindHost({
   platform,
   S, g, col, txt, age, api,
-  setAccReset, startGame, setGame, readBest, readBoard, setManual, clearInput,
+  setAccReset, startGame, setGame, setManual, clearInput, releaseKeys: () => { held.length = 0; },
+  HUD,
   fetchRuntime, runtimeReady,
   get LW(){ return LW; },
   get LH(){ return LH; },
@@ -1075,3 +929,4 @@ bindHost({
   get tvOn(){ return tvOn; },
   get game(){ return game; },
 });
+loadScores(game.id);   // the first disk's, until a game is loaded
