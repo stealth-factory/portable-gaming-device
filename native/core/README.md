@@ -10,9 +10,11 @@ What is here so far:
 | --- | --- |
 | `include/pgd/raster.hpp`, `src/raster.cpp` | The disk contract's drawing surface (`Screen2D`) as a rasteriser into palette indices 0 to 3: rectangles, filled paths with non-zero winding, arcs and `arcTo`, clips, the transform stack, and stamping layers. A pixel is filled when its centre is inside the shape; there is no anti-aliasing |
 | `include/pgd/palettes.hpp` | The seven phosphor modes, generated from `src/kit/platform/palettes.ts` by `tools/gen-palettes.mjs`. Never edit it by hand; `tests/unit/native-palettes.test.ts` fails when it is out of date |
+| `include/pgd/font_atlas.hpp` | Silkscreen as 1-bit bitmaps at 8 and 16 px, baked in Chromium by `tools/fonts/atlas.cjs`. Never edit it by hand; `tests/unit/native-font.test.ts` fails when it no longer matches the pinned font or its advances |
+| `include/pgd/text.hpp`, `src/text.cpp` | `measureText` and `fillText` for the disk contract's text: UTF-8 in, the shared advances, left, centre or right alignment, and Chromium's placement with `textBaseline = 'top'` (the top snaps up to a whole pixel, a half-pixel pen lights both columns). A missing character advances like the web's and draws nothing |
 | `tests/` | Unit tests with a tiny built-in harness (`check.hpp`) |
 
-Still to come: the pixel font, the synth, the command decoder and the script host (GAM-36).
+Still to come: the synth, the command decoder and the script host (GAM-36).
 
 ## Build and test
 
@@ -23,4 +25,4 @@ ctest --test-dir build/core --output-on-failure
 ```
 
 CI runs this with GCC and Clang on Linux, warnings as errors. After changing the web's palettes, run
-`node native/core/tools/gen-palettes.mjs`.
+`node native/core/tools/gen-palettes.mjs`. After changing the font, run `node tools/fonts/atlas.cjs` (it needs Playwright with Chromium).
