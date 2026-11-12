@@ -212,6 +212,56 @@ TEST("synth: a full queue drops sounds instead of blocking") {
   CHECK(s.click(1.0));
 }
 
+TEST("synth: hush still cuts when the queue is full, and keeps what comes after") {
+  Synth s(kRate);
+  std::size_t ok = 0;
+  for (std::size_t i = 0; i < Synth::kQueue + 10; ++i) ok += s.click(0.01 + double(i % 50) * 0.01);
+  CHECK_EQ(ok, Synth::kQueue);
+  CHECK(s.hush());
+  auto out = run(s, at(1.0));
+  CHECK(silent(out, 0, out.size()));
+  CHECK_EQ(s.activeVoices(), std::size_t(0));
+  CHECK(s.tone(440, 0.1));
+  out = run(s, at(0.1));
+  CHECK(peak(out, 0, out.size()) > 0.04);
+}
+
+TEST("synth: a hush cuts only what was queued before it, even before a render") {
+  Synth s(kRate);
+  CHECK(s.tone(220, 0.5));
+  CHECK(s.hush());
+  CHECK(s.tone(440, 0.5));
+  const auto out = run(s, at(0.4));
+  CHECK(pitch(out, at(0.05), at(0.35)) > 400);
+}
+
+TEST("synth: delays and lengths over an hour are refused") {
+  Synth s(kRate);
+  CHECK(!s.motor(1e14, 1e14));
+  CHECK(!s.motor(0, 3601));
+  CHECK(!s.tone(440, 1e14));
+  CHECK(!s.tone(440, 0.1, 0.045, 0, 1e14));
+  CHECK(!s.click(1e14));
+  CHECK(s.motor(3600, 3600));
+  run(s, 64);
+}
+
+TEST("synth: huge volumes and tiny clicks keep the mix finite") {
+  Synth s(kRate);
+  CHECK(s.tone(440, 0.05, 1e39));
+  CHECK(s.click(0, 1e-320));
+  s.setGain(0);
+  const auto out = run(s, at(0.05));
+  bool finiteAll = true;
+  for (float v : out) finiteAll = finiteAll && std::isfinite(v);
+  CHECK(finiteAll);
+  CHECK(peak(out, 0, out.size()) <= 1.0);
+  Synth q(kRate);
+  CHECK(q.click(0, 1e-320));
+  const auto quiet = run(q, at(0.02));
+  CHECK(peak(quiet, 0, quiet.size()) < 1e-3);
+}
+
 TEST("synth: bad values are refused") {
   Synth s(kRate);
   CHECK(!s.tone(0, 0.1));

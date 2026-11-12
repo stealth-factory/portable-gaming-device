@@ -12,11 +12,17 @@ constexpr double kClickLen = 0.018;    // a head click's decay, seconds
 constexpr double kMotorGain = 0.16, kHumGain = 0.012;
 constexpr double kMinSlide = 40;       // the web's floor for a slide's target, Hz
 constexpr std::size_t kChunk = 256;    // frames mixed at a time
+constexpr double kMaxSecs = 3600;      // the longest delay or length a sound may ask for, so frame counts stay small
+constexpr double kMaxMix = 16;         // a frame's mix is held inside this before it becomes a float
 
 bool finite(double v) { return std::isfinite(v); }
 
-/** Web Audio's exponentialRampToValueAtTime between v0 and v1, `x` of the way along (0 to 1). */
-double expRamp(double v0, double v1, double x) { return v0 * std::pow(v1 / v0, x); }
+/** Web Audio's exponentialRampToValueAtTime between v0 and v1, `x` of the way along (0 to 1). Worked in
+    logs, so a tiny v0 cannot overflow the ratio v1 / v0. */
+double expRamp(double v0, double v1, double x) { return std::exp((1 - x) * std::log(v0) + x * std::log(v1)); }
+
+/** A delay or length the synth will schedule: finite and no more than an hour. */
+bool inRange(double secs) { return std::isfinite(secs) && secs <= kMaxSecs; }
 
 /** The motor's gain for one part peaking at `peak`: up from the floor over `up`, held, down to it over
     `down`, each ramp between that part's own end values, as the web schedules the rumble and hum apart. */
@@ -92,7 +98,7 @@ bool Synth::pop(Command& c) {
 // ---------- control side ----------
 
 bool Synth::tone(double freq, double dur, double vol, double slide, double delay) {
-  if (muted() || !finite(freq) || !finite(dur) || !finite(vol) || !finite(slide) || !finite(delay)) return false;
+  if (muted() || !finite(freq) || !inRange(dur) || !finite(vol) || !finite(slide) || !inRange(delay)) return false;
   if (freq <= 0 || dur <= 0) return false;
   Command c;
   c.kind = Kind::Tone; c.at = frames(); c.a = freq; c.b = dur; c.c = vol; c.d = slide; c.delay = delay;
@@ -101,23 +107,24 @@ bool Synth::tone(double freq, double dur, double vol, double slide, double delay
 
 bool Synth::click(double delay, double vol, double freq) {
   // a click at no volume is silence (the web's exponential ramp holds at 0), so there is nothing to queue
-  if (muted() || !finite(delay) || !finite(vol) || !finite(freq) || freq <= 0 || vol <= 0) return false;
+  if (muted() || !inRange(delay) || !finite(vol) || !finite(freq) || freq <= 0 || vol <= 0) return false;
   Command c;
   c.kind = Kind::Click; c.at = frames(); c.a = vol; c.b = freq; c.delay = delay;
   return push(c);
 }
 
 bool Synth::motor(double start, double dur) {
-  if (muted() || !finite(start) || !finite(dur) || dur <= 0) return false;
+  if (muted() || !inRange(start) || !inRange(dur) || dur <= 0) return false;
   Command c;
   c.kind = Kind::Motor; c.at = frames(); c.b = dur; c.delay = start;
   return push(c);
 }
 
 bool Synth::hush() {
-  Command c;
-  c.kind = Kind::Hush; c.at = frames();
-  return push(c);
+  // not a queued command, so a full queue cannot drop it: the next render cuts every voice and every
+  // command queued before this point, and keeps the ones queued after it
+  hushCut_.store(tail_.load(std::memory_order_relaxed), std::memory_order_release);
+  return true;
 }
 
 void Synth::setGain(float g) {
@@ -134,10 +141,6 @@ float Synth::noise(std::uint32_t& s) const {
 }
 
 void Synth::start(const Command& c) {
-  if (c.kind == Kind::Hush) {
-    for (auto& v : voices_) v.kind = Kind::None;
-    return;
-  }
   Voice v;
   v.kind = c.kind;
   v.start = static_cast<std::int64_t>(c.at) + std::llround(std::max(0.0, c.delay) * sr_);
@@ -205,7 +208,8 @@ void Synth::mix(float* buf, std::size_t n) {
         v.humPhase = wrap(v.humPhase + dt);
         s = rumble + saw * swell(kHumGain, t, v.len, v.up, v.down);
       }
-      buf[f - now] += static_cast<float>(s);
+      // held inside kMaxMix, so a huge (finite) volume cannot become an infinite float
+      buf[f - now] = static_cast<float>(std::clamp(static_cast<double>(buf[f - now]) + s, -kMaxMix, kMaxMix));
     }
     if (v.end <= stop) { v.kind = Kind::None; --active; }
   }
@@ -214,7 +218,8 @@ void Synth::mix(float* buf, std::size_t n) {
   for (std::size_t i = 0; i < n; ++i) {
     gain_ += (target - gain_) * gainCoef_;
     if (std::fabs(target - gain_) < 1e-6) gain_ = target;   // land on it, so gain 0 is true silence
-    buf[i] = std::clamp(static_cast<float>(buf[i] * gain_), -1.0f, 1.0f);
+    const float x = static_cast<float>(buf[i] * gain_);
+    buf[i] = std::isfinite(x) ? std::clamp(x, -1.0f, 1.0f) : 0.0f;
   }
 }
 
@@ -223,6 +228,13 @@ void Synth::render(float* out, std::size_t frames, int channels) {
   if (channels < 1) channels = 1;
   // only the commands already queued: a game thread that keeps queuing cannot hold up the samples
   Command c;
+  const std::size_t cut = hushCut_.load(std::memory_order_acquire);
+  if (cut != seenCut_) {
+    seenCut_ = cut;
+    for (auto& v : voices_) v.kind = Kind::None;
+    // drop what was queued before the hush: while head is behind cut (cut - head is 1 to kQueue then)
+    for (std::size_t d = cut - head_.load(std::memory_order_relaxed); d != 0 && d <= kQueue && pop(c); --d) {}
+  }
   for (std::size_t n = queued(); n > 0 && pop(c); --n) start(c);
   float buf[kChunk];
   std::size_t done = 0;

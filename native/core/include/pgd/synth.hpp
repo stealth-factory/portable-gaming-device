@@ -55,7 +55,8 @@ class Synth {
 
   // ---- control side ----
   // Each returns false when the sound is dropped: muted, a value that is not finite, a length or pitch
-  // that is not positive, a click volume that is not above 0, or a full queue. A negative delay plays now.
+  // that is not positive, a click volume that is not above 0, a delay or length over an hour, or a full
+  // queue. A negative delay plays now.
 
   /** A square-wave note: `freq` Hz for `dur` seconds at `vol`, sliding to max(40, freq + slide) Hz by its end. */
   bool tone(double freq, double dur, double vol = 0.045, double slide = 0, double delay = 0);
@@ -63,7 +64,8 @@ class Synth {
   bool click(double delay, double vol = 0.22, double freq = 2600);
   /** The drive motor running for `dur` seconds from `start` seconds from now. */
   bool motor(double start, double dur);
-  /** Cut every sound ringing or scheduled so far. Sounds asked for after it play as usual. */
+  /** Cut every sound ringing or scheduled so far. Sounds asked for after it play as usual. It is not queued,
+      so a full queue cannot drop it; it always returns true. */
   bool hush();
   /** While muted, new sounds are dropped (the SOUND switch); sounds already playing carry on, as on the web. */
   void setMuted(bool m) { muted_.store(m, std::memory_order_relaxed); }
@@ -85,7 +87,7 @@ class Synth {
   std::size_t activeVoices() const { return active_.load(std::memory_order_relaxed); }
 
  private:
-  enum class Kind : std::uint8_t { None, Tone, Click, Motor, Hush };
+  enum class Kind : std::uint8_t { None, Tone, Click, Motor };
   struct Command {
     Kind kind = Kind::None;
     std::uint64_t at = 0;   // the audio clock when it was queued
@@ -114,6 +116,8 @@ class Synth {
   std::uint32_t seed_;
   std::array<Command, kQueue> queue_{};
   std::atomic<std::size_t> head_{0}, tail_{0};
+  std::atomic<std::size_t> hushCut_{0};   // the queue position of the last hush: commands before it are cut
+  std::size_t seenCut_ = 0;               // the last hush render acted on (audio side only)
   std::array<Voice, kVoices> voices_{};
   std::atomic<std::uint64_t> frames_{0};
   std::atomic<std::size_t> active_{0};
