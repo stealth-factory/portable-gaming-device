@@ -35,7 +35,7 @@ It renders on the server as a plain `<iframe>` and touches `window` only in effe
 | `paused` | HOLD: pause a game in progress, or carry on. `true` with no game running pauses the next one as it starts. |
 | `disks` | Your own games, on the disk menu beside the console's (see below). |
 | `chrome` | `true` also shows the page around the set: the header, the instructions bar and the leaflet. |
-| `title`, `className`, `style` | For the iframe. Without a `height` in `style`, the frame takes the set's height on the desk layout, and a 6:5 box on the others. Below 480 px wide the set switches to its upright phone layout, which fills whatever box it gets. |
+| `title`, `className`, `style` | For the iframe. Without a `height` in `style`, the frame takes the set's height on the desk layout, a 9:16 box (at most the screen's height) on the upright phone layout, and a 6:5 box on the others. Below 480 px wide the set switches to that upright phone layout, which fills whatever box it gets. |
 
 ## Data coming out
 

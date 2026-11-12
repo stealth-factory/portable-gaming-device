@@ -91,6 +91,17 @@ const check = (ok, what) => { if (!ok) fail.push(what); };
   check(await seen(q, () => window.log.some(m => m.type === 'state' && m.state.power === true)), 'other origins can still drive the set');
   await q.close();
 
+  // the site's own /host page: a React app around <PGDConsole>, with the sample disk on the menu, played to a score
+  const h = await b.newPage({ viewport: { width: 1280, height: 1000 } });
+  h.on('pageerror', e => fail.push(`/host: ${e.message}`));
+  await h.goto(`${BASE}host`);
+  check(await seen(h, () => /7 disks/.test(document.querySelector('.host-meta')?.textContent || '')), '/host: the console is ready with the sample disk');
+  await h.click('text=Power on');
+  await h.waitForTimeout(5000);
+  await h.selectOption('.host-side select >> nth=0', 'rock-drop');
+  check(await seen(h, () => /modeplaygamerock-drop/.test(document.querySelector('.host-state')?.textContent || '')), '/host: the sample disk plays');
+  await h.close();
+
   await b.close(); server.close();
   if (fail.length) { console.log('FAIL:\n  ' + fail.join('\n  ')); process.exit(1); }
   console.log('embed ok');

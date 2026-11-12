@@ -1,0 +1,45 @@
+/* The /host page: a plain app page around the console's frame (GAM-64). */
+:root{
+  color-scheme:dark;
+  --desk:#111110; --panel:#1a1a18; --line:#2e2d29; --ink:#ddd3ba; --muted:#8d8676; --accent:#cfc3a3; --err:#e0806a; --ok:#9fc98a;
+  --print:"Barlow Condensed", "Arial Narrow", sans-serif;
+  --body:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--desk);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.55}
+.host{max-width:1240px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:24px}
+.host h1,.host h2{font-family:var(--print);font-weight:700;text-transform:uppercase;letter-spacing:.2em;margin:0 0 8px;color:var(--accent)}
+.host h1{font-size:22px}
+.host h2{font-size:15px}
+.host p{margin:0;color:var(--muted);max-width:80ch}
+.host a{color:var(--ink)}
+.host code{color:var(--ink)}
+.host-grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px;align-items:start}
+.host-set{min-width:0}
+.host-side{display:grid;gap:20px}
+.host-side section,.host-disks,.host-log{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px}
+.host-state{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;margin:0}
+.host-state dt{color:var(--muted)}
+.host-state dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.host-meta{margin-top:8px!important;font-size:12px}
+.host label{display:grid;gap:4px;margin-top:10px;font-size:12px;color:var(--muted)}
+.host label.host-check{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:14px}
+.host select,.host textarea,.host button{font:inherit;color:var(--ink);background:#0d0d0c;border:1px solid var(--line);border-radius:4px}
+.host select{padding:5px 6px}
+.host button{padding:6px 10px;cursor:pointer}
+.host button:hover:not(:disabled){border-color:var(--accent)}
+.host button:disabled{opacity:.45;cursor:default}
+.host-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+.host-file{display:inline-flex!important;margin:0!important;align-items:center;gap:8px;font-size:14px!important;color:var(--ink)!important}
+.host-file input{font-size:12px;color:var(--muted);max-width:100%}
+.host-code{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.host-code textarea{width:100%;min-height:260px;padding:8px;font-size:12px;line-height:1.45;resize:vertical;white-space:pre;tab-size:2}
+.host-log ol{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto;font-size:12px}
+.host-log li{padding:2px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.host-log time{color:var(--muted);margin-right:6px}
+.host-error{color:var(--err)}
+.host-note{color:var(--ok)}
+@media (max-width:860px){
+  .host-grid{grid-template-columns:minmax(0,1fr)}
+  .host-code{grid-template-columns:minmax(0,1fr)}
+}

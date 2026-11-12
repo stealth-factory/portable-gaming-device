@@ -126,8 +126,9 @@ export interface PGDConsoleProps {
   /** The frame's accessible name. Default "PGD-01 Portable Gaming Device". */
   title?: string;
   className?: string;
-  /** The frame's style. Without a `height`, the frame takes the set's height on the desk layout, and a 6:5 box on
-      the others (the upright and sideways layouts fill whatever box they're given). */
+  /** The frame's style. Without a `height`, the frame takes the set's height on the desk layout, a 9:16 box
+      (at most the screen's height) on the upright phone layout, and a 6:5 box on the others (the upright and sideways
+      layouts fill whatever box they're given). */
   style?: CSSProperties;
   onReady?: (ready: PGDReady) => void;
   onStateChange?: (state: PGDState) => void;

@@ -205,6 +205,8 @@ It switches the set on, captures the menu, each game's loading screen and some p
 
 `<PGDConsole>` puts the console in another React app, from a git install of this repo (`npm install github:stealth-factory/portable-gaming-device#<tag>`). It shows a PGD build in an iframe, takes props (`game`, `power`, `lang`, `phosphor`, `sound`, `paused`), reports state and every event above, and loads games the app supplies (`disks`, or `insertDisk()` on its ref). React is a peer dependency, and the install holds nothing but the component. See [react/README.md](react/README.md).
 
+The site uses it too: `/host` is a React page around `<PGDConsole>` that frames the site's own console, shows its state and events, and puts disks in the box (a sample game, scripts pasted in, or a `.pgdisk` file).
+
 ## Deploy
 
 Vercel detects Astro: build command `npm run build`, output directory `dist`. `vercel.json` turns on clean URLs, so `/dino-run` serves `dino-run.html`. Any static host works if it does the same. Turn on Web Analytics in the project for the events above.

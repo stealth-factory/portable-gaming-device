@@ -153,6 +153,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 | Path | What it is |
 | --- | --- |
 | `src/pages/index.astro`, `src/pages/[slug].astro` | The console page, and one page per game |
+| `src/pages/host.astro`, `src/host/` | `/host`: the site dogfooding `<PGDConsole>` (GAM-64). A React page that frames the site's own console, drives it, logs what comes out and inserts disks (`sample.ts` is an original sample disk as plain scripts). It can't be the console page itself: the engine takes over the page it runs on. `tests/embed.cjs` covers it |
 | `src/layouts/ConsoleLayout.astro` | Head and share tags, the inline layout detector, the set, the leaflet |
 | `src/components/` | React components (static): `ConsoleSet` and its parts, `Header`, `ManualBar`, `NetBadge`; `Manual.tsx` is the live island |
 | `src/main.ts` | Engine entry: console, PWA, analytics |

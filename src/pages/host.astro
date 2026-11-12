@@ -1,0 +1,26 @@
+---
+/* /host: the site dogfooding its own React component (GAM-64). A React app around <PGDConsole>, which frames this
+   site's console (`/?embed`). Not the console page itself: the engine takes over the page it runs on, so a page that
+   embeds the console has to be a different page from the console. */
+import HostPage from '../host/HostPage';
+import '../host/host.css';
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="The PGD-01 console inside another React app, through the PGDConsole component: drive it, watch what it reports, and put your own disks in.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#111110">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<title>PGD host · PGD-01 Portable Gaming Device</title>
+</head>
+<body>
+<HostPage client:load />
+</body>
+</html>

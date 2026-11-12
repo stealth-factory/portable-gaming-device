@@ -55,6 +55,7 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
   const frameLoaded = useRef(false);
   // the set's height on the desk layout, as the console reports it
   const [deskHeight, setDeskHeight] = useState(null);
+  const [upright, setUpright] = useState(false);
   // the latest callbacks and props, read by the message listener without re-subscribing
   const latest = useRef(props);
   latest.current = props;
@@ -150,6 +151,7 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
         }
       } else if (m.type === 'size') {
         setDeskHeight(m.layout === 'desk' && m.height > 0 ? m.height : null);
+        setUpright(m.layout === 'phone-portrait');
       } else if (m.type === 'reply') {
         const w = r.waiting.get(m.request); if (!w) return;
         r.waiting.delete(m.request);
@@ -204,7 +206,7 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
     src: url,
     title,
     className,
-    style: { border: 0, display: 'block', width: '100%', ...(deskHeight ? { height: deskHeight } : { aspectRatio: '6 / 5' }), ...style },
+    style: { border: 0, display: 'block', width: '100%', ...(deskHeight ? { height: deskHeight } : upright ? { aspectRatio: '9 / 16', maxHeight: '100svh' } : { aspectRatio: '6 / 5' }), ...style },
     allow: 'autoplay; fullscreen; gamepad; screen-wake-lock',
     // a backstop: if the console's own hello was missed, ask once the page in the frame has loaded
     onLoad: () => { frameLoaded.current = true; if (!ready.current) send({ command: 'hello' }); },
