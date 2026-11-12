@@ -18,6 +18,8 @@ on:
 
 permissions:
   contents: write
+  # To start testflight.yml at the new tag.
+  actions: write
 
 concurrency:
   group: tag-release
@@ -88,6 +90,7 @@ jobs:
           git tag -a "$tag" -m "$tag" "$sha"
           git push origin "$tag"
           echo "pushed ${tag} at ${sha}"
+          echo "created=yes" >> "$GITHUB_OUTPUT"
 
       - name: Publish the GitHub Release
         env:
@@ -154,3 +157,24 @@ jobs:
           fi
           git push $lease origin "${sha}:refs/heads/production"
           echo "production -> ${TAG} (${sha}); Vercel deploys it"
+
+      # The iOS app ships with the release: the tagged build goes to external
+      # TestFlight testers and Beta App Review. A tag push starts no workflow
+      # here, so dispatch it at the tag. Only for a tag this run made, and
+      # even if a step above failed, since the tag is out: a re-run starts
+      # nothing (run TestFlight at the tag by hand for that). testflight.yml
+      # fails if the app's secrets are missing, so a release that should have
+      # reached testers shows up red there.
+      - name: Start the TestFlight build
+        if: always() && steps.tag.outputs.created == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! git cat-file -e "${TAG}:native/ios" 2>/dev/null; then
+            echo "no native/ios at ${TAG}: no iOS build to ship"
+            exit 0
+          fi
+          gh workflow run testflight.yml --ref "$TAG"
+          echo "TestFlight started at ${TAG}"

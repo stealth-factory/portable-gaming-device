@@ -151,6 +151,73 @@ a Vercel preview. Only the production domain waits for a release.
 Do not also add an Ignored Build Step or `git.deploymentEnabled` in
 `vercel.json`; two gates make "why didn't it deploy?" much harder to answer.
 
+## TestFlight (the iOS app)
+
+The iOS app (`native/ios`, from GAM-37) rides the same release.
+`.github/workflows/testflight.yml` uploads it in two stages:
+
+| When | What goes to TestFlight | Version |
+|---|---|---|
+| a merge to `main` touching `native/`, `src/` or `package.json` | an **internal** build, for the internal group with no review | the version the next release will carry (or the next patch when nothing releasable is waiting) |
+| the release PR merges | `tag-release.yml` dispatches the workflow at the new `vX.Y.Z` tag: the same upload, then the build joins the **external** group and is submitted for Beta App Review, with "What to Test" from that version's changelog section | `X.Y.Z` |
+
+The build number is whole minutes since the Unix epoch, so every upload is
+higher than the last. Branch builds never reach TestFlight, and nothing is
+uploaded until `native/ios` exists: until then (and until the secrets below
+are set) a push run passes with a notice saying why.
+
+**Where it runs.** Signing happens only on GitHub-hosted macOS (the
+`xcode-27` image; the job refuses anything older than Xcode 27.1, which the
+iPhone Duo needs). The self-hosted Macs run the unsigned build and test jobs
+and never hold a key or certificate (see the `self-hosted-macos-runner`
+skill). Xcode signs automatically with the API key and makes a development
+certificate on the throwaway Mac; the job revokes it at the end, pass or
+fail. **Actions → Apple certificates** lists, then with *apply* revokes, any
+left behind ("Your account has reached the maximum number of certificates").
+
+### Setting it up (owner)
+
+In **Settings → Secrets and variables → Actions**, either on this repository
+or at the stealth-factory organisation (where they live today). An
+organisation secret or variable reaches this repository only if its access is
+*All repositories*, or *Selected repositories* with this one ticked. *Private
+repositories* leaves it out, because this repository is public.
+
+| Name | Kind | Value |
+|---|---|---|
+| `APP_STORE_KEY_ID` | secret | the key's id, from App Store Connect → Users and Access → Integrations → **Team Keys** (role **Admin**, so CI can manage signing and revoke its certificates) |
+| `APP_STORE_ISSUER_ID` | secret | the issuer id shown above the keys list |
+| `APP_STORE_KEY_P8_BASE64` | secret | `base64 -i AuthKey_<id>.p8` (the file downloads once) |
+| `APPLE_TEAM_ID` | variable | the 10-character team id (developer.apple.com → Membership) |
+| `PGD_CATALOGUE_URL` | variable, optional | the disk catalogue address baked into the app |
+| `TESTFLIGHT_EXTERNAL_GROUP` | variable, optional | the external group's name; default `Public beta` |
+| `TESTFLIGHT_LOCALE` | variable, optional | the "What to Test" localisation; default `en-US` |
+
+The bundle id, `co.stealth-factory.portable-gaming-device` (GAM-40), is set
+in the workflow itself. The team id is a variable, not a commit, as the iOS
+spec asks: CI writes both into `native/ios/Config/Local.xcconfig` (ignored by git) and a
+temporary `ExportOptions.plist`. On a Mac, copy `Local.xcconfig.example` to
+`Local.xcconfig` and fill it in.
+
+In **App Store Connect**:
+
+- the app record for the bundle id (iOS);
+- an **internal** group with *Enable automatic distribution* ticked, so every
+  upload from `main` reaches it without an API call;
+- an **external** group named `Public beta` (or whatever
+  `TESTFLIGHT_EXTERNAL_GROUP` says), and the TestFlight **Test Information**
+  (feedback email, beta description, review contact) filled in, or Beta App
+  Review refuses the submission.
+
+The app's Info.plist must set `ITSAppUsesNonExemptEncryption` to `false`;
+the upload job checks, because otherwise every build waits on an export
+compliance answer.
+
+**Re-running a stage:** Actions → TestFlight → Run workflow, at `main` for
+an internal build or at a `vX.Y.Z` tag for the external one. A release whose
+TestFlight dispatch was missed (a re-run of `tag-release.yml` does not
+dispatch again) is shipped the same way, at its tag.
+
 ## If something goes wrong
 
 **A tag exists but production did not move.** Read `tag-release.yml`'s log,

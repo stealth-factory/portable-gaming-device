@@ -1,0 +1,13 @@
+{
+  "frames": 360,
+  "seed": 1,
+  "grid": { "w": 15, "h": 10 },
+  "palette": "greenP1",
+  "events": [
+    { "frame": 90, "held": ["right"], "buttons": { "fire": true, "pad1": true, "pad2": true, "pad3": true } },
+    { "frame": 150, "held": ["up"], "buttons": { "boost": true, "pad4": true } },
+    { "frame": 180, "buttons": { "boost": false } },
+    { "frame": 240, "held": ["left"], "buttons": { "pad5": true } },
+    { "frame": 300, "held": [], "buttons": { "fire": false, "pad1": false, "pad2": false, "pad3": false, "pad4": false, "pad5": false } }
+  ]
+}
