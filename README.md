@@ -203,7 +203,7 @@ It switches the set on, captures the menu, each game's loading screen and some p
 
 ## In another React app
 
-`<PGDConsole>` puts the console in another React app, from a git install of this repo (`npm install github:stealth-factory/portable-gaming-device#<tag>`). It shows a PGD build in an iframe, takes props (`game`, `power`, `lang`, `phosphor`, `sound`, `paused`), reports state and every event above, and loads games the app supplies (`disks`, or `insertDisk()` on its ref). React is a peer dependency, and the install holds nothing but the component. See [react/README.md](react/README.md).
+`<PGDConsole>` puts the console in another React app, from a git install of this repo (`npm install github:stealth-factory/portable-gaming-device#<tag>`). It shows a PGD build in an iframe, takes props (`game`, `power`, `lang`, `phosphor`, `sound`, `paused`), reports state and every event above, and loads games the app supplies (`disks`, or `insertDisk()` on its ref). React is a peer dependency, and the install holds nothing but the component and, on a `console-vX.Y.Z` tag, a built console: `npx pgd-console public/pgd` copies it into the app, which then serves it itself (`src="/pgd/index.html"`) and can insert its own games with nothing to configure. `npm run build:console` builds that console here, and `console-release.yml` publishes it for each release. See [react/README.md](react/README.md).
 
 The site uses it too: `/host` is a React page around `<PGDConsole>` that frames the site's own console, shows its state and events, and puts disks in the box (a sample game, scripts pasted in, or a `.pgdisk` file).
 

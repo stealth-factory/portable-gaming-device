@@ -39,6 +39,9 @@ conventional_commits = true
 filter_unconventional = false
 split_commits = false
 protect_breaking_commits = true
+# Only release tags count. console-release.yml also tags (console-vX.Y.Z), on
+# commits that never reach main, and those must never be read as a release.
+tag_pattern = "^v[0-9]"
 
 commit_parsers = [
   # GitHub's own merge commits, should one slip through with merge commits

@@ -5,3 +5,6 @@ dist/
 build/
 # The iOS app's bundle id and team id (native/ios/Config/Local.xcconfig.example)
 Local.xcconfig
+.console-build/
+# the self-hosted console (npm run build:console): built and committed only on console-vX.Y.Z tags
+/console/

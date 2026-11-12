@@ -32,7 +32,8 @@ document.addEventListener('click', e => {   // keep the install label in the cho
   if (installBtn && (e.target as Element).closest?.('#langSeg')) setTimeout(() => { if (installBtn) installBtn.textContent = t('install'); }, 0);
 });
 
-if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+// no service worker in the self-hosted console (npm run build:console): the site around it owns its offline story
+if (import.meta.env.PUBLIC_PGD_CONSOLE_BUILD !== '1' && 'serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   const updateSW = registerSW({
     immediate: true,   // register now rather than after window load (a slow font request can hold that up)
     // a new version has downloaded: offer a restart rather than cutting a game off mid-level

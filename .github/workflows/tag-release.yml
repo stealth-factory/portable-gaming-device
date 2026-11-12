@@ -178,3 +178,20 @@ jobs:
           fi
           gh workflow run testflight.yml --ref "$TAG"
           echo "TestFlight started at ${TAG}"
+
+      # The self-hosted console other sites install (console-release.yml):
+      # build it at the tag and push it as console-vX.Y.Z. Dispatched for
+      # the same reason as TestFlight: a tag push starts no workflow.
+      - name: Start the console build
+        if: always() && steps.tag.outputs.created == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! git cat-file -e "${TAG}:.github/workflows/console-release.yml" 2>/dev/null; then
+            echo "no console-release.yml at ${TAG}: nothing to build"
+            exit 0
+          fi
+          gh workflow run console-release.yml --ref "$TAG"
+          echo "console build started at ${TAG}"

@@ -1,0 +1,75 @@
+# Builds the self-hosted console (GAM-69) and publishes it where a git install
+# can reach it: the console/ folder that `npx pgd-console` copies into another
+# site. console/ is a build output, so main never holds it; this workflow
+# commits it on top of the ref it built and pushes that commit as
+#
+#   - a release tag vX.Y.Z  -> tag console-vX.Y.Z, and the `console` branch
+#                              moves to it (the latest release);
+#   - anything else (main)  -> the `console-main` branch, for trying what is
+#                              on main before it is released.
+#
+# Install one with github:stealth-factory/portable-gaming-device#console-vX.Y.Z.
+# tag-release.yml dispatches this at each new release tag (a tag pushed by the
+# bot starts no workflow by itself); run it by hand for main, or to redo a tag.
+# Nothing here touches main or production, and these tags never match the
+# release pattern (cliff.toml's tag_pattern, tag-release's v[0-9]*).
+name: console-release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: console-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:console
+
+      - name: Commit the console and push it
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          if [ "$REF_TYPE" = tag ]; then
+            if ! printf '%s\n' "$REF_NAME" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "only release tags (vX.Y.Z) get a console tag, not ${REF_NAME}" >&2; exit 1
+            fi
+            if [ "$REF_NAME" != "v${version}" ]; then
+              echo "${REF_NAME} holds package.json version ${version}" >&2; exit 1
+            fi
+          elif [ "$REF_NAME" != main ]; then
+            echo "run this on main or a release tag, not ${REF_NAME}" >&2; exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # console/ is in .gitignore on main; -f commits it here only.
+          git add -f console
+          git commit -q -m "chore: built console for ${REF_NAME}" \
+            -m "The self-hosted PGD console (npx pgd-console), built from ${GITHUB_SHA}."
+          if [ "$REF_TYPE" = tag ]; then
+            tag="console-${REF_NAME}"
+            git tag -a -f "$tag" -m "$tag"
+            git push -f origin "refs/tags/${tag}"
+            git push -f origin "HEAD:refs/heads/console"
+            echo "pushed ${tag} and moved console to it"
+          else
+            git push -f origin "HEAD:refs/heads/console-main"
+            echo "pushed console-main"
+          fi

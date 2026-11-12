@@ -2,15 +2,23 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import { AstroPWAIntegration as AstroPWA } from '@vite-pwa/astro';
 
+// The self-hosted console (GAM-69, `npm run build:console`): the same console built for another site to serve under a
+// path of its own (builder serves it at /pgd/), with no service worker, no analytics and no share images. Its paths
+// start with a placeholder that bin/pgd-console.mjs swaps for the real path when the copy is made.
+const CONSOLE = process.env.PUBLIC_PGD_CONSOLE_BUILD === '1';
+const CONSOLE_BASE = '/__pgd_base__';
+
 // Static site (Vercel or any static host). Pages build to /index.html, /tunnel-raider.html, /dino-run.html …
 // served without the .html (vercel.json: cleanUrls). The PWA integration precaches every built file by content
 // hash, so each deploy is a new offline version without hand-editing a service worker.
 export default defineConfig({
   trailingSlash: 'never',
   build: { format: 'file' },
+  ...(CONSOLE ? { base: CONSOLE_BASE, outDir: '.console-build' } : {}),
   integrations: [
     react(),
     AstroPWA({
+      disable: CONSOLE,
       registerType: 'prompt',
       injectRegister: false,
       includeManifestIcons: false,

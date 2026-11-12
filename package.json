@@ -16,8 +16,13 @@
     },
     "./package.json": "./package.json"
   },
+  "bin": {
+    "pgd-console": "bin/pgd-console.mjs"
+  },
   "files": [
     "react/",
+    "bin/",
+    "console/",
     "LICENSE",
     "LICENSES/",
     "LICENSING.md"
@@ -25,6 +30,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "npm run typecheck && astro build && node tools/disks/build.mjs",
+    "build:console": "PUBLIC_PGD_CONSOLE_BUILD=1 astro build && node tools/console/pack.mjs",
     "preview": "astro preview --port 4173",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
