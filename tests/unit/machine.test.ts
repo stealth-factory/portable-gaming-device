@@ -4,11 +4,13 @@ import { bindHost, type ConsoleHost } from '../../src/console/program/host';
 import type { Platform } from '../../src/console/program/platform';
 import { loadGame } from '../../src/console/program/loader';
 import { scores, forgetScores, loadScores } from '../../src/console/program/scores';
-import { game, runtimeReady, startGame, finishGame, togglePause, clearScores, menuFire, update, draw, inGame, S as BAG } from '../../src/console/program/machine';
+import { game, runtimeReady, forgetRuntime, startGame, finishGame, togglePause, clearScores, menuFire, update, draw, inGame, S as BAG } from '../../src/console/program/machine';
 import { makeConsoleAPI, mulberry32, type ApiIO } from '../../src/console/program/api';
 
 /** What the program asked of the platform and the game. The program keeps a game's runtime once made, so this list is shared and emptied per test. */
 const calls: string[] = [];
+/** The api each freshly made runtime was given. */
+const given: unknown[] = [];
 
 function setup(over: Partial<ConsoleHost> = {}){
   calls.length = 0;
@@ -20,7 +22,7 @@ function setup(over: Partial<ConsoleHost> = {}){
     wakeAudio(){ calls.push('wake'); }, sounding: false,
     tone(){}, click(){}, motor(){},
     buzz(h: unknown){ calls.push('buzz:' + h); },
-    loadCode: () => Promise.resolve(() => ({ start(){ calls.push('start'); }, update(){ calls.push('update'); }, draw(){ calls.push('draw'); } })),
+    loadCode: () => Promise.resolve((api: unknown) => { given.push(api); return { start(){ calls.push('start'); }, update(){ calls.push('update'); }, draw(){ calls.push('draw'); } }; }),
     track(name: string){ calls.push('track:' + name); },
     layoutName: () => 'desk', reducedMotion: false,
     hideCard(){ calls.push('hideCard'); },
@@ -32,22 +34,26 @@ function setup(over: Partial<ConsoleHost> = {}){
     flash(){}, autoloadId: () => null, oldList: false, onOnline(){}, onSettings(){},
   } as Platform;
   const S: any = { parts: [], pops: [], time: 0 };
+  const api = { fake: 'api' };
   bindHost({
-    platform: P, S, age: { dipLeft: 0 },
+    platform: P, S, api, age: { dipLeft: 0 },
     setAccReset(){}, clearInput(){ calls.push('clearInput'); }, releaseKeys(){ calls.push('releaseKeys'); },
     get tvOn(){ return on; },
     ...over,
   } as unknown as ConsoleHost);
   forgetScores();
-  return { P, S, calls, stored, setOn(v: boolean){ on = v; } };
+  return { P, S, api, calls, stored, setOn(v: boolean){ on = v; } };
 }
 
-/** Load the first disk and wait for its (fake) code, so startGame has a runtime. */
+/** Load the first disk and wait for its (fake) code, so startGame has a runtime. The cached runtime is dropped first,
+    so every load makes a fresh one and the api it was given can be checked. */
 async function loaded(){
   const t = setup();
+  forgetRuntime(game.id); given.length = 0;
   loadGame(0);
   await Promise.resolve(); await Promise.resolve();
   expect(runtimeReady(game.id)).toBe(true);
+  expect(given).toEqual([t.api]); expect(given[0]).toBe(t.api);
   return t;
 }
 
