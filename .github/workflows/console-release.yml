@@ -22,9 +22,12 @@ permissions:
   contents: write
 
 # One group for every ref, so two publishes never race to move `console`.
+# queue: max keeps every pending run: by default a newer dispatch would
+# replace one still waiting, and a release tag could go without its console.
 concurrency:
   group: console-release
   cancel-in-progress: false
+  queue: max
 
 jobs:
   publish:
