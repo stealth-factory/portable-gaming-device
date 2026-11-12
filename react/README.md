@@ -81,7 +81,7 @@ const disks = useMemo(() => [{
 
 Your disks go on the disk menu with the console's own, and the player picks one like any other. When it's picked, the console fetches the game: the `game` string, or the answer from your `game` function, which gets about 20 seconds. Sending a disk with the same `id` again replaces it, so a harness can iterate. The component sends a disk again only when its sources change, so a new array holding the same disks sends nothing. A reload of the frame starts with only the console's own disks, and the component sends yours again.
 
-Games follow the console's rules: draw only through `api`, use the four palette roles, use no browser globals, and keep loads under 5 seconds. [`src/games/README.md`](../src/games/README.md) is the guide to writing one.
+Games follow the console's rules: draw only through `api`, use the four palette roles, use no browser globals, and keep loads under 5 seconds. The [developer guide](../docs/developer-guide.md) covers writing one: the `api`, buttons, sound, scores and every disk field, with a whole example game.
 
 **Who may insert disks.** A disk's code runs on the PGD site it's sent to. So the console takes disks only from its own origin, from `localhost`, and from the origins its build lists in `PUBLIC_PGD_EMBED_ORIGINS`. That list is comma-separated, and `https://*.example.com` matches subdomains:
 
