@@ -132,7 +132,9 @@ public/                    icons, favicon, share image
 
 Make a folder in `src/games/` with a `disk.ts` (the label, loading screen and instructions) and a `game.ts` (the game, default export `create(api)`). Nothing else needs editing: the disk menu, its page (`/<slug>`), its instructions, its high-score table and the offline cache all pick it up.
 
-**[Making a game disk](src/games/README.md)** has the rest: every file a game needs in its folder and outside it, [which buttons a game uses and where they sit](src/games/README.md#controls-and-buttons), [how it shows up in the launcher and on its loading screen](src/games/README.md#on-the-menu-and-the-loading-screen), the artwork and images (sprites, loading screen, share image, screenshots and the launcher cover), the strings in three languages, the tests, the plug-in rules and a minimal example.
+**[The developer guide](docs/developer-guide.md)** covers what a game can do through the console: the game loop and modes, the screen and its four colours, input, [which buttons a game uses and where they sit](docs/developer-guide.md#5-buttons-and-their-layout), sound and haptics, scores, [every disk field](docs/developer-guide.md#8-the-disk-every-field), the game kit, testing headless, the `.pgdisk` file and what isn't possible yet, with a whole example game.
+
+**[Making a game disk](src/games/README.md)** has the rest for this repo: every file a game needs in its folder and outside it, the artwork and images (sprites, loading screen, share image, screenshots and the launcher cover), the strings in three languages, the tests, the plug-in rules and a minimal example.
 
 ### Share images and screenshots
 
