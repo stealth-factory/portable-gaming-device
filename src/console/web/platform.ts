@@ -20,6 +20,8 @@ export interface WebPlatformDeps {
   reducedMotion: boolean;
   /** The pause and game-over card laid over the tube. */
   overlay: HTMLElement;
+  /** Fill that card with the loaded game's game-over words and show it. */
+  showOverCard: Platform['showOverCard'];
 }
 
 export function makeWebPlatform(deps: WebPlatformDeps): Platform {
@@ -36,6 +38,7 @@ export function makeWebPlatform(deps: WebPlatformDeps): Platform {
     layoutName: deps.layoutName,
     reducedMotion: deps.reducedMotion,
     hideCard(){ deps.overlay.hidden = true; },
+    showOverCard: deps.showOverCard,
     showHold(on){ $('pauseBtn')?.setAttribute('aria-pressed', String(on)); },
     flash(control){
       const b = $(control + 'Btn'); if (!b) return;

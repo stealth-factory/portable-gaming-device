@@ -11,6 +11,7 @@ import { useButtons } from '../buttons';
 import { BOOT_BUTTONS, MENU_BUTTONS } from '../console-buttons';
 import { bootScript, PROMPT } from '../boot';
 import { menuRows } from '../menu-layout';
+import { readBest, readBoard } from './scores';
 
 export const BOOT_LEN = 4.0, WARM_LEN = 2.3, MAX_LOAD = 5;
 
@@ -108,7 +109,7 @@ const lastId = () => host.platform.store.get('gg-last');
 // the launcher asks for every disk's best on every frame, so read storage once per visit to the menu:
 // scores only change while a game runs, or when the leaflet's Settings clears them
 const bests = new Map<string, { score: number; name: string | null }>();
-const readBestOf = (id: string) => { const { readBest, readBoard } = host; const score = readBest(id), top = readBoard(id)[0]; return { score, name: top && top.s === score ? top.n : null }; };
+const readBestOf = (id: string) => { const score = readBest(id), top = readBoard(id)[0]; return { score, name: top && top.s === score ? top.n : null }; };
 // the platform is bound after this module loads, so listen on the first boot rather than at load time
 let wired = false;
 function wire(){
@@ -188,7 +189,7 @@ function floppy(x: number, y: number, on: boolean){
   g.fillStyle = col(on ? 'text' : 'hud'); g.fillRect(x + 3, y + 9, 8, 1); g.fillRect(x + 3, y + 11, 6, 1);
 }
 export function drawMenu(){
-  const { S, LH, LW, txt, g, col, readBest } = host;
+  const { S, LH, LW, txt, g, col } = host;
   if (!oldList()) {
     if (S.diskError > 0) S.diskError -= 1 / 60;
     launcher().draw(S.diskError > 0 ? 'DISK ERROR · CONNECT AND TRY AGAIN' : null);
