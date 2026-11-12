@@ -169,6 +169,28 @@ TEST("synth: the motor swells, holds and fades for exactly its length") {
   CHECK(silent(out, at(2.1), out.size()));
 }
 
+TEST("synth: the rumble and hum each ramp to their own level, as the web schedules them") {
+  Synth s(kRate);
+  CHECK(s.motor(0, 3.0));   // spin-up over 0.25 s
+  const auto out = run(s, at(3.0));
+  // half way up, each part is at the geometric mean of the floor and its own peak: the rumble at 2.5%
+  // of its held level and the hum at 9%. One shared ramp scaled afterwards would give 1% for both.
+  const double ratio = rms(out, at(0.12), at(0.13)) / rms(out, at(1.0), at(1.5));
+  CHECK(ratio > 0.018 && ratio < 0.1);
+}
+
+TEST("synth: a click at no volume or below is refused, and the mix stays finite") {
+  Synth s(kRate);
+  CHECK(!s.click(0, 0));
+  CHECK(!s.click(0, -0.2));
+  CHECK(s.tone(440, 0.05));
+  const auto out = run(s, at(0.05));
+  bool finiteAll = true;
+  for (float v : out) finiteAll = finiteAll && std::isfinite(v);
+  CHECK(finiteAll);
+  CHECK(peak(out, 0, out.size()) > 0.04);
+}
+
 TEST("synth: a whole disk load fits the queue and voices") {
   Synth s(kRate);
   CHECK(s.motor(1.0, 2.55));

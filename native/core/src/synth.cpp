@@ -18,6 +18,14 @@ bool finite(double v) { return std::isfinite(v); }
 /** Web Audio's exponentialRampToValueAtTime between v0 and v1, `x` of the way along (0 to 1). */
 double expRamp(double v0, double v1, double x) { return v0 * std::pow(v1 / v0, x); }
 
+/** The motor's gain for one part peaking at `peak`: up from the floor over `up`, held, down to it over
+    `down`, each ramp between that part's own end values, as the web schedules the rumble and hum apart. */
+double swell(double peak, double t, double len, double up, double down) {
+  if (t < up) return expRamp(kFloor, peak, t / up);
+  if (t < len - down) return peak;
+  return expRamp(peak, kFloor, (t - (len - down)) / down);
+}
+
 /** PolyBLEP: the correction that takes the alias out of a naive step at phase 0. */
 double blep(double t, double dt) {
   if (t < dt) { t /= dt; return t + t - t * t - 1.0; }
@@ -69,6 +77,10 @@ bool Synth::push(const Command& c) {
   return true;
 }
 
+std::size_t Synth::queued() const {
+  return tail_.load(std::memory_order_acquire) - head_.load(std::memory_order_relaxed);
+}
+
 bool Synth::pop(Command& c) {
   const std::size_t h = head_.load(std::memory_order_relaxed);
   if (h == tail_.load(std::memory_order_acquire)) return false;
@@ -88,7 +100,8 @@ bool Synth::tone(double freq, double dur, double vol, double slide, double delay
 }
 
 bool Synth::click(double delay, double vol, double freq) {
-  if (muted() || !finite(delay) || !finite(vol) || !finite(freq) || freq <= 0) return false;
+  // a click at no volume is silence (the web's exponential ramp holds at 0), so there is nothing to queue
+  if (muted() || !finite(delay) || !finite(vol) || !finite(freq) || freq <= 0 || vol <= 0) return false;
   Command c;
   c.kind = Kind::Click; c.at = frames(); c.a = vol; c.b = freq; c.delay = delay;
   return push(c);
@@ -184,17 +197,13 @@ void Synth::mix(float* buf, std::size_t n) {
         const double g = expRamp(v.vol, kFloor, t / v.len);
         s = v.filter.step(noise(v.rng)) * g;
       } else {
-        // the motor's swell: in over `up`, held, out over `down`, shared by the rumble and the hum
-        double env;
-        if (t < v.up) env = expRamp(kFloor, 1.0, t / v.up);
-        else if (t < v.len - v.down) env = 1.0;
-        else env = expRamp(1.0, kFloor, (t - (v.len - v.down)) / v.down);
-        const double rumble = v.filter.step(noise(v.rng)) * kMotorGain;
+        // the rumble and the hum, each swelling in, holding and fading out on its own ramp
+        const double rumble = v.filter.step(noise(v.rng)) * swell(kMotorGain, t, v.len, v.up, v.down);
         const double hz = 40 + 35 * std::min(1.0, v.humRise > 0 ? t / v.humRise : 1.0);
         const double dt = std::min(0.5, hz / sr_);
         const double saw = 2 * v.humPhase - 1 - blep(v.humPhase, dt);
         v.humPhase = wrap(v.humPhase + dt);
-        s = (rumble + saw * kHumGain) * env;
+        s = rumble + saw * swell(kHumGain, t, v.len, v.up, v.down);
       }
       buf[f - now] += static_cast<float>(s);
     }
@@ -212,8 +221,9 @@ void Synth::mix(float* buf, std::size_t n) {
 void Synth::render(float* out, std::size_t frames, int channels) {
   if (!out) return;
   if (channels < 1) channels = 1;
+  // only the commands already queued: a game thread that keeps queuing cannot hold up the samples
   Command c;
-  while (pop(c)) start(c);
+  for (std::size_t n = queued(); n > 0 && pop(c); --n) start(c);
   float buf[kChunk];
   std::size_t done = 0;
   while (done < frames) {

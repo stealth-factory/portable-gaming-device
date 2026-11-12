@@ -55,7 +55,7 @@ class Synth {
 
   // ---- control side ----
   // Each returns false when the sound is dropped: muted, a value that is not finite, a length or pitch
-  // that is not positive, or a full queue. A negative delay plays now.
+  // that is not positive, a click volume that is not above 0, or a full queue. A negative delay plays now.
 
   /** A square-wave note: `freq` Hz for `dur` seconds at `vol`, sliding to max(40, freq + slide) Hz by its end. */
   bool tone(double freq, double dur, double vol = 0.045, double slide = 0, double delay = 0);
@@ -105,6 +105,7 @@ class Synth {
 
   bool push(const Command& c);
   bool pop(Command& c);
+  std::size_t queued() const;
   void start(const Command& c);
   void mix(float* buf, std::size_t n);
   float noise(std::uint32_t& s) const;
