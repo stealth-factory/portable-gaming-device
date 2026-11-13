@@ -41,7 +41,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  contract: 1, version: 1, rating: '4+',
+  contract: 1, version: 2, rating: '4+',
   id: 'reef', order: 7, slug: 'reef-run', genre: 'SWIM', players: 1,
   page: {
     title: 'Reef Run',

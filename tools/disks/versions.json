@@ -20,8 +20,8 @@
     "sha256": "1186172621128a83b3193035149dd189d237c1401fce00f1e6b2f63179f4ce82"
   },
   "reef": {
-    "version": 1,
-    "sha256": "0b5d917f68957af682c2704d1bcd26d84b5e504198912c99f10efbdcddd1e3fe"
+    "version": 2,
+    "sha256": "cfa8560d9667c23600045893364418d4160b35debab2ce75978887ffdd4a97cc"
   },
   "tunnel": {
     "version": 1,

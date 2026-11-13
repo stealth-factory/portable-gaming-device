@@ -18,6 +18,7 @@ const create: CreateGame = api => {
   let flash = 0;
   let over = false;
   let fireLatch = false;
+  let tapLatch = false;
   let upLatch = false;
   let bubbles: { x: number; y: number; v: number; big: boolean }[] = [];
 
@@ -59,6 +60,7 @@ const create: CreateGame = api => {
     flash = 0;
     over = false;
     fireLatch = false;
+    tapLatch = false;
     upLatch = false;
     api.S.score = 0;
     api.S.level = 1;
@@ -92,7 +94,8 @@ const create: CreateGame = api => {
     lane = readLane();
     leg += dt;
     if (api.S.mode === 'ready') {
-      fireLatch = api.fireHeld || api.tapHeld;
+      fireLatch = api.fireHeld;
+      tapLatch = api.tapHeld;
       upLatch = api.held.includes('up') || api.stickDir === 'up';
       if ((api.S.modeT -= dt) <= 0) api.S.mode = 'play';
       api.clearFire();
@@ -112,11 +115,14 @@ const create: CreateGame = api => {
     }
     if (api.S.mode !== 'play') return;
 
-    const fire = wantKick(api.fireQueued || api.tapQueued, api.fireHeld || api.tapHeld, fireLatch);
+    // FIRE and screen taps latch separately, so holding one never blocks a press of the other
+    const fire = wantKick(api.fireQueued, api.fireHeld, fireLatch);
+    const tap = wantKick(api.tapQueued, api.tapHeld, tapLatch);
     const up = wantKick(false, api.held.includes('up') || api.stickDir === 'up', upLatch);
     fireLatch = fire.latched;
+    tapLatch = tap.latched;
     upLatch = up.latched;
-    if (fire.kick || up.kick) {
+    if (fire.kick || tap.kick || up.kick) {
       fishVy = applyKick();
       api.tone(294, 0.045, 0.035, 240);
       api.buzz('fire');

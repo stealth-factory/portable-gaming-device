@@ -45,7 +45,7 @@ function swim(lw: number, lh: number, hud: number, seed: number, seconds: number
     spawned += 1;
   };
   spawn();
-  for (let f = 0; f < seconds * 60 && !dead; f++) {
+  for (let f = 0; f < seconds * 60; f++) {
     const upcoming = gates.find(g => g.x + g.w >= lane.fishX);
     const aim = upcoming ?? gates[gates.length - 1];
     if (aim && flap(y, vy, aim.gapY, aim.gapH)) vy = applyKick();
