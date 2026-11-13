@@ -31,7 +31,7 @@ function setup(over: Partial<ConsoleHost> = {}){
     showHold(v: boolean){ calls.push('hold:' + v); },
     showGame(id: string | null){ calls.push('game:' + id); },
     setManual(ctx: string){ calls.push('manual:' + ctx); },
-    flash(){}, autoloadId: () => null, oldList: false, onOnline(){}, onSettings(){},
+    flash(){}, autoloadId: () => null, onOnline(){}, onSettings(){},
   } as Platform;
   const S: any = { parts: [], pops: [], time: 0 };
   const api = { fake: 'api' };

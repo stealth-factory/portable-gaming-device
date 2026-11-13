@@ -10,7 +10,6 @@ import type { GameDisk } from '../../games/types';
 import { useButtons } from '../buttons';
 import { BOOT_BUTTONS, MENU_BUTTONS } from '../console-buttons';
 import { bootScript, PROMPT } from '../boot';
-import { menuRows } from '../menu-layout';
 import { readBest, readBoard } from './scores';
 import { game, setGame, startGame, fetchRuntime, runtimeReady } from './machine';
 
@@ -102,8 +101,6 @@ export function drawBoot(){
 }
 
 /* ---------- the disk launcher: the cover carousel (src/console/launcher/) ---------- */
-/* ?menu=list keeps the old list for one release, in case the carousel gives trouble (GAM-50; goes in GAM-52) */
-const oldList = () => host.platform.oldList;
 // disks whose code couldn't be fetched (offline before they were cached): NOT ON DEVICE until the set is back online
 const unreachable = new Set<string>();
 /** A disk put in the box again (the embed bridge replacing one): forget that its last load failed. */
@@ -137,12 +134,12 @@ const system: LauncherSystem = {
 let made: Launcher | null = null;
 const launcher = () => (made ??= createLauncher(host.api, system));
 /** Where a tap lands on the launcher now, for tests/flow.cjs (`__gg.launcherTargets()`). */
-export const launcherTargets = () => oldList() ? [] : launcher().targets();
+export const launcherTargets = () => launcher().targets();
 
 export function enterMenu(){
   const { S, platform: P } = host;
   wire();
-  S.mode = 'menu'; S.menuT = 0; S.menuDir = null; S.menuRep = 0;
+  S.mode = 'menu'; S.menuT = 0;
   bests.clear();
   if (S.menuSel == null) { const i = Math.max(0, GAMES.findIndex(d => d.id === lastId())); S.menuSel = i; }
   launcher().enter(S.menuSel);
@@ -150,82 +147,24 @@ export function enterMenu(){
   P.hideCard(); setGame(null); P.setManual('console'); useButtons(MENU_BUTTONS);
 }
 
-/* ---------- the old disk list (?menu=list) ---------- */
-let menuRects: { x: number; y: number; w: number; h: number; i: number }[] = [];
-export function menuMove(d: string){
-  const { S, platform: P } = host;
-  const n = GAMES.length;
-  S.menuSel = (S.menuSel + (d === 'down' || d === 'right' ? 1 : n - 1)) % n;
-  if (P.sounding) P.tone(660, 0.02, 0.03);
-}
+/* ---------- the launcher's input and picture ---------- */
 /** A key pressed on the menu, by its `KeyboardEvent.code`. True when the menu used it. */
 export function menuKey(code: string){
   const { S } = host;
-  if (!oldList()) { const used = launcher().key(code); S.menuSel = launcher().sel; return used; }
-  const KEYS: Record<string, string> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
-  if (KEYS[code]) { menuMove(KEYS[code]); return true; }
-  if (['Space', 'Enter', 'NumpadEnter', 'KeyZ', 'KeyX'].includes(code)) { loadGame(S.menuSel); return true; }
-  const m = /^(?:Digit|Numpad)([1-9])$/.exec(code);
-  if (m && +m[1] <= GAMES.length) { S.menuSel = +m[1] - 1; loadGame(S.menuSel); return true; }
-  return false;
+  const used = launcher().key(code); S.menuSel = launcher().sel; return used;
 }
 export function updateMenu(dt: number){
   const { S, stickDir } = host;
-  if (!oldList()) { S.menuT += dt; launcher().update(dt, stickDir); S.menuSel = launcher().sel; return; }
-  S.menuT += dt; S.menuRep -= dt;
-  if (stickDir !== S.menuDir) { S.menuDir = stickDir; if (stickDir) { menuMove(stickDir); S.menuRep = 0.4; } }
-  else if (stickDir && S.menuRep <= 0) { menuMove(stickDir); S.menuRep = 0.18; }
+  S.menuT += dt; launcher().update(dt, stickDir); S.menuSel = launcher().sel;
 }
 export function menuTap(x: number, y: number){
   const { S } = host;
-  if (!oldList()) { launcher().tap(x, y); S.menuSel = launcher().sel; return; }
-  const hit = menuRects.find(q => x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h);
-  if (hit) { S.menuSel = hit.i; loadGame(hit.i); }
-}
-function floppy(x: number, y: number, on: boolean){
-  const { g, col } = host;
-  g.fillStyle = col(on ? 'text' : 'hud'); g.fillRect(x, y, 14, 15);
-  g.fillStyle = col('bg'); g.fillRect(x + 13, y, 1, 1);                              // clipped corner
-  g.fillStyle = col(on ? 'bg' : 'textDim'); g.fillRect(x + 3, y, 8, 5);              // shutter
-  g.fillStyle = col(on ? 'text' : 'hud'); g.fillRect(x + 8, y + 1, 2, 3);
-  g.fillStyle = col(on ? 'bg' : 'textDim'); g.fillRect(x + 2, y + 7, 10, 7);          // label
-  g.fillStyle = col(on ? 'text' : 'hud'); g.fillRect(x + 3, y + 9, 8, 1); g.fillRect(x + 3, y + 11, 6, 1);
+  launcher().tap(x, y); S.menuSel = launcher().sel;
 }
 export function drawMenu(){
-  const { S, LH, LW, txt, g, col } = host;
-  if (!oldList()) {
-    if (S.diskError > 0) S.diskError -= 1 / 60;
-    launcher().draw(S.diskError > 0 ? 'DISK ERROR · CONNECT AND TRY AGAIN' : null);
-    return;
-  }
-  const t = S.menuT, n = GAMES.length;
-  // rows shrink (and drop their second line) when the disks don't all fit on a short tube
-  const { rowH, gap, top } = menuRows(n, LH), tall = rowH >= 30;
-  const bw = Math.min(LW - 16, 300), x0 = Math.round(LW / 2 - bw / 2);
-  txt('PGD-01', LW / 2, top, 'text', 'center', 16);
-  txt('P O R T A B L E', LW / 2, top + 20, 'gold', 'center');
-  g.fillStyle = col('hud'); for (let x = x0; x < x0 + bw; x += 4) g.fillRect(x, top + 34, 2, 1);
-  txt('A:\\> SELECT A DISK', x0, top + 42, 'hud');
-  menuRects = [];
-  GAMES.forEach((d, i) => {
-    const y = top + 60 + i * (rowH + gap), on = i === S.menuSel, ty = tall ? y + 7 : Math.round(y + rowH / 2 - 4);
-    menuRects.push({ x: x0, y, w: bw, h: rowH, i });
-    g.fillStyle = col(on ? 'text' : 'textDim');
-    g.fillRect(x0, y, bw, 1); g.fillRect(x0, y + rowH - 1, bw, 1); g.fillRect(x0, y, 1, rowH); g.fillRect(x0 + bw - 1, y, 1, rowH);
-    if (on && Math.floor(t * 3) % 2 === 0) txt('>', x0 + 5, tall ? y + 14 : ty, 'text');
-    if (tall) floppy(x0 + 14, y + 10, on);
-    txt(`${i + 1} ${d.title}`, x0 + (tall ? 36 : 16), ty, on ? 'text' : 'hud');
-    const hi = readBest(d.id);
-    txt('HI ' + String(hi).padStart(6, '0'), x0 + bw - 6, ty, on ? 'gold' : 'hud', 'right');
-    if (tall) {
-      txt(d.blurb, x0 + 36, y + 20, 'textDim');
-      txt(`${Math.round(d.size / 1024)}K`, x0 + bw - 6, y + 20, 'textDim', 'right');
-    }
-  });
-  const by = top + 60 + n * (rowH + gap) + 6;
-  if (Math.floor(t * 2) % 2 === 0) txt('STICK TO CHOOSE · SELECT TO LOAD', LW / 2, by, 'hud', 'center');
-  if (S.diskError > 0) { S.diskError -= 1 / 60; txt('DISK ERROR · CONNECT AND TRY AGAIN', LW / 2, by + 14, 'gold', 'center'); }
-  else txt(`DRIVE A: ${n} DISKS`, LW / 2, by + 14, 'textDim', 'center');
+  const { S } = host;
+  if (S.diskError > 0) S.diskError -= 1 / 60;
+  launcher().draw(S.diskError > 0 ? 'DISK ERROR · CONNECT AND TRY AGAIN' : null);
 }
 
 /* ---------- loading a game ---------- */

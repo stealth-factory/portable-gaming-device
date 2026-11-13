@@ -61,8 +61,6 @@ export interface Platform {
 
   /** The disk a game's own page boots straight into the first time (`/dino-run`), or null on the console's page. */
   autoloadId(): string | null;
-  /** The old list menu instead of the launcher (`?menu=list` on the web, until GAM-52 removes it). */
-  readonly oldList: boolean;
   /** Called when the network comes back, so disks that failed to arrive can be tried again. */
   onOnline(fn: () => void): void;
   /** Called when the player resets settings or clears scores from the leaflet. */

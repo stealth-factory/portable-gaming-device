@@ -38,7 +38,6 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
 - **Disk menu (the cover carousel):** the front disk's cover sits in the middle with its title, blurb, best score, genre and controls under it, and its neighbours either side. A numbered tick strip and an `nn/NN` counter show where you are in the box.
   - **Choose a game:** stick or arrow keys (held, it repeats), a tap on a side cover, a tick or the ◀ ▶ arrows.
   - **Load it:** FIRE, <kbd>Space</kbd>, <kbd>Enter</kbd>, a tap on the front cover, or <kbd>1</kbd>–<kbd>9</kbd> for that disk.
-  - **The old list:** add `?menu=list` to the address for the previous disk list, kept for one release.
 - **Loading:** every disk shows a loading screen themed to its game and plays the drive (motor, head recalibrating, track steps, head parking) for exactly as long as it takes to read. Load times differ per game and never exceed 5 seconds.
 - **<kbd>G</kbd>** warm-boots back to the disk menu from any game. (A SELECT key for this is built but hidden on the set for now.)
 - **RESET** (wine-red key) restarts the whole console from the BIOS.

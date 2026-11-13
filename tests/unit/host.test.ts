@@ -30,7 +30,6 @@ function fakePlatform(over: Partial<Platform> = {}){
     setManual(ctx){ calls.push('manual:' + ctx); },
     flash(c){ calls.push('flash:' + c); },
     autoloadId: () => null,
-    oldList: false,
     onOnline(){ calls.push('onOnline'); },
     onSettings(){ calls.push('onSettings'); },
     ...over,

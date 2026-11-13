@@ -1,7 +1,7 @@
 /* The carousel's state and its rules, pure: (state, input, dt) → state. No drawing, no sound, no DOM. */
 import type { Dir } from '../../games/types';
 
-/** Held stick: the first repeat after 0.4 s, then every 0.18 s (as the old list). */
+/** Held stick: the first repeat after 0.4 s, then every 0.18 s. */
 export const REPEAT_FIRST = 0.4, REPEAT_NEXT = 0.18;
 /** Seconds on one disk before its cover gives way to the preview. */
 export const PREVIEW_AFTER = 0.8;

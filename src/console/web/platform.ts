@@ -57,7 +57,6 @@ export function makeWebPlatform(deps: WebPlatformDeps): Platform {
       b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 140);
     },
     autoloadId: () => document.documentElement.dataset.autoload || null,
-    oldList: /[?&]menu=list\b/.test(location.search),
     onOnline(fn){ addEventListener('online', fn); },
     onSettings(fn){ addEventListener(SETTINGS_EVENT, fn); },
   };
