@@ -7,6 +7,7 @@
 #include <new>
 #include <cstring>
 #include <limits>
+#include <vector>
 
 #include "pgd/text.hpp"
 #include "quickjs.h"
@@ -109,6 +110,7 @@ class QuickJsHost final : public ScriptHost {
     JS_SetRuntimeOpaque(rt_, this);
     JS_SetMaxStackSize(rt_, limits.stackBytes);
     JS_SetInterruptHandler(rt_, &QuickJsHost::interrupt, this);
+    JS_SetHostPromiseRejectionTracker(rt_, &QuickJsHost::rejection, this);
     ctx_ = JS_NewContextRaw(rt_);
     // The language and nothing else: no Date, no performance, no WeakRef (garbage collection timing would leak).
     if (!ctx_ || JS_AddIntrinsicBaseObjects(ctx_) || JS_AddIntrinsicEval(ctx_) || JS_AddIntrinsicRegExp(ctx_) ||
@@ -137,7 +139,11 @@ class QuickJsHost final : public ScriptHost {
   }
 
   ~QuickJsHost() override {
-    if (ctx_) { JS_FreeValue(ctx_, normalize_); JS_FreeContext(ctx_); }
+    if (ctx_) {
+      for (auto& r : rejected_) { JS_FreeValue(ctx_, r.promise); JS_FreeValue(ctx_, r.reason); }
+      JS_FreeValue(ctx_, normalize_);
+      JS_FreeContext(ctx_);
+    }
     if (rt_) JS_FreeRuntime(rt_);
     // anything the engine left allocated (a failure path that forgot a buffer) goes with the host
     while (heap_.live) { Block* b = heap_.live; heap_.live = b->next; std::free(b); }
@@ -207,12 +213,17 @@ class QuickJsHost final : public ScriptHost {
     return timedOut_;
   }
 
-  // Run every queued promise job, inside the same time limit; a job that throws stops the disk.
+  // Run every queued promise job, inside the same time limit; a job that throws stops the disk, and so does a
+  // rejection nothing handled once the queue is empty (an error thrown in a .then callback or an async function).
   bool drainJobs() {
     for (;;) {
       JSContext* jobCtx = nullptr;
       const int ran = JS_ExecutePendingJob(rt_, &jobCtx);
-      if (ran == 0) return true;
+      if (ran == 0) {
+        if (rejected_.empty()) return true;
+        if (!settled()) return false;
+        return stop(ScriptFault::Exception, "unhandled promise rejection: " + describe(rejected_.front().reason));
+      }
       if (ran < 0) return caught();
       if (heap_.exceeded || late()) return settled();
     }
@@ -265,76 +276,97 @@ class QuickJsHost final : public ScriptHost {
     return true;
   }
 
+  // A value or C string released on every way out of a scope, including a std::bad_alloc from a native copy.
+  struct Held {
+    JSContext* ctx;
+    JSValue v;
+    Held(JSContext* c, JSValue value) : ctx(c), v(value) {}
+    Held(const Held&) = delete;
+    Held& operator=(const Held&) = delete;
+    ~Held() { JS_FreeValue(ctx, v); }
+  };
+  struct HeldChars {
+    JSContext* ctx;
+    const char* chars;
+    HeldChars(JSContext* c, const char* text) : ctx(c), chars(text) {}
+    HeldChars(const HeldChars&) = delete;
+    HeldChars& operator=(const HeldChars&) = delete;
+    ~HeldChars() { if (chars) JS_FreeCString(ctx, chars); }
+  };
+
   bool copyFrame(JSValueConst frame, CommandFrame& out) {
     out = CommandFrame{};
     frameBytes_ = 0;
     if (JS_IsUndefined(frame) || JS_IsNull(frame)) return true;
     if (!JS_IsObject(frame)) return bad("not an object");
-    JSValue version = JS_GetPropertyStr(ctx_, frame, "version");
     double v = 0;
-    const bool versionOk = JS_IsNumber(version) && !JS_ToFloat64(ctx_, &v, version);
-    JS_FreeValue(ctx_, version);
-    if (!versionOk || !std::isfinite(v) || !(v >= 1 && v <= 1000) || v != std::floor(v)) return bad("no version");
+    {
+      Held version(ctx_, JS_GetPropertyStr(ctx_, frame, "version"));
+      if (!JS_IsNumber(version.v) || JS_ToFloat64(ctx_, &v, version.v)) return bad("no version");
+    }
+    if (!std::isfinite(v) || !(v >= 1 && v <= 1000) || v != std::floor(v)) return bad("no version");
     out.version = static_cast<int>(v);
 
-    JSValue ops = JS_GetPropertyStr(ctx_, frame, "ops");
-    bool ok = JS_GetTypedArrayType(ops) == JS_TYPED_ARRAY_FLOAT64;
-    if (ok) {
-      std::size_t offset = 0, bytes = 0, per = 0;
-      JSValue buffer = JS_GetTypedArrayBuffer(ctx_, ops, &offset, &bytes, &per);
-      std::size_t size = 0;
-      std::uint8_t* data = JS_IsException(buffer) ? nullptr : JS_GetArrayBuffer(ctx_, &size, buffer);
-      ok = data && offset + bytes <= size && spend(bytes);
+    {
+      Held ops(ctx_, JS_GetPropertyStr(ctx_, frame, "ops"));
+      bool ok = JS_GetTypedArrayType(ops.v) == JS_TYPED_ARRAY_FLOAT64;
       if (ok) {
-        out.ops.resize(bytes / sizeof(double));
-        if (bytes) std::memcpy(out.ops.data(), data + offset, out.ops.size() * sizeof(double));
+        std::size_t offset = 0, bytes = 0, per = 0;
+        Held buffer(ctx_, JS_GetTypedArrayBuffer(ctx_, ops.v, &offset, &bytes, &per));
+        std::size_t size = 0;
+        std::uint8_t* data = JS_IsException(buffer.v) ? nullptr : JS_GetArrayBuffer(ctx_, &size, buffer.v);
+        ok = data && offset + bytes <= size && spend(bytes);
+        if (ok) {
+          out.ops.resize(bytes / sizeof(double));
+          if (bytes) std::memcpy(out.ops.data(), data + offset, out.ops.size() * sizeof(double));
+        }
       }
-      JS_FreeValue(ctx_, buffer);
+      if (fault_ != ScriptFault::None) return false;
+      if (!ok) return bad("ops is not a Float64Array");
     }
-    JS_FreeValue(ctx_, ops);
-    if (fault_ != ScriptFault::None) return false;
-    if (!ok) return bad("ops is not a Float64Array");
 
-    JSValue strings = JS_GetPropertyStr(ctx_, frame, "strings");
-    ok = forEach(strings, [&](JSValueConst item) {
-      if (!JS_IsString(item)) return false;
-      std::size_t length = 0;
-      const char* chars = JS_ToCStringLen2(ctx_, &length, item, false);
-      if (!chars) return false;
-      const bool fits = spend(length);
-      if (fits) out.strings.emplace_back(chars, length);
-      JS_FreeCString(ctx_, chars);
-      return fits;
-    });
-    JS_FreeValue(ctx_, strings);
-    if (fault_ != ScriptFault::None) return false;
-    if (JS_HasException(ctx_)) return caught();
-    if (!ok) return bad("strings is not an array of strings");
-
-    JSValue blobs = JS_GetPropertyStr(ctx_, frame, "blobs");
-    ok = forEach(blobs, [&](JSValueConst item) {
-      if (JS_GetTypedArrayType(item) != JS_TYPED_ARRAY_UINT8) return false;
-      std::size_t size = 0;
-      std::uint8_t* data = JS_GetUint8Array(ctx_, &size, item);
-      // a detached or out-of-bounds view gives no pointer and an exception; an empty array is fine
-      if (!data && (size || JS_HasException(ctx_))) return false;
-      if (!spend(size)) return false;
-      out.blobs.emplace_back(data, data + size);
-      return true;
-    });
-    JS_FreeValue(ctx_, blobs);
-    if (fault_ != ScriptFault::None) return false;
-    if (JS_HasException(ctx_)) return caught();
-    if (!ok) return bad("blobs is not an array of Uint8Arrays");
-
-    JSValue state = JS_GetPropertyStr(ctx_, frame, "state");
-    if (!JS_IsUndefined(state)) {
-      JSValue json = JS_JSONStringify(ctx_, state, JS_UNDEFINED, JS_UNDEFINED);
-      if (JS_IsException(json)) { JS_FreeValue(ctx_, state); return caught(); }
-      if (JS_IsString(json)) out.state = str(json);
-      JS_FreeValue(ctx_, json);
+    {
+      Held strings(ctx_, JS_GetPropertyStr(ctx_, frame, "strings"));
+      const bool ok = forEach(strings.v, [&](JSValueConst item) {
+        if (!JS_IsString(item)) return false;
+        std::size_t length = 0;
+        HeldChars chars(ctx_, JS_ToCStringLen2(ctx_, &length, item, false));
+        if (!chars.chars || !spend(length)) return false;
+        out.strings.emplace_back(chars.chars, length);
+        return true;
+      });
+      if (fault_ != ScriptFault::None) return false;
+      if (JS_HasException(ctx_)) return caught();
+      if (!ok) return bad("strings is not an array of strings");
     }
-    JS_FreeValue(ctx_, state);
+
+    {
+      Held blobs(ctx_, JS_GetPropertyStr(ctx_, frame, "blobs"));
+      const bool ok = forEach(blobs.v, [&](JSValueConst item) {
+        if (JS_GetTypedArrayType(item) != JS_TYPED_ARRAY_UINT8) return false;
+        std::size_t size = 0;
+        std::uint8_t* data = JS_GetUint8Array(ctx_, &size, item);
+        // a detached or out-of-bounds view gives no pointer and an exception; an empty array is fine
+        if (!data && (size || JS_HasException(ctx_))) return false;
+        if (!spend(size)) return false;
+        out.blobs.emplace_back(data, data + size);
+        return true;
+      });
+      if (fault_ != ScriptFault::None) return false;
+      if (JS_HasException(ctx_)) return caught();
+      if (!ok) return bad("blobs is not an array of Uint8Arrays");
+    }
+
+    Held state(ctx_, JS_GetPropertyStr(ctx_, frame, "state"));
+    if (JS_IsUndefined(state.v)) return true;
+    Held json(ctx_, JS_JSONStringify(ctx_, state.v, JS_UNDEFINED, JS_UNDEFINED));
+    if (JS_IsException(json.v)) return caught();
+    if (!JS_IsString(json.v)) return true;
+    std::size_t length = 0;
+    HeldChars chars(ctx_, JS_ToCStringLen2(ctx_, &length, json.v, false));
+    if (!chars.chars) return caught();
+    if (!spend(length)) return false;   // the state is copied out too, so it counts against the frame
+    out.state.assign(chars.chars, length);
     return true;
   }
 
@@ -345,12 +377,25 @@ class QuickJsHost final : public ScriptHost {
     if (JS_GetLength(ctx_, array, &length)) return false;
     for (std::int64_t i = 0; i < length; ++i) {
       if (!spend(sizeof(std::string))) return false;   // each entry costs something, even an empty one
-      JSValue item = JS_GetPropertyUint32(ctx_, array, static_cast<std::uint32_t>(i));
-      const bool ok = each(item);
-      JS_FreeValue(ctx_, item);
-      if (!ok) return false;
+      Held item(ctx_, JS_GetPropertyUint32(ctx_, array, static_cast<std::uint32_t>(i)));
+      if (!each(item.v)) return false;
     }
     return true;
+  }
+
+  // Keeps the rejections nothing has handled yet; one handled later (a .catch added afterwards) is let go.
+  static void rejection(JSContext* ctx, JSValueConst promise, JSValueConst reason, bool handled, void* opaque) {
+    auto* self = static_cast<QuickJsHost*>(opaque);
+    auto& list = self->rejected_;
+    for (auto it = list.begin(); it != list.end(); ++it) {
+      if (JS_VALUE_GET_PTR(it->promise) != JS_VALUE_GET_PTR(promise)) continue;
+      if (!handled) return;
+      JS_FreeValue(ctx, it->promise);
+      JS_FreeValue(ctx, it->reason);
+      list.erase(it);
+      return;
+    }
+    if (!handled) list.push_back({ JS_DupValue(ctx, promise), JS_DupValue(ctx, reason) });
   }
 
   static int interrupt(JSContext*, void* opaque) {
@@ -427,6 +472,8 @@ class QuickJsHost final : public ScriptHost {
   std::uint32_t seed_;
   std::size_t frameBytes_ = 0;
   JSValue normalize_ = JS_UNDEFINED;
+  struct Rejected { JSValue promise, reason; };
+  std::vector<Rejected> rejected_;
   Heap heap_;
   JSRuntime* rt_ = nullptr;
   JSContext* ctx_ = nullptr;

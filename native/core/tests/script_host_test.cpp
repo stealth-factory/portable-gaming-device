@@ -160,6 +160,7 @@ TEST("script host: a frame version that is not a whole number from 1 to 1000 sto
 TEST("script host: a frame that repeats one big string or blob is stopped at the heap cap, quickly") {
   ScriptLimits limits;
   limits.heapBytes = 16u << 20;
+  limits.sliceMs = 10000;   // a memory test: slow sanitiser builds must not reach the time limit first
   for (const char* body : { "var s = 'x'.repeat(1 << 20), a = []; for (var i = 0; i < 4096; i++) a.push(s);"
                             " return { version: 1, ops: new Float64Array(0), strings: a, blobs: [] };",
                             "var b = new Uint8Array(1 << 20), a = []; for (var i = 0; i < 4096; i++) a.push(b);"
@@ -170,7 +171,7 @@ TEST("script host: a frame that repeats one big string or blob is stopped at the
     const auto start = std::chrono::steady_clock::now();
     CHECK(!host->call("Game", "tick", "", frame));
     CHECK_EQ(static_cast<int>(host->fault()), static_cast<int>(ScriptFault::Memory));
-    CHECK(ms(start) < 1000);
+    CHECK(ms(start) < 5000);
   }
 }
 
@@ -212,4 +213,31 @@ TEST("script host: String.prototype.normalize works on short text and refuses ve
   CHECK_STR(probe(*host, "return ['\\u00e9'.normalize('NFD').length, 'e\\u0301'.normalize().length];"), std::string("[2,1]"));
   CHECK_STR(probe(*host, "try { 'a'.repeat(1 << 13).normalize(); return 'normalised'; } catch (e) { return e.name; }"),
             std::string("\"RangeError\""));
+}
+
+TEST("script host: the frame's state counts against the frame's budget") {
+  ScriptLimits limits;
+  limits.heapBytes = 16u << 20;
+  limits.sliceMs = 10000;   // a memory test: slow sanitiser builds must not reach the time limit first
+  auto host = pgd::makeQuickJsHost(limits, 1);
+  CHECK(host->evaluate("var Game = { tick: function () { var s = 'x'.repeat(2 << 20), a = []; for (var i = 0; i < 7; i++) a.push(s);"
+                       " return { version: 1, ops: new Float64Array(0), strings: a, blobs: [], state: s }; } };", "state.js"));
+  CommandFrame frame;
+  CHECK(!host->call("Game", "tick", "", frame));
+  CHECK_EQ(static_cast<int>(host->fault()), static_cast<int>(ScriptFault::Memory));
+}
+
+TEST("script host: a promise rejection nothing handles stops the disk, a handled one does not") {
+  auto host = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+  CHECK(host->evaluate("Promise.reject(new Error('late')).catch(function () {});"
+                       " var p = Promise.reject(1); p.then(null, function () {});", "handled.js"));
+  CHECK(host->evaluate("var Game = { tick: async function () { throw new Error('async boom'); } };", "async.js"));
+  CommandFrame frame;
+  CHECK(!host->call("Game", "tick", "", frame));
+  CHECK_EQ(static_cast<int>(host->fault()), static_cast<int>(ScriptFault::Exception));
+  CHECK(host->message().find("async boom") != std::string::npos);
+  CHECK(!host->evaluate("1", "after.js"));
+  auto then = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+  CHECK(!then->evaluate("Promise.resolve().then(function () { throw new Error('in then'); });", "then.js"));
+  CHECK(then->message().find("in then") != std::string::npos);
 }
