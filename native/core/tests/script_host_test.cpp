@@ -213,6 +213,9 @@ TEST("script host: String.prototype.normalize works on short text and refuses ve
   CHECK_STR(probe(*host, "return ['\\u00e9'.normalize('NFD').length, 'e\\u0301'.normalize().length];"), std::string("[2,1]"));
   CHECK_STR(probe(*host, "try { 'a'.repeat(1 << 13).normalize(); return 'normalised'; } catch (e) { return e.name; }"),
             std::string("\"RangeError\""));
+  CHECK_STR(probe(*host, "var n = String.prototype.normalize, r = [];"
+                         " [null, undefined].forEach(function (v) { try { n.call(v); r.push('ok'); } catch (e) { r.push(e.name); } });"
+                         " return r;"), std::string("[\"TypeError\",\"TypeError\"]"));
 }
 
 TEST("script host: the frame's state counts against the frame's budget") {

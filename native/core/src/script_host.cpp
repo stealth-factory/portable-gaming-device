@@ -435,6 +435,8 @@ class QuickJsHost final : public ScriptHost {
   // String.prototype.normalize, refusing strings over kMaxNormalize code units (see the constructor).
   static JSValue normalize(JSContext* ctx, JSValueConst self, int argc, JSValueConst* argv) {
     auto* host = static_cast<QuickJsHost*>(JS_GetContextOpaque(ctx));
+    // as the intrinsic does: null and undefined are refused, not turned into "null" and "undefined"
+    if (JS_IsNull(self) || JS_IsUndefined(self)) return JS_ThrowTypeError(ctx, "normalize called on null or undefined");
     JSValue text = JS_ToString(ctx, self);
     if (JS_IsException(text)) return text;
     JSValue lengthValue = JS_GetPropertyStr(ctx, text, "length");
