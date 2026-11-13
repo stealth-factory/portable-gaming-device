@@ -134,6 +134,7 @@ class QuickJsHost final : public ScriptHost {
                               JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
     JS_FreeValue(ctx_, proto);
     JS_FreeValue(ctx_, stringCtor);
+    replacer_ = JS_NewCFunction(ctx_, &QuickJsHost::replace, "", 2);
     JS_FreeValue(ctx_, math);
     JS_FreeValue(ctx_, global);
   }
@@ -142,6 +143,7 @@ class QuickJsHost final : public ScriptHost {
     if (ctx_) {
       for (auto& r : rejected_) { JS_FreeValue(ctx_, r.promise); JS_FreeValue(ctx_, r.reason); }
       JS_FreeValue(ctx_, normalize_);
+      JS_FreeValue(ctx_, replacer_);
       JS_FreeContext(ctx_);
     }
     if (rt_) JS_FreeRuntime(rt_);
@@ -362,7 +364,9 @@ class QuickJsHost final : public ScriptHost {
 
     Held state(ctx_, JS_GetPropertyStr(ctx_, frame, "state"));
     if (JS_IsUndefined(state.v)) return true;
-    Held json(ctx_, JS_JSONStringify(ctx_, state.v, JS_UNDEFINED, JS_UNDEFINED));
+    // JSON.stringify is native and never polls the interrupt, so a native replacer that passes every value through
+    // unchanged watches the clock for it: a huge state stops at the deadline instead of holding the host past it
+    Held json(ctx_, JS_JSONStringify(ctx_, state.v, replacer_, JS_UNDEFINED));
     if (JS_IsException(json.v)) return caught();
     if (!JS_IsString(json.v)) return true;
     std::size_t length = 0;
@@ -435,6 +439,13 @@ class QuickJsHost final : public ScriptHost {
     return JS_NewFloat64(ctx, width);
   }
 
+  // The state's JSON replacer: every value as it is, unless the frame's time has run out.
+  static JSValue replace(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    auto* self = static_cast<QuickJsHost*>(JS_GetContextOpaque(ctx));
+    if (self->late()) return JS_ThrowInternalError(ctx, "the disk ran too long");
+    return argc > 1 ? JS_DupValue(ctx, argv[1]) : JS_UNDEFINED;
+  }
+
   // String.prototype.normalize, refusing strings over kMaxNormalize code units (see the constructor).
   static JSValue normalize(JSContext* ctx, JSValueConst self, int argc, JSValueConst* argv) {
     auto* host = static_cast<QuickJsHost*>(JS_GetContextOpaque(ctx));
@@ -477,6 +488,7 @@ class QuickJsHost final : public ScriptHost {
   std::uint32_t seed_;
   std::size_t frameBytes_ = 0;
   JSValue normalize_ = JS_UNDEFINED;
+  JSValue replacer_ = JS_UNDEFINED;
   struct Rejected { JSValue promise, reason; };
   std::vector<Rejected> rejected_;
   Heap heap_;

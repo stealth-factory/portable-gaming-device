@@ -249,3 +249,23 @@ TEST("script host: a promise rejection nothing handles stops the disk, a handled
   CHECK(!then->evaluate("Promise.resolve().then(function () { throw new Error('in then'); });", "then.js"));
   CHECK(then->message().find("in then") != std::string::npos);
 }
+
+TEST("script host: serialising a huge state is stopped at the time limit, not after it") {
+  ScriptLimits limits;
+  limits.sliceMs = 50;
+  auto host = pgd::makeQuickJsHost(limits, 1);
+  CHECK(host->evaluate("var big = new Array(20000000); var Game = { tick: function () {"
+                       " return { version: 1, ops: new Float64Array(0), strings: [], blobs: [], state: big }; } };", "big.js"));
+  CommandFrame frame;
+  const auto start = std::chrono::steady_clock::now();
+  CHECK(!host->call("Game", "tick", "", frame));
+  const double took = ms(start);
+  CHECK_EQ(static_cast<int>(host->fault()), static_cast<int>(ScriptFault::Timeout));
+  CHECK(took < 400);
+  // a state that fits is unchanged by the replacer, toJSON and all
+  auto ok = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+  CHECK(ok->evaluate("var Game = { tick: function () { return { version: 1, ops: new Float64Array(0), strings: [], blobs: [],"
+                     " state: { a: [1, null, 'x'], b: { toJSON: function () { return 7; } }, c: undefined } }; } };", "small.js"));
+  CHECK(ok->call("Game", "tick", "", frame));
+  CHECK_STR(frame.state, std::string("{\"a\":[1,null,\"x\"],\"b\":7}"));
+}
