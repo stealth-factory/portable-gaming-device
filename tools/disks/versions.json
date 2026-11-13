@@ -19,6 +19,10 @@
     "version": 1,
     "sha256": "1186172621128a83b3193035149dd189d237c1401fce00f1e6b2f63179f4ce82"
   },
+  "reef": {
+    "version": 2,
+    "sha256": "cfa8560d9667c23600045893364418d4160b35debab2ce75978887ffdd4a97cc"
+  },
   "tunnel": {
     "version": 1,
     "sha256": "3b08eb0bccc8e50487e072df8900d5caf0f8e100f843bc61c6925c44134873a5"

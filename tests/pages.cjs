@@ -40,6 +40,14 @@ console.log('/martian-storm after boot:', await storm.evaluate(() => [__gg.S.mod
 await storm.waitForFunction(() => __gg.S.mode === 'ready' || __gg.S.mode === 'play', null, { timeout: 30000 });
 await storm.keyboard.press('KeyG'); await storm.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 30000 });
 console.log('/martian-storm after G:', await storm.evaluate(() => __gg.S.mode));
+// 2d. /reef-run boots straight into Reef Run
+const reef = await page('/reef-run?test');
+console.log('/reef-run title:', await reef.title());
+await reef.click('#powerBtn'); await reef.waitForFunction(() => __gg.S.mode === 'load', null, { timeout: 30000 });
+console.log('/reef-run after boot:', await reef.evaluate(() => [__gg.S.mode, __gg.game.id]));
+await reef.waitForFunction(() => __gg.S.mode === 'ready' || __gg.S.mode === 'play', null, { timeout: 30000 });
+await reef.keyboard.press('KeyG'); await reef.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 30000 });
+console.log('/reef-run after G:', await reef.evaluate(() => __gg.S.mode));
 // 3. offline: once the service worker has cached everything, game pages still open
 const w = await page('/');
 await w.evaluate(() => navigator.serviceWorker.ready); await w.waitForTimeout(2500);
