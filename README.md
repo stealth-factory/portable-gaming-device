@@ -13,8 +13,8 @@ A 1983-style home console in the browser, on an old phosphor monitor. Switch it 
 | ![Invader Force](docs/screens/play-invader.png) | ![I Invade loading](docs/screens/load-iinvade.png) | ![I Invade](docs/screens/play-iinvade.png) |
 | **Loading Bricks** | **Bricks** | **Loading Martian Storm** |
 | ![Bricks loading](docs/screens/load-bricks.png) | ![Bricks](docs/screens/play-bricks.png) | ![Martian Storm loading](docs/screens/load-storm.png) |
-| **Martian Storm** | | |
-| ![Martian Storm](docs/screens/play-storm.png) | | |
+| **Martian Storm** | **Loading Reef Run** | **Reef Run** |
+| ![Martian Storm](docs/screens/play-storm.png) | ![Reef Run loading](docs/screens/load-reef.png) | ![Reef Run](docs/screens/play-reef.png) |
 
 ## Games
 
@@ -26,10 +26,11 @@ A 1983-style home console in the browser, on an old phosphor monitor. Switch it 
 | 4 | **I Invade** | `IINVADE.EXE` | 2.6 s | The same war from the other side: the alien fleet marches up from the bottom of the screen on its own, and you time its left, middle and right bomb bays to hit the tanks along the top, with a cluster sweep, a UFO carpet and a meteor swarm to call on. One fleet a game; every tank has three lives, and the teams grow from one to six. Destroy them all or reach their row. |
 | 5 | **Bricks** | `BRICKS.EXE` | 2.2 s | One bat and one ember. Serve it into a wall of clay, kiln, glass and cinder, and clear every breakable brick. Anvils stay. Broken bricks sometimes drop a capsule: Broad or Slim changes the bat, Flare or Damp the ember's speed, and Sear lets it through the next three breakable bricks. Up and down bow the bat. A miss loses a bat; three to start, another every 2,000, up to six. |
 | 6 | **Martian Storm** | `STORM.EXE` | 3.8 s | Fly a skiff up through a Martian dust storm. Hold to spray shots. The Blaster to start, then four guns up to level 3 that stack and fire together: Spread, Laser, homing Missile and Wave; a capsule flashes S, L, M, W, so catch a new gun to add it or one you have to level it up. The third spore shot from a flight drops a capsule, and most barbs drop something. SPEED pickups make the skiff faster (up to three). BOMB, beside FIRE or <kbd>V</kbd>, clears the screen of spores, barbs and their shots and cracks slabs: two a skiff, up to five. Three hearts a skiff (up to five): a hit costs a heart, the last costs the skiff, its guns and its speed. Three skiffs, one more per leg cleared, every 5,000 and from 1UPs, up to nine. BOOST spends a tuck: untouchable, guns silent, back where it started. Barbs take three shots and slabs fourteen (a missile counts as two); slabs always drop a pickup. Eight legs with a warp between each, where everything the skiff holds carries over, then the pad. |
+| 7 | **Reef Run** | `REEFRUN.COM` | 1.5 s | A fish swims a reef current. Press for an upward kick; without one it sinks. Slip the openings in the coral and the rock. Touch either, or the surface, or the seabed, and the swim is over. Each opening scores one, and the current quickens as the score climbs. |
 
-The characters, art, sound and code in all six are original.
+The characters, art, sound and code in all seven are original.
 
-Each game also has its own page that boots straight into its disk: `/tunnel-raider`, `/dino-run`, `/invader-force`, `/i-invade`, `/bricks` and `/martian-storm`, each with its own title, description and share image.
+Each game also has its own page that boots straight into its disk: `/tunnel-raider`, `/dino-run`, `/invader-force`, `/i-invade`, `/bricks`, `/martian-storm` and `/reef-run`, each with its own title, description and share image.
 
 ## The console
 
@@ -44,7 +45,7 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
 - **The phosphor dial and switches:**
   - **Dial:** green P1, long-afterglow green P39, radar P7 (a visible beam sweeping down the tube), amber P3, paper white P4 and the two CGA palettes.
   - **Switches:** SOUND, GLOW (all the tube effects), HOLD (pause) and FULL (full screen). HOLD switches itself on when you leave the tab or app mid-game, and stays on until you resume.
-- **FIRE and BOOST** change with the game: FIRE and BOOST in Tunnel Raider, JUMP and DUCK in Dino Run, FIRE and SHIELD in Invader Force (SHIELD turns into NUKE while you hold an atomic bomb), BOMB and UFO in I Invade, SERVE in Bricks, where BOOST stays dark, and FIRE, BOMB and LOOP in Martian Storm. LOOP spends one tuck per press; BOMB (or <kbd>V</kbd>) sets off a bomb. In Dino Run and Invader Force a tap on the screen works as JUMP or FIRE; in I Invade it fires the nearest bomb bay; in Bricks it serves, and does nothing while the ember is already in the air; in Martian Storm it shoots, and it does not tuck.
+- **FIRE and BOOST** change with the game: FIRE and BOOST in Tunnel Raider, JUMP and DUCK in Dino Run, FIRE and SHIELD in Invader Force (SHIELD turns into NUKE while you hold an atomic bomb), BOMB and UFO in I Invade, SERVE in Bricks, where BOOST stays dark, and FIRE, BOMB and LOOP in Martian Storm, and KICK in Reef Run, where BOOST stays dark. LOOP spends one tuck per press; BOMB (or <kbd>V</kbd>) sets off a bomb. In Dino Run and Invader Force a tap on the screen works as JUMP or FIRE; in I Invade it fires the nearest bomb bay; in Bricks it serves, and does nothing while the ember is already in the air; in Martian Storm it shoots, and it does not tuck; in Reef Run it kicks.
 - **The button pad:** a game with no use for the stick (I Invade) swaps it for a pad of up to six buttons while it plays, and FIRE's row steps aside. In I Invade the top row is the left, middle and right bomb bays (◀ ▲ ▶, or <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd>, <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd>; <kbd>Space</kbd> is the middle bay too) and the bottom row the cluster sweep (<kbd>A</kbd>) and the meteor swarm (<kbd>S</kbd>, dimmed until charged); BOOST (<kbd>Shift</kbd>) calls the UFO. On the sideways console layout the three red bays move to the right with CLUSTER under them, and UFO sits above METEORS on the left; desk and the portrait layouts keep the two-row pad. The stick is back for the menu, loading, name entry and the high scores.
 - **Instructions:** the printed leaflet under the set shows the console's instructions while the menu is up and the loaded game's while you play.
 - **Settings:** the foot of the leaflet has **Reset settings** (green P1, SOUND and GLOW on, HOLD and FULL off, English) and, kept apart in wine red, **Clear high scores** (every game's table and best, and the saved name, on this device). Each asks before it acts.
@@ -219,7 +220,7 @@ Once the console has its own address:
 
 ## Credits
 
-Tunnel Raider is a tribute to Windmill Software's *Digger* (1983); Dino Run to the offline dinosaur game in Google Chrome (2014); Invader Force to Taito's *Space Invaders* (1978), and I Invade turns that genre round so you play the invaders. Bricks is a one-bat brick game: one bat, one ember, and a wall to clear. Martian Storm is a vertical shooter through a Martian dust storm: one skiff, five guns that stack, bombs, a tuck, and eight legs. All six are original work: no characters, art, sound or code are copied.
+Tunnel Raider is a tribute to Windmill Software's *Digger* (1983); Dino Run to the offline dinosaur game in Google Chrome (2014); Invader Force to Taito's *Space Invaders* (1978), and I Invade turns that genre round so you play the invaders. Bricks is a one-bat brick game: one bat, one ember, and a wall to clear. Martian Storm is a vertical shooter through a Martian dust storm: one skiff, five guns that stack, bombs, a tuck, and eight legs. Reef Run is a one-button swim through a reef: one kick lifts the fish, and the current does the rest. All seven are original work: no characters, art, sound or code are copied.
 
 ## Licence
 

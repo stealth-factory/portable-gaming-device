@@ -1,7 +1,8 @@
 // Console flow: boot → disk menu → load each game → play → game over → SELECT back to the menu,
 // plus Invader Force's weapon capsules, speed boost and blasts, I Invade's button pad and weapons,
 // Bricks' Enter serve, bowed bat, sideways stick speed and falling capsules,
-// and Martian Storm's tuck, which shrugs off a shot.
+// Martian Storm's tuck, which shrugs off a shot,
+// and Reef Run's kick, which lifts the fish, and a snag, which ends the swim.
 // Then every disk on the menu (future games included): choose it with the menu's keys or a tap,
 // play, HOLD when the tab is hidden, game over, name entry or the table, G back to the menu.
 const { chromium, devices } = require('playwright');
@@ -245,6 +246,19 @@ async function playEveryDisk(p, tag){
       const bombOk = bombKey.shown && /BOMB/.test(bombKey.text) && afterBomb.state.bombs === beforeBomb - 1 && afterBomb.mode === 'play';
       if (!stackOk || !bombOk) errs.push(tag + ' martian storm stack/bomb: ' + JSON.stringify({ guns: stack.guns, shots: stack.shots, bombKey, beforeBomb, afterBomb: afterBomb.state.bombs, mode: afterBomb.mode }));
       console.log(tag, 'martian storm stack/bomb', { guns: stack.guns, shots: stack.shots, bombs: [beforeBomb, afterBomb.state.bombs], key: bombKey.text });
+    } else if (id === 'reef') {
+      const before = await p.evaluate(() => __gg.runtime.debug.state());
+      await p.keyboard.press('Space');
+      await p.waitForTimeout(80);
+      const kicked = await p.evaluate(() => __gg.runtime.debug.state());
+      const kickOk = before.mode === 'play' && kicked.mode === 'play' && kicked.vy < -80 && kicked.vy < before.vy - 40;
+      if (!kickOk) errs.push(tag + ' reef kick: ' + JSON.stringify({ before: { vy: before.vy, y: before.y, mode: before.mode }, kicked: { vy: kicked.vy, y: kicked.y, mode: kicked.mode } }));
+      console.log(tag, 'reef kick', { vy: [Math.round(before.vy), Math.round(kicked.vy)] });
+      await p.evaluate(() => __gg.runtime.debug.snag());
+      await p.waitForTimeout(50);
+      const snagged = await p.evaluate(() => __gg.S.mode);
+      if (snagged !== 'dying') errs.push(tag + ' reef snag: ' + snagged);
+      console.log(tag, 'reef snag', snagged);
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes

@@ -83,7 +83,7 @@ import { strings } from './strings';
 
 export const disk: GameDisk = {
   contract: 1, version: 1, rating: '4+',
-  id: 'stars', order: 7, slug: 'star-catch',
+  id: 'stars', order: 8, slug: 'star-catch',
   page: { title: 'Star Catch', description: 'Catch the falling stars on the PGD-01 Portable Gaming Device.' },
   title: 'STAR CATCH', nameKey: 'scName', file: 'STARS.COM', size: 4096,
   loadSecs: 1.3, steps: [[0, 0], [0.2, 0.3], [0.45, 0.35], [0.7, 0.8], [1, 1]],

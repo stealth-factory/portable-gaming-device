@@ -26,7 +26,7 @@ Every change goes through a pull request, unless the owner explicitly says to pu
 
 **PGD-01 Portable Gaming Device** (PGD for short; called Game Guy 3000 Deluxe until 11 November 2026) is a browser game console: one old CRT monitor that boots, shows a game loader, and runs several games. It starts as a copy of [Tunnel Raider](https://github.com/wiiiimm/tunnel-raider), which is still its own repo and site (`tunnel-raider.wiiiimm.codes`); changes made here do not flow back to it.
 
-Requirements 1 to 12 below are built: the console boots into a disk menu with six games, Tunnel Raider, Dino Run, Invader Force, I Invade, Bricks and Martian Storm, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
+Requirements 1 to 12 below are built: the console boots into a disk menu with seven games, Tunnel Raider, Dino Run, Invader Force, I Invade, Bricks, Martian Storm and Reef Run, and each game has its own page. The SELECT button is built but **hidden for now** (owner's call: with the menu one RESET away it duplicates RESET). The <kbd>G</kbd> key still does SELECT.
 
 ## Requirements (from the owner)
 
@@ -168,7 +168,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with si
 | `src/console/screen.ts`, `layers.ts` | Browser adapters for the disk's drawing surface and palette-index layers; the CRT pipeline keeps its full Canvas context |
 | `src/kit/platform/font.ts`, `palettes.ts` | Shared Silkscreen advances and the seven phosphor themes, used by web and headless hosts; `tools/fonts/metrics.py` regenerates the font table |
 | `src/games/registry.ts` | Finds `*/disk.ts` (eager) and `*/game.ts` (lazy) |
-| `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/`, `bricks/`, `martian-storm/` | The six games; what each folder holds is under [Game folders](#game-folders) |
+| `src/games/tunnel-raider/`, `dino-run/`, `invader-force/`, `i-invade/`, `bricks/`, `martian-storm/`, `reef-run/` | The seven games; what each folder holds is under [Game folders](#game-folders) |
 | `docs/developer-guide.md` | The game developer guide (GAM-65): the game loop, `ConsoleAPI`, input, buttons and their layout, sound, scores, every disk field, the kit, `.pgdisk`, hosting, and what a game can't do yet. Keep it in step with `types.ts` |
 | `src/games/README.md` | Making a game disk in this repo: every file, the artwork and images, and the steps for a new one |
 | `src/kit/play/` | The game kit's play layer: gameplay building blocks games import (`sprite`, `fx`, `walls`, `score`, `hud`, `round`, `pickups`, `collide`, `maths`, `jingles`, `controls`). Tested in `tests/unit/kit/` against a fake `ConsoleAPI` |
@@ -201,12 +201,12 @@ Useful places:
   - **No side effects:** loading a game's modules must have none; allocate state and layers when `create()` or `start()` runs.
   - **No browser globals:** disks and `src/kit/play` never use `window`, `self`, `document`, `navigator`, `localStorage`, `sessionStorage`, `location`, timers, animation frames, `fetch`, `performance`, `Date` or dynamic `import()`. `Math.random` is allowed and the host can seed it. The browser's `registry.ts` is host code, outside disks.
   - **Drawing contract:** `api.g` is only `Screen2D`, never a full Canvas context. Use current palette strings for `fillStyle`, Silkscreen at 8 or 16 px for `font`, and `api.txt` for text. `measureText` uses the shared font table. Use `api.layer(w, h)` (`{ w, h, px: Uint8Array }`, indices 0 to 3 in row order) and `api.stamp(layer, x, y)` for cached pictures; index 0 is opaque too. Palette colour changes follow when stamped; a changed role mapping may rebuild indices in `onPalette()` to preserve the web appearance.
-  - **Disk revisions:** every disk declares `contract: 1`, a positive whole-number `version`, and `rating` (all six currently `4+`). Disks keep running as JavaScript on both hosts. When a change alters a disk's built file (its own code, or kit and strings it bundles), raise its `version` and run `node tools/disks/build.mjs --lock`; `tests/unit/disk-files.test.ts` fails until `tools/disks/versions.json` matches.
+  - **Disk revisions:** every disk declares `contract: 1`, a positive whole-number `version`, and `rating` (all seven currently `4+`). Disks keep running as JavaScript on both hosts. When a change alters a disk's built file (its own code, or kit and strings it bundles), raise its `version` and run `node tools/disks/build.mjs --lock`; `tests/unit/disk-files.test.ts` fails until `tools/disks/versions.json` matches.
   - **Add to the API, not the import list:** if a game needs something new from the console, add it to `ConsoleAPI` and to `api` in `core.ts`.
   - **The kit is the exception:** games may import `src/kit/play/` (`import { makeFx } from '../../kit/play'`) and types from `src/kit/platform/`. The kit follows the same rules as a game: no `src/console` imports, nothing on load, no module-level state (factories hold it), and anything new from the console goes through `ConsoleAPI`. `tests/unit/kit/rules.test.ts` checks.
   - **Disks stay light:** a `disk.ts` may import `kit/play/sprite` for its loading screen, but not the rest of the kit.
   - **Browser check:** a new game must be covered by the generic every-disk play-through in `tests/flow.cjs` (boot, load, play, game over, name entry or the table, G back to the menu, at the same three sizes). Any game-specific behaviour (weapons, scoring quirks) needs its own check in that file too.
-  - **Contract check:** `tests/unit/kit/contract.test.ts` rejects banned globals and drawing members outside `Screen2D` in games and the play kit. `tools/conformance/run.mjs` records all six disks under Node at a fixed 1/60 s step with seeded randomness and scripted input; see its README for the stream format. System-disk coverage follows the console split in GAM-39.
+  - **Contract check:** `tests/unit/kit/contract.test.ts` rejects banned globals and drawing members outside `Screen2D` in games and the play kit. `tools/conformance/run.mjs` records every disk under Node at a fixed 1/60 s step with seeded randomness and scripted input; see its README for the stream format. System-disk coverage follows the console split in GAM-39.
 
 ## Game folders
 
@@ -292,4 +292,4 @@ Release PRs (`release: vX.Y.Z`) and bot PRs (ImgBot) need no issue; the release 
 ## Open questions
 
 - The site address for the console. Then set `site` in `astro.config.mjs`, absolute share-image URLs and a canonical link in `ConsoleLayout.astro`.
-- Which games join after Martian Storm.
+- Reef Run is the seventh disk, after Martian Storm. What joins after Reef Run is still open.

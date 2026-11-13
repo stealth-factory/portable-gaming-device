@@ -49,6 +49,9 @@ const IMAGES = [
   { out: 'og-martian-storm.png', tv: 'play-storm.png', h1: 'Martian Storm', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
     tag: 'Fly a skiff through a Martian dust storm, stack up guns, tuck past the shots and land each leg.',
     disks: disk('c3', 'Martian Storm', 'STORM.EXE · 30K', 40, -4, 2) + disk('c4', 'Bricks', 'BRICKS.EXE', 190, 7, 1) },
+  { out: 'og-reef-run.png', tv: 'play-reef.png', h1: 'Reef Run', sub: '<small>on the PGD-01 Portable Gaming Device</small>',
+    tag: 'Kick a fish through a reef current and slip the openings in the coral and rock.',
+    disks: disk('c2', 'Reef Run', 'REEFRUN.COM · 8K', 40, -4, 2) + disk('c4', 'Dino Run', 'DINORUN.COM', 190, 7, 1) },
 ];
 
 (async () => {
@@ -170,6 +173,29 @@ const IMAGES = [
   await p.waitForTimeout(500);
   await p.keyboard.up('Space');
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await play('play-storm.png', 'martian-storm');
+  // Reef Run: its loading screen, then the fish in an opening, with kicks keeping it there for the flipbook
+  await p.keyboard.press('KeyG'); await until(() => __gg.S.mode === 'menu');
+  await p.evaluate(() => { __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'reef')); __gg.S.loadLen = 4.2; });
+  await until(() => __gg.S.loadT > 1.6); await shot('load-reef.png');
+  await until(() => __gg.S.mode === 'play');
+  await p.evaluate(() => { setInterval(() => {
+    const S = __gg.S;
+    if (S.mode !== 'play' || __gg.game?.id !== 'reef' || !__gg.runtime) return;
+    const s = __gg.runtime.debug.state();
+    if (!s.gates) return;
+    const gate = s.gates.find(g => g.x + g.w > s.fishX - 4);
+    const mid = gate ? gate.gapY + gate.gapH * 0.42 : (s.laneTop + s.laneBottom) / 2;
+    if (s.y + s.fishH / 2 > mid && s.vy > -30) {
+      dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ' }));
+      dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ' }));
+    }
+  }, 40); });
+  await until(() => {
+    const s = __gg.runtime.debug.state();
+    const g = s.gates.find(g => g.x > 24 && g.x < __gg.LW * 0.62);
+    return __gg.S.mode === 'play' && g && s.y + 2 > g.gapY && s.y + s.fishH < g.gapY + g.gapH;
+  }, 20000);
+  await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await play('play-reef.png', 'reef-run');
   if (!SHARE) { await b.close(); return; }
   /* ---- 2. lay out and render the share images ---- */
   const r = await (await b.newContext({ viewport: { width: 1200, height: 630 } })).newPage();
@@ -183,7 +209,7 @@ const IMAGES = [
   /* ---- 3. README screenshots, 720 px wide ---- */
   fs.mkdirSync(SCREENS, { recursive: true });
   const s = await (await b.newContext({ viewport: { width: 1280, height: 860 } })).newPage();
-  for (const n of ['menu', 'load-tunnel', 'play-tunnel', 'load-dino', 'play-dino', 'load-invader', 'play-invader', 'load-iinvade', 'play-iinvade', 'load-bricks', 'play-bricks', 'load-storm', 'play-storm']) {
+  for (const n of ['menu', 'load-tunnel', 'play-tunnel', 'load-dino', 'play-dino', 'load-invader', 'play-invader', 'load-iinvade', 'play-iinvade', 'load-bricks', 'play-bricks', 'load-storm', 'play-storm', 'load-reef', 'play-reef']) {
     const html = path.join(TMP, n + '.html');
     fs.writeFileSync(html, `<body style="margin:0;background:transparent"><img src="${n}.png" style="width:720px;display:block"></body>`);
     await s.goto('file://' + html); await s.waitForTimeout(150);

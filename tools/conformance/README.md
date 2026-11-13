@@ -22,7 +22,7 @@ This host records game play. The system disk and its boot, launcher and loading 
 
 ## Input
 
-`play.json` is a 360-frame example shared by all six disks. A script is an object with these optional fields:
+`play.json` is a 360-frame example shared by every disk. A script is an object with these optional fields:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
@@ -57,4 +57,4 @@ The existing `rockjaw` sprite role has no palette mapping. Both web and headless
 
 Replay commands in order, including `init`; preserve Screen2D state, its save stack and layer definitions between frames. Every frame begins with an identity transform and a background clear. This stream is a reference recording, not the apps' wire format. The disk's `api` comes from the apps' own contract shim (`native/shim/shim.js`), loaded in the disk's realm, and every command goes through its typed-array command buffer and back through `native/shim/decode.mjs` before it is written, so the streams also prove the buffer carries everything a disk drew. The buffer layout is in `native/shim/README.md`. It contains enough drawing, text and layer data for web and native hosts to replay the same picture independently.
 
-`tests/unit/conformance.test.ts` runs all six disks twice for 360 frames, checks byte-for-byte stability, and checks that changed input and seeds affect recorded game commands.
+`tests/unit/conformance.test.ts` runs every disk twice for 360 frames, checks byte-for-byte stability, and checks that changed input and seeds affect recorded game commands.
