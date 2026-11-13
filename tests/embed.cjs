@@ -9,7 +9,7 @@ const BASE = process.env.BASE || 'http://localhost:4173/';
 const DISK = `var PGDDisk = { disk: { id: 'test-disk', title: 'Test Disk', loadSecs: 1, drawLoad(api, p, t) { api.txt('TEST', api.LW / 2, 40, 'text', 'center'); } } };`;
 const GAME = `var PGDGame = { create(api) { let t = 0; return {
   start() { t = 0; },
-  update(dt) { t += dt; if (api.S.mode === 'ready' && t > 0.5) api.S.mode = 'play'; if (api.S.mode === 'play') api.S.score = 7; if (window.__boom) throw new Error('boom'); },
+  update(dt) { t += dt; if (api.S.mode === 'ready' && t > 0.5) api.S.mode = 'play'; if (api.S.mode === 'play') api.S.score = 7; if (api.button('fire').held) api.S.lives = 9; if (api.button('fire').queued) api.S.level = (api.S.level || 0) + 1; if (window.__boom) throw new Error('boom'); },
   draw() { api.g.fillStyle = api.col('bg'); api.g.fillRect(0, 0, api.LW, api.LH); } }; } };`;
 
 const host = `<!doctype html><body style="margin:0"><iframe id="f" style="width:900px;height:760px;border:0"></iframe><script>
@@ -55,6 +55,13 @@ const check = (ok, what) => { if (!ok) fail.push(what); };
   check(await seen(p, () => window.log.some(m => m.type === 'need' && m.id === 'test-disk')), 'loading asks the page for the game');
   check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.game === 'test-disk' && m.state.mode === 'play' && m.state.score === 7)), 'the game plays and its score comes out');
   check(await p.evaluate(() => window.log.some(m => m.type === 'event' && m.name === 'game_start')), 'tracked events come out');
+
+  // set buttons from the page: a hold reaches the game's FIRE, and a tap queues one press
+  await p.evaluate(() => window.send({ command: 'button', button: 'fire', down: true }));
+  check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.lives === 9)), 'a button held from the page is held by the game');
+  await p.evaluate(() => window.send({ command: 'button', button: 'fire', down: false }));
+  await p.evaluate(() => { window.log.length = 0; window.send({ command: 'button', button: 'fire' }); });
+  check(await seen(p, () => window.log.some(m => m.type === 'state' && m.state.level >= 1)), 'a tap from the page is queued for the game');
 
   await p.frames()[1].evaluate(() => { window.__boom = true; });
   check(await seen(p, () => window.log.some(m => m.type === 'event' && m.name === 'disk_error' && /^run: boom/.test(m.data.error))), 'a game that throws is reported');

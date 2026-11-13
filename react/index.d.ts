@@ -10,6 +10,10 @@ export type PGDPhosphor = 'greenP1' | 'greenP39' | 'radarP7' | 'amberP3' | 'whit
 /** What the console is doing (`S.mode`). */
 export type PGDMode = 'off' | 'boot' | 'menu' | 'load' | 'ready' | 'play' | 'dying' | 'clear' | 'paused' | 'entry' | 'over' | (string & {});
 
+/** A set button: FIRE, BOOST, the optional bomb bays (fireL, fireR) and the button pad (pad1 to pad6) that stands in
+    for the stick on a game with `controls: 'pad'`. A button a game doesn't map is dark: presses do nothing. */
+export type PGDButton = 'fire' | 'boost' | 'fireL' | 'fireR' | 'pad1' | 'pad2' | 'pad3' | 'pad4' | 'pad5' | 'pad6';
+
 /** One disk in the box. */
 export interface PGDDisk {
   id: string;
@@ -96,6 +100,10 @@ export type PGDCommand =
   | { command: 'lang'; lang: PGDLang }
   | { command: 'sound'; on: boolean }
   | { command: 'pause'; on: boolean }
+  /** Press a set button. Without `down` it's a tap (pressed and released at once); `down: true` holds it and
+      `down: false` releases it. Like a finger on the button, so FIRE on a console screen (the menu, a loading screen,
+      the high scores) acts on that screen first. */
+  | { command: 'button'; button: PGDButton; down?: boolean }
   /** Put a disk in the box (or replace one inserted earlier with the same id); `boot` loads it at once.
       Only the console's own origin, localhost and the build's PUBLIC_PGD_EMBED_ORIGINS may insert. */
   | { command: 'insert'; disk: PGDDiskSource; boot?: boolean; request?: number }
@@ -148,6 +156,12 @@ export interface PGDConsoleHandle {
   reset(): void;
   /** SELECT: leave the game for the disk menu (a warm boot). */
   menu(): void;
+  /** Press a set button and let go at once: FIRE, BOOST, fireL, fireR or pad1 to pad6. */
+  tap(button: PGDButton): void;
+  /** Press a set button and hold it, until `release`. */
+  press(button: PGDButton): void;
+  /** Let go of a button `press` held. */
+  release(button: PGDButton): void;
   /** Load a disk by id or slug (switches the set on if it's off). */
   load(game: string): void;
   /** Put a disk in the box; resolves with it once it's there, rejects with the reason it isn't. */
