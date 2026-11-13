@@ -102,7 +102,7 @@ const check = (ok, what) => { if (!ok) fail.push(what); };
   const h = await b.newPage({ viewport: { width: 1280, height: 1000 } });
   h.on('pageerror', e => fail.push(`/host: ${e.message}`));
   await h.goto(`${BASE}host`);
-  check(await seen(h, () => /7 disks/.test(document.querySelector('.host-meta')?.textContent || '')), '/host: the console is ready with the sample disk');
+  check(await seen(h, () => /8 disks/.test(document.querySelector('.host-meta')?.textContent || '')), '/host: the console is ready with the sample disk');
   await h.click('text=Power on');
   await h.waitForTimeout(5000);
   await h.selectOption('.host-side select >> nth=0', 'rock-drop');
