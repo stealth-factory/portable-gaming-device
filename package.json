@@ -2,7 +2,7 @@
   "name": "portable-gaming-device",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
-  "version": "0.14.1",
+  "version": "0.15.0",
   "type": "module",
   "description": "PGD-01 Portable Gaming Device: a 1983-style browser game console. Install from git for <PGDConsole>, its React component.",
   "repository": {

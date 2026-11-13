@@ -3,6 +3,43 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.15.0] - 2026-11-13
+
+### Bug Fixes
+
+- **react**: Refuse bad disk artwork and stale game answers (GAM-64) (#133)
+
+### CI
+
+- Upload the ios app to testflight from ci (GAM-63) (#113)
+- Run every mac job on github's standard hosted runners (GAM-70) (#138)
+
+### Documentation
+
+- Add the game developer guide (GAM-65) (#127)
+- Match the developer guide to the merged react host (GAM-65) (#132)
+- Say what artwork an inserted disk may carry (GAM-65) (#134)
+
+### Features
+
+- **conformance**: Enforce and record portable disks (GAM-33) (#99)
+- **native**: Engine core with the index-buffer rasteriser and phosphor palettes (GAM-35) (#115)
+- **native**: Bake the silkscreen pixel font for the engine core (GAM-35) (#118)
+- **disks**: Package games as pgdisk files with a signed catalogue (GAM-34) (#119)
+- **react**: Use the console from other react apps, with custom disks (GAM-64) (#129)
+- **ios**: First ios app with the set and a test pattern (GAM-37) (#122)
+- **react**: Self-hosted console that apps copy in with pgd-console (GAM-69) (#136)
+- **native**: Software synth for the console's sound (GAM-35) (#121)
+- **native**: Disk contract shim and command buffer (GAM-36) (#120)
+- **native**: Quickjs script host that plays disk files (GAM-36) (#124)
+
+### Refactor
+
+- **console**: Move the loader into a dom-free console program behind platform (GAM-39) (#114)
+- **console**: Move scores and name entry into the console program (GAM-39) (#117)
+- **console**: Move the mode machine and the game api into the console program (GAM-39) (#123)
+- **launcher**: Remove the old disk list (GAM-52) (#139)
+
 ## [0.14.1] - 2026-11-11
 
 ### Bug Fixes
