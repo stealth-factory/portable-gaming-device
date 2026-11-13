@@ -240,6 +240,11 @@ TEST("script host: a promise rejection nothing handles stops the disk, a handled
   CHECK_EQ(static_cast<int>(host->fault()), static_cast<int>(ScriptFault::Exception));
   CHECK(host->message().find("async boom") != std::string::npos);
   CHECK(!host->evaluate("1", "after.js"));
+  auto late = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+  CHECK(late->evaluate("var Game = { tick: function () { return { version: 1, ops: new Float64Array(0), strings: [], blobs: [],"
+                       " state: { toJSON: function () { Promise.reject(new Error('late rejection')); return {}; } } }; } };", "late.js"));
+  CHECK(!late->call("Game", "tick", "", frame));
+  CHECK(late->message().find("late rejection") != std::string::npos);
   auto then = pgd::makeQuickJsHost(ScriptLimits{}, 1);
   CHECK(!then->evaluate("Promise.resolve().then(function () { throw new Error('in then'); });", "then.js"));
   CHECK(then->message().find("in then") != std::string::npos);

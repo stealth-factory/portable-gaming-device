@@ -185,6 +185,9 @@ class QuickJsHost final : public ScriptHost {
       ok = stop(ScriptFault::Memory, "the disk's frame did not fit in memory");
     }
     JS_FreeValue(ctx_, result);
+    // reading the frame can run disk code too (a getter, a toJSON), so its promise work is drained before it is taken
+    if (ok) ok = drainJobs();
+    if (!ok) out = CommandFrame{};
     return ok && settled();
   }
 
