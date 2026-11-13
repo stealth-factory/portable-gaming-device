@@ -3,6 +3,12 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.16.0] - 2026-11-13
+
+### Features
+
+- **react**: Press the set's buttons from the component (GAM-71)
+
 ## [0.15.0] - 2026-11-13
 
 ### Bug Fixes
