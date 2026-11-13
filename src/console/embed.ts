@@ -10,13 +10,24 @@ import type { PGDCommand, PGDMessage, PGDState, PGDLang, PGDPhosphor, PGDDisk, P
 import type { CreateGame, GameDisk } from '../games/types';
 import { DISKS, addDisk, isAdded } from '../games/registry';
 import { VERSION } from '../components/site';
-import { S, game, tvOn, powerOn, powerOff, setMode, modeKey, MODE_ORDER, MODES, applyLang, lang, LANGS, toggleMute, muted, togglePause, ensureAudio, onTrack, forgetRuntime } from './core';
+import { S, game, tvOn, powerOn, powerOff, setMode, modeKey, MODE_ORDER, MODES, applyLang, lang, LANGS, toggleMute, muted, togglePause, ensureAudio, onTrack, forgetRuntime, menuFire } from './core';
+import { press, release, clearQueued } from './buttons';
 import { mergeStrings } from './i18n';
 import { startConsole, pressSelect, forgetUnreachable } from './program/loader';
 import { readSource, gameFromScript, guard, mayInsert, type DiskSource } from './embed-disks';
 
 const params = new URLSearchParams(location.search);
 const root = document.documentElement;
+
+/** A set button from the page, through the same slot a finger or key presses: a tap (down undefined, released after a
+    moment), a hold (down true) or a release (down false). FIRE acts on the console's own screens first, as its key does. */
+function setButton(id: string, down?: boolean){
+  if (down === false) { release(id); return; }
+  if (id === 'fire' && menuFire()) return;
+  if (!press(id)) return;   // unknown, dark or unmapped: nothing happens, as with a finger on a dark button
+  if (S.mode !== 'play' && id !== 'fire') clearQueued(id);
+  if (down === undefined) setTimeout(() => release(id), 80);
+}
 
 /** A disk by id or slug. */
 const findDisk = (key: string) => DISKS.find(d => d.id === key || d.slug === key);
@@ -152,6 +163,7 @@ if (embed !== null && window.parent !== window) {
       case 'power': { const on = c.on ?? !tvOn; if (on && !tvOn) { ensureAudio(); powerOn(); } else if (!on && tvOn) powerOff(); break; }
       case 'reset': if (tvOn) startConsole('cold'); break;
       case 'menu': pressSelect(); break;
+      case 'button': if (typeof c.button === 'string') setButton(c.button, c.down); break;
       case 'load': if (typeof c.game === 'string' && !loadDisk(c.game)) event('disk_error', { game: c.game, error: 'load: no such disk' }); break;
       case 'phosphor': if (MODES[c.phosphor] && c.phosphor !== modeKey) setMode(c.phosphor); break;
       case 'lang': if (LANGS.includes(c.lang) && c.lang !== lang) applyLang(c.lang, false); break;

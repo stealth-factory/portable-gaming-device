@@ -60,6 +60,54 @@ pgd.current?.state;           // the latest PGDState
 await pgd.current?.insertDisk({ disk, game }, { boot: true });
 ```
 
+| Method | What it does |
+| --- | --- |
+| `power(on?)` | Switch the set on or off. With no argument, flip the switch. |
+| `reset()` | RESET: the cold boot, then the disk menu. |
+| `menu()` | SELECT: leave the game for the disk menu (a warm boot). |
+| `load(game)` | Load a disk by id or slug, switching the set on if it's off. |
+| `tap(button)` | Press a set button and let go at once. |
+| `press(button)` | Press a set button and hold it. |
+| `release(button)` | Let go of a button `press` held. |
+| `insertDisk(disk, options?)` | Put a disk in the box. Resolves with it, rejects with the reason. |
+| `send(command)` | Any bridge command (see [The protocol](#the-protocol)). |
+| `focus()` | Give the frame keyboard focus. |
+| `state`, `iframe` | The latest state, and the frame element. |
+
+### Pressing the set's buttons
+
+`button` is one of `PGDButton`:
+
+| Name | Key | On the set |
+| --- | --- | --- |
+| `fire` | <kbd>Space</kbd>, <kbd>Z</kbd>, <kbd>X</kbd> | FIRE (reads SELECT on the menu and loads) |
+| `boost` | <kbd>Shift</kbd>, <kbd>B</kbd> | BOOST (a game may relabel it, e.g. NUKE) |
+| `fireL` | <kbd>Z</kbd> | Left bomb bay (I Invade only; dark elsewhere) |
+| `fireR` | <kbd>V</kbd> | Right bomb bay (I Invade only; dark elsewhere) |
+| `pad1` to `pad6` | arrows, <kbd>Z X C</kbd>, <kbd>A S D</kbd> | The button pad on a game with `controls: 'pad'`; dark elsewhere |
+
+A button a game doesn't map is dark, so the press does nothing. A press on FIRE, or on a tap, acts exactly as a finger would. Holding works for any button. Taps release themselves after about 80 ms, so a hold-to-fire game sees a press without a release only if you call `press` and forget `release`: always pair them.
+
+```tsx
+const pgd = useRef<PGDConsoleHandle>(null);
+
+pgd.current?.power(true);       // switch on
+pgd.current?.load('invader-force');
+pgd.current?.tap('fire');       // one shot, or FIRE on the menu
+pgd.current?.press('boost');    // hold SHIELD
+pgd.current?.release('boost');
+pgd.current?.reset();           // RESET: cold boot
+pgd.current?.menu();            // SELECT: back to the disk menu
+```
+
+The same things through `send`, as the protocol sees them:
+
+```ts
+pgd.current?.send({ command: 'button', button: 'fire' });                 // tap
+pgd.current?.send({ command: 'button', button: 'fire', down: true });    // hold
+pgd.current?.send({ command: 'button', button: 'fire', down: false });   // release
+```
+
 `focus()` gives the frame keyboard focus, which the arrow keys, Space and the rest need. A click or tap on the set focuses it too.
 
 ## Your own games
