@@ -2,7 +2,9 @@
 #include "pgd/script_host.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
+#include <new>
 #include <cstring>
 #include <limits>
 
@@ -14,16 +16,35 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-// Every block the engine allocates carries its size in front, so the host can count the heap itself and refuse an
-// allocation past the cap (QuickJS's own limit throws a catchable error; this one also stops the disk).
-constexpr std::size_t kHeader = 16;
+// Every block the engine allocates carries a header in front: its size, so the host can count the heap itself and
+// refuse an allocation past the cap (QuickJS's own limit throws a catchable error; this one also stops the disk),
+// and links to the other live blocks, so whatever the engine fails to free is freed with the host.
+struct Block {
+  std::size_t size;
+  Block* prev;
+  Block* next;
+};
+constexpr std::size_t kHeader = (sizeof(Block) + 15) / 16 * 16;
 
 struct Heap {
   std::size_t used = 0, limit = 0;
   bool exceeded = false;
+  Block* live = nullptr;
 };
 
-std::size_t& sizeOf(void* block) { return *static_cast<std::size_t*>(block); }
+std::size_t& sizeOf(void* block) { return static_cast<Block*>(block)->size; }
+
+void link(Heap* heap, Block* b) {
+  b->prev = nullptr;
+  b->next = heap->live;
+  if (heap->live) heap->live->prev = b;
+  heap->live = b;
+}
+
+void unlink(Heap* heap, Block* b) {
+  if (b->prev) b->prev->next = b->next; else heap->live = b->next;
+  if (b->next) b->next->prev = b->prev;
+}
 
 bool fits(Heap* heap, std::size_t freed, std::size_t wanted) {
   if (wanted > heap->limit || heap->used - freed > heap->limit - wanted) { heap->exceeded = true; return false; }
@@ -36,6 +57,7 @@ void* heapMalloc(void* opaque, std::size_t size) {
   void* block = std::malloc(size + kHeader);
   if (!block) { heap->exceeded = true; return nullptr; }
   sizeOf(block) = size;
+  link(heap, static_cast<Block*>(block));
   heap->used += size;
   return static_cast<char*>(block) + kHeader;
 }
@@ -49,8 +71,10 @@ void* heapCalloc(void* opaque, std::size_t count, std::size_t size) {
 
 void heapFree(void* opaque, void* ptr) {
   if (!ptr) return;
+  auto* heap = static_cast<Heap*>(opaque);
   void* block = static_cast<char*>(ptr) - kHeader;
-  static_cast<Heap*>(opaque)->used -= sizeOf(block);
+  heap->used -= sizeOf(block);
+  unlink(heap, static_cast<Block*>(block));
   std::free(block);
 }
 
@@ -61,15 +85,17 @@ void* heapRealloc(void* opaque, void* ptr, std::size_t size) {
   void* block = static_cast<char*>(ptr) - kHeader;
   const std::size_t old = sizeOf(block);
   if (!fits(heap, old, size)) return nullptr;
+  unlink(heap, static_cast<Block*>(block));
   void* grown = std::realloc(block, size + kHeader);
-  if (!grown) { heap->exceeded = true; return nullptr; }
+  if (!grown) { link(heap, static_cast<Block*>(block)); heap->exceeded = true; return nullptr; }
+  link(heap, static_cast<Block*>(grown));
   sizeOf(grown) = size;
   heap->used = heap->used - old + size;
   return static_cast<char*>(grown) + kHeader;
 }
 
 std::size_t heapUsable(const void* ptr) {
-  return *reinterpret_cast<const std::size_t*>(static_cast<const char*>(ptr) - kHeader);
+  return reinterpret_cast<const Block*>(static_cast<const char*>(ptr) - kHeader)->size;
 }
 
 const JSMallocFunctions kMalloc = { heapCalloc, heapMalloc, heapFree, heapRealloc, heapUsable };
@@ -97,13 +123,24 @@ class QuickJsHost final : public ScriptHost {
     JS_SetPropertyStr(ctx_, math, "random", JS_NewCFunction(ctx_, &QuickJsHost::random, "random", 0));
     JS_SetPropertyStr(ctx_, global, "__pgdMeasure", JS_NewCFunction(ctx_, &QuickJsHost::measure, "__pgdMeasure", 2));
     JS_SetPropertyStr(ctx_, global, "__pgdLayerDiff", JS_NewCFunction(ctx_, &QuickJsHost::layerDiff, "__pgdLayerDiff", 2));
+    // String.prototype.normalize reorders combining marks with an insertion sort the interrupt cannot stop, so a
+    // long run of marks could hold the host far past the frame's time. Disks have no need for long ones.
+    JSValue stringCtor = JS_GetPropertyStr(ctx_, global, "String");
+    JSValue proto = JS_GetPropertyStr(ctx_, stringCtor, "prototype");
+    normalize_ = JS_GetPropertyStr(ctx_, proto, "normalize");
+    JS_DefinePropertyValueStr(ctx_, proto, "normalize", JS_NewCFunction(ctx_, &QuickJsHost::normalize, "normalize", 0),
+                              JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+    JS_FreeValue(ctx_, proto);
+    JS_FreeValue(ctx_, stringCtor);
     JS_FreeValue(ctx_, math);
     JS_FreeValue(ctx_, global);
   }
 
   ~QuickJsHost() override {
-    if (ctx_) JS_FreeContext(ctx_);
+    if (ctx_) { JS_FreeValue(ctx_, normalize_); JS_FreeContext(ctx_); }
     if (rt_) JS_FreeRuntime(rt_);
+    // anything the engine left allocated (a failure path that forgot a buffer) goes with the host
+    while (heap_.live) { Block* b = heap_.live; heap_.live = b->next; std::free(b); }
   }
 
   bool evaluate(std::string_view source, std::string_view name) override {
@@ -112,7 +149,7 @@ class QuickJsHost final : public ScriptHost {
     JSValue result = JS_Eval(ctx_, code.c_str(), code.size(), file.c_str(), JS_EVAL_TYPE_GLOBAL);
     if (JS_IsException(result)) return caught();
     JS_FreeValue(ctx_, result);
-    return settled();
+    return drainJobs() && settled();
   }
 
   bool call(std::string_view object, std::string_view method, std::string_view argJson, CommandFrame& out) override {
@@ -132,7 +169,15 @@ class QuickJsHost final : public ScriptHost {
     JSValue result = JS_Call(ctx_, fn, self, 1, &arg);
     JS_FreeValue(ctx_, arg); JS_FreeValue(ctx_, fn); JS_FreeValue(ctx_, self);
     if (JS_IsException(result)) return caught();
-    const bool ok = copyFrame(result, out);
+    // promise reactions run before the frame is taken, as a browser runs microtasks before the next frame
+    if (!drainJobs()) { JS_FreeValue(ctx_, result); return false; }
+    bool ok = false;
+    try {
+      ok = copyFrame(result, out);
+    } catch (const std::bad_alloc&) {
+      out = CommandFrame{};
+      ok = stop(ScriptFault::Memory, "the disk's frame did not fit in memory");
+    }
     JS_FreeValue(ctx_, result);
     return ok && settled();
   }
@@ -149,11 +194,28 @@ class QuickJsHost final : public ScriptHost {
     return true;
   }
 
-  // A disk that caught the engine's own out-of-memory error and carried on is still stopped.
+  // A disk that caught the engine's own out-of-memory error and carried on is still stopped, and so is one whose time
+  // ran out in native code the interrupt never saw.
   bool settled() {
     if (heap_.exceeded) return stop(ScriptFault::Memory, "the disk ran out of memory");
-    if (timedOut_) return stop(ScriptFault::Timeout, "the disk ran too long");
+    if (timedOut_ || late()) return stop(ScriptFault::Timeout, "the disk ran too long");
     return true;
+  }
+
+  bool late() {
+    if (Clock::now() > deadline_) timedOut_ = true;
+    return timedOut_;
+  }
+
+  // Run every queued promise job, inside the same time limit; a job that throws stops the disk.
+  bool drainJobs() {
+    for (;;) {
+      JSContext* jobCtx = nullptr;
+      const int ran = JS_ExecutePendingJob(rt_, &jobCtx);
+      if (ran == 0) return true;
+      if (ran < 0) return caught();
+      if (heap_.exceeded || late()) return settled();
+    }
   }
 
   bool stop(ScriptFault fault, std::string message) {
@@ -193,15 +255,26 @@ class QuickJsHost final : public ScriptHost {
 
   bool bad(const char* why) { return stop(ScriptFault::Exception, std::string("the disk returned a bad frame: ") + why); }
 
+  // Count `bytes` against the frame's budget (the disk's heap cap, as the copy is native memory the cap never sees),
+  // and stop the disk when the frame is too big or its time has run out while it is copied.
+  bool spend(std::size_t bytes) {
+    if (bytes > limits_.heapBytes || frameBytes_ > limits_.heapBytes - bytes)
+      return stop(ScriptFault::Memory, "the disk's frame is larger than its heap");
+    frameBytes_ += bytes;
+    if (late()) return stop(ScriptFault::Timeout, "the disk ran too long");
+    return true;
+  }
+
   bool copyFrame(JSValueConst frame, CommandFrame& out) {
     out = CommandFrame{};
+    frameBytes_ = 0;
     if (JS_IsUndefined(frame) || JS_IsNull(frame)) return true;
     if (!JS_IsObject(frame)) return bad("not an object");
     JSValue version = JS_GetPropertyStr(ctx_, frame, "version");
     double v = 0;
     const bool versionOk = JS_IsNumber(version) && !JS_ToFloat64(ctx_, &v, version);
     JS_FreeValue(ctx_, version);
-    if (!versionOk || v < 1 || v > 1000 || v != static_cast<int>(v)) return bad("no version");
+    if (!versionOk || !std::isfinite(v) || !(v >= 1 && v <= 1000) || v != std::floor(v)) return bad("no version");
     out.version = static_cast<int>(v);
 
     JSValue ops = JS_GetPropertyStr(ctx_, frame, "ops");
@@ -211,7 +284,7 @@ class QuickJsHost final : public ScriptHost {
       JSValue buffer = JS_GetTypedArrayBuffer(ctx_, ops, &offset, &bytes, &per);
       std::size_t size = 0;
       std::uint8_t* data = JS_IsException(buffer) ? nullptr : JS_GetArrayBuffer(ctx_, &size, buffer);
-      ok = data && offset + bytes <= size;
+      ok = data && offset + bytes <= size && spend(bytes);
       if (ok) {
         out.ops.resize(bytes / sizeof(double));
         if (bytes) std::memcpy(out.ops.data(), data + offset, out.ops.size() * sizeof(double));
@@ -219,15 +292,23 @@ class QuickJsHost final : public ScriptHost {
       JS_FreeValue(ctx_, buffer);
     }
     JS_FreeValue(ctx_, ops);
+    if (fault_ != ScriptFault::None) return false;
     if (!ok) return bad("ops is not a Float64Array");
 
     JSValue strings = JS_GetPropertyStr(ctx_, frame, "strings");
     ok = forEach(strings, [&](JSValueConst item) {
       if (!JS_IsString(item)) return false;
-      out.strings.push_back(str(item));
-      return true;
+      std::size_t length = 0;
+      const char* chars = JS_ToCStringLen2(ctx_, &length, item, false);
+      if (!chars) return false;
+      const bool fits = spend(length);
+      if (fits) out.strings.emplace_back(chars, length);
+      JS_FreeCString(ctx_, chars);
+      return fits;
     });
     JS_FreeValue(ctx_, strings);
+    if (fault_ != ScriptFault::None) return false;
+    if (JS_HasException(ctx_)) return caught();
     if (!ok) return bad("strings is not an array of strings");
 
     JSValue blobs = JS_GetPropertyStr(ctx_, frame, "blobs");
@@ -235,11 +316,15 @@ class QuickJsHost final : public ScriptHost {
       if (JS_GetTypedArrayType(item) != JS_TYPED_ARRAY_UINT8) return false;
       std::size_t size = 0;
       std::uint8_t* data = JS_GetUint8Array(ctx_, &size, item);
-      if (!data && size) return false;
+      // a detached or out-of-bounds view gives no pointer and an exception; an empty array is fine
+      if (!data && (size || JS_HasException(ctx_))) return false;
+      if (!spend(size)) return false;
       out.blobs.emplace_back(data, data + size);
       return true;
     });
     JS_FreeValue(ctx_, blobs);
+    if (fault_ != ScriptFault::None) return false;
+    if (JS_HasException(ctx_)) return caught();
     if (!ok) return bad("blobs is not an array of Uint8Arrays");
 
     JSValue state = JS_GetPropertyStr(ctx_, frame, "state");
@@ -259,6 +344,7 @@ class QuickJsHost final : public ScriptHost {
     std::int64_t length = 0;
     if (JS_GetLength(ctx_, array, &length)) return false;
     for (std::int64_t i = 0; i < length; ++i) {
+      if (!spend(sizeof(std::string))) return false;   // each entry costs something, even an empty one
       JSValue item = JS_GetPropertyUint32(ctx_, array, static_cast<std::uint32_t>(i));
       const bool ok = each(item);
       JS_FreeValue(ctx_, item);
@@ -292,9 +378,32 @@ class QuickJsHost final : public ScriptHost {
     if (!chars) return JS_EXCEPTION;
     std::int32_t size = 8;
     if (JS_ToInt32(ctx, &size, argv[1])) { JS_FreeCString(ctx, chars); return JS_EXCEPTION; }
+    auto* self = static_cast<QuickJsHost*>(JS_GetContextOpaque(ctx));
+    // the measure is native, so the interrupt cannot stop it: refuse text no tube could show, and check the clock after
+    if (length > kMaxMeasure) { JS_FreeCString(ctx, chars); return JS_ThrowRangeError(ctx, "__pgdMeasure: text too long"); }
     const double width = measureText(std::string_view(chars, length), size);
     JS_FreeCString(ctx, chars);
+    if (self->late()) return JS_ThrowInternalError(ctx, "the disk ran too long");
     return JS_NewFloat64(ctx, width);
+  }
+
+  // String.prototype.normalize, refusing strings over kMaxNormalize code units (see the constructor).
+  static JSValue normalize(JSContext* ctx, JSValueConst self, int argc, JSValueConst* argv) {
+    auto* host = static_cast<QuickJsHost*>(JS_GetContextOpaque(ctx));
+    JSValue text = JS_ToString(ctx, self);
+    if (JS_IsException(text)) return text;
+    JSValue lengthValue = JS_GetPropertyStr(ctx, text, "length");
+    std::int64_t length = 0;
+    const bool measured = !JS_ToInt64(ctx, &length, lengthValue);
+    JS_FreeValue(ctx, lengthValue);
+    if (!measured) { JS_FreeValue(ctx, text); return JS_EXCEPTION; }
+    if (length > static_cast<std::int64_t>(kMaxNormalize)) {
+      JS_FreeValue(ctx, text);
+      return JS_ThrowRangeError(ctx, "normalize: the string is too long for a disk");
+    }
+    JSValue result = JS_Call(ctx, host->normalize_, text, argc, argv);
+    JS_FreeValue(ctx, text);
+    return result;
   }
 
   // __pgdLayerDiff(px, sent): 0 when two Uint8Arrays match, else 1, or -1 when px holds an index above 3. The shim's
@@ -311,8 +420,13 @@ class QuickJsHost final : public ScriptHost {
     return JS_NewInt32(ctx, 1);
   }
 
+  static constexpr std::size_t kMaxMeasure = 1u << 16;     // bytes of text __pgdMeasure takes
+  static constexpr std::size_t kMaxNormalize = 1u << 12;   // code units String.prototype.normalize takes
+
   ScriptLimits limits_;
   std::uint32_t seed_;
+  std::size_t frameBytes_ = 0;
+  JSValue normalize_ = JS_UNDEFINED;
   Heap heap_;
   JSRuntime* rt_ = nullptr;
   JSContext* ctx_ = nullptr;

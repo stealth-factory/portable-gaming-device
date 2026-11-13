@@ -145,3 +145,71 @@ TEST("script host: a malformed frame or a missing method stops the disk") {
   CHECK(!other->call("Game", "tick", "", frame));
   CHECK(other->message().find("not a function") != std::string::npos);
 }
+
+TEST("script host: a frame version that is not a whole number from 1 to 1000 stops the disk") {
+  for (const char* version : { "NaN", "1.5", "0", "Infinity", "1001" }) {
+    auto host = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+    CHECK(host->evaluate(std::string("var Game = { tick: function () { return { version: ") + version +
+                         ", ops: new Float64Array(0), strings: [], blobs: [] }; } };", "version.js"));
+    CommandFrame frame;
+    CHECK(!host->call("Game", "tick", "", frame));
+    CHECK_EQ(static_cast<int>(host->fault()), static_cast<int>(ScriptFault::Exception));
+  }
+}
+
+TEST("script host: a frame that repeats one big string or blob is stopped at the heap cap, quickly") {
+  ScriptLimits limits;
+  limits.heapBytes = 16u << 20;
+  for (const char* body : { "var s = 'x'.repeat(1 << 20), a = []; for (var i = 0; i < 4096; i++) a.push(s);"
+                            " return { version: 1, ops: new Float64Array(0), strings: a, blobs: [] };",
+                            "var b = new Uint8Array(1 << 20), a = []; for (var i = 0; i < 4096; i++) a.push(b);"
+                            " return { version: 1, ops: new Float64Array(0), strings: [], blobs: a };" }) {
+    auto host = pgd::makeQuickJsHost(limits, 1);
+    CHECK(host->evaluate(std::string("var Game = { tick: function () { ") + body + " } };", "big.js"));
+    CommandFrame frame;
+    const auto start = std::chrono::steady_clock::now();
+    CHECK(!host->call("Game", "tick", "", frame));
+    CHECK_EQ(static_cast<int>(host->fault()), static_cast<int>(ScriptFault::Memory));
+    CHECK(ms(start) < 1000);
+  }
+}
+
+TEST("script host: a blob whose buffer was detached stops the disk") {
+  auto host = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+  CHECK(host->evaluate("var Game = { tick: function () { var b = new Uint8Array(8); b.buffer.transfer(); "
+                       "return { version: 1, ops: new Float64Array(0), strings: [], blobs: [b] }; } };", "detached.js"));
+  CommandFrame frame;
+  CHECK(!host->call("Game", "tick", "", frame));
+  CHECK_EQ(static_cast<int>(host->fault()), static_cast<int>(ScriptFault::Exception));
+}
+
+TEST("script host: __pgdMeasure refuses a text too long to measure") {
+  auto host = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+  CHECK_STR(probe(*host, "try { __pgdMeasure('x'.repeat(1 << 17), 8); return 'measured'; } catch (e) { return e.name; }"),
+            std::string("\"RangeError\""));
+}
+
+TEST("script host: promise jobs run before the frame leaves, and a job that never ends is stopped") {
+  auto host = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+  CHECK(host->evaluate("globalThis.ran = 0; Promise.resolve().then(function () { ran = 1; });", "job.js"));
+  CHECK_STR(probe(*host, "return ran;"), std::string("1"));
+  CHECK(host->evaluate("var Game = { tick: function () { Promise.resolve().then(function () { ran++; });"
+                       " return { version: 1, ops: new Float64Array(0), strings: [], blobs: [] }; } };", "tick.js"));
+  CommandFrame frame;
+  CHECK(host->call("Game", "tick", "", frame));
+  CHECK_STR(probe(*host, "return ran;"), std::string("2"));
+  ScriptLimits limits;
+  limits.sliceMs = 50;
+  auto stuck = pgd::makeQuickJsHost(limits, 1);
+  const auto start = std::chrono::steady_clock::now();
+  CHECK(!stuck->evaluate("Promise.resolve().then(function () { for (;;) {} });", "stuck.js"));
+  CHECK_EQ(static_cast<int>(stuck->fault()), static_cast<int>(ScriptFault::Timeout));
+  CHECK(ms(start) < 1000);
+}
+
+TEST("script host: String.prototype.normalize works on short text and refuses very long text") {
+  auto host = pgd::makeQuickJsHost(ScriptLimits{}, 1);
+  CHECK_STR(probe(*host, "return ['\\u00e9'.normalize('NFD').length, 'e\\u0301'.normalize().length];"), std::string("[2,1]"));
+  CHECK_STR(probe(*host, "try { 'a'.repeat(1 << 13).normalize(); return 'normalised'; } catch (e) { return e.name; }"),
+            std::string("\"RangeError\""));
+}
