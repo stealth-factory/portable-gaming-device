@@ -38,9 +38,9 @@ export function startRocket(x: number, level = 1): Rocket {
   return { x, y: 0.15, vx: 0, vy: inboundSpeed(level), a: 0, w: 0, fuel: 1 };
 }
 
-/** The pad: its centre and half-width, which narrows with the level. */
+/** The pad: its centre and half-width. It is wide on the first level and narrows each level, down to a floor. */
 export function padFor(level: number): { centre: number; half: number } {
-  return { centre: 0.5, half: Math.max(0.05, 0.095 - (level - 1) * 0.006) };
+  return { centre: 0.5, half: Math.max(0.05, 0.16 - (level - 1) * 0.012) };
 }
 
 /** Sideways push from the wind on this level. It is deterministic, so a replay matches. */
@@ -98,4 +98,16 @@ export function landingScore(r: Rocket, level: number): number {
 
 export function fuelPoints(fuel: number): number {
   return Math.round(Math.max(0, Math.min(1, fuel)) * 100);
+}
+
+/** The speed meter's full scale, in field heights per second either way (up is negative, down positive). */
+export const METER_SCALE = 0.3;
+
+/** Where the speed meter's needle sits: -1 is full climb, 0 is still, +1 is full fall, and `inZone` says the
+    rocket is inside the landing band (the speeds a touchdown allows). */
+export function speedMeter(vy: number): { fill: number; inZone: boolean } {
+  return {
+    fill: Math.max(-1, Math.min(1, vy / METER_SCALE)),
+    inZone: Math.abs(vy) <= LAND_VY,
+  };
 }

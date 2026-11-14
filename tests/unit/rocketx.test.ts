@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   G, GROUND, LAND_VY, MAIN_FUEL, MAIN_THRUST, RCS_FUEL, inboundSpeed, landingScore, padFor, startRocket,
-  stepRocket, touchdown, windFor, type Rocket,
+  stepRocket, touchdown, windFor, speedMeter, type Rocket,
 } from '../../src/games/rocketx/rules';
 
 const NONE = { main: false, rcs: 0 as const, level: false };
@@ -78,5 +78,23 @@ describe('rocketx rules', () => {
 
   it('the thrust is more than gravity, so a full tank can always stop the inbound rocket', () => {
     expect(MAIN_THRUST).toBeGreaterThan(G);
+  });
+});
+
+describe('speed meter', () => {
+  it('reads climbing as negative, falling as positive, and clamps at full scale', () => {
+    expect(speedMeter(0).fill).toBe(0);
+    expect(speedMeter(-0.1).fill).toBeLessThan(0);
+    expect(speedMeter(0.1).fill).toBeGreaterThan(0);
+    expect(speedMeter(5).fill).toBe(1);
+    expect(speedMeter(-5).fill).toBe(-1);
+  });
+
+  it('the landing band is the speeds a touchdown allows, in both directions', () => {
+    expect(speedMeter(0).inZone).toBe(true);
+    expect(speedMeter(LAND_VY).inZone).toBe(true);
+    expect(speedMeter(-LAND_VY).inZone).toBe(true);
+    expect(speedMeter(LAND_VY * 1.5).inZone).toBe(false);
+    expect(speedMeter(-LAND_VY * 1.5).inZone).toBe(false);
   });
 });

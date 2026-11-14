@@ -3,7 +3,7 @@
 import type { CreateGame } from '../types';
 import { drawFlame, drawLogo, drawPad, drawRocket } from './art';
 import {
-  GROUND, landingScore, padFor, startRocket, stepRocket, touchdown, windFor,
+  GROUND, METER_SCALE, LAND_VY, landingScore, padFor, speedMeter, startRocket, stepRocket, touchdown, windFor,
   type Input, type Rocket,
 } from './rules';
 
@@ -114,6 +114,28 @@ const create: CreateGame = api => {
     else if (outcome === 'crashed') crash();
   }
 
+  /* the speed meter: a bar down the right of the playfield, zero in the middle. Falling (down) is +, climbing (up) is -.
+     The shaded band is the landing window: the rocket must be inside it to touch down. */
+  function drawSpeedMeter() {
+    const top = fieldTop + 10, bottom = fieldBottom - 10;
+    const mid = Math.round((top + bottom) / 2), half = (bottom - top) / 2;
+    const x = api.LW - 9, w = 5;
+    const bandH = Math.max(1, Math.round((LAND_VY / METER_SCALE) * half));
+    api.g.fillStyle = api.col('hud');
+    api.g.fillRect(x - 1, top, 1, bottom - top);                  // the scale's rail
+    api.g.fillRect(x - 1, mid - bandH, w + 2, bandH * 2);         // the landing band
+    api.g.fillStyle = api.col('bg');
+    api.g.fillRect(x, mid - bandH + 1, w, Math.max(0, bandH * 2 - 2));
+    const m = speedMeter(rocket.vy);
+    const len = Math.round(m.fill * half);
+    api.g.fillStyle = api.col(m.inZone ? 'text' : 'hud');
+    api.g.fillRect(x, len >= 0 ? mid : mid + len, w, Math.max(1, Math.abs(len)));
+    api.g.fillStyle = api.col('text');
+    api.g.fillRect(x - 2, mid, w + 4, 1);                          // zero
+    api.txt('-', x + 2, top - 8, 'hud', 'center');
+    api.txt('+', x + 2, bottom + 2, 'hud', 'center');
+  }
+
   function hud() {
     api.g.fillStyle = api.col('bg');
     api.g.fillRect(0, 0, api.LW, api.HUD);
@@ -142,6 +164,7 @@ const create: CreateGame = api => {
     if (wind !== 0) {
       api.txt(wind > 0 ? 'WIND >' : '< WIND', left, fieldTop + 2, 'hud');
     }
+    drawSpeedMeter();
     hud();
     if (api.S.mode === 'ready') {
       drawLogo(api, Math.round(api.LW / 2), fieldTop + 6);
