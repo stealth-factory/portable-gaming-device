@@ -55,7 +55,7 @@ export function padFor(level: number): { centre: number; half: number } {
 
 /** Sideways push from the wind on this level. It is deterministic, so a replay matches. */
 export function windFor(level: number): number {
-  return Math.sin(level * 1.7) * Math.min(0.03, 0.006 * level);
+  return Math.sign(Math.sin(level * 1.7)) * Math.min(0.03, 0.006 * level);
 }
 
 /** One step. Fuel can run out mid-burn: the engine just stops then. */
@@ -64,7 +64,8 @@ export function stepRocket(r: Rocket, input: Input, dt: number, wind: number): R
   let thrust = 0;
   if (input.main && fuel > 0) { thrust = MAIN_THRUST; fuel = Math.max(0, fuel - MAIN_FUEL * dt); }
   // the main engine pushes along the axis: up when upright, sideways when tilted
-  const ax = -Math.sin(r.a) * thrust + wind;
+  // the nose points along (sin a, -cos a): tilted right, the engine pushes right
+  const ax = Math.sin(r.a) * thrust + wind;
   const ay = -Math.cos(r.a) * thrust + G;
 
   let torque = 0;

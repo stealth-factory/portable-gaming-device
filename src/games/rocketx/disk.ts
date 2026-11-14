@@ -9,15 +9,19 @@ function drawLoad(a: ConsoleAPI, p: number, t: number) {
   const top = HUD + Math.max(4, Math.round((LH - HUD - 120) / 4));
   drawLogo(a, Math.round(LW / 2), top);
   a.txt('BURN · STEER · LAND', LW / 2, top + 26, 'hud', 'center');
-  const padY = LH - 46;
+  const padY = LH - 80;
   drawPad(a, Math.round(LW * 0.4), Math.round(LW * 0.6), padY, t);
   drawInbound(a, p, t);
-  a.diskInfo(padY + 14, p, t, disk);
+  a.diskInfo(padY + 14, p, t, disk);   // the status lines sit 32 px below this, so keep clear of the bottom
 }
 
 /* the launcher's cover: the logo over the pad, drawn in the phosphor's colours (no capture needed) */
 function drawCover(a: ConsoleAPI, x: number, y: number, w: number, h: number, t: number) {
-  drawLogo(a, Math.round(x + w / 2), Math.round(y + h * 0.18));
+  // a small wordmark, so it fits a card at any tube size (the full logo is drawn on the loading screen and in play)
+  const cx = Math.round(x + w / 2), cy = Math.round(y + h * 0.18);
+  a.txt('ROCKETX', cx, cy, 'text', 'center', 8);
+  a.g.fillStyle = a.col('hud');
+  a.g.fillRect(cx - 24, cy + 10, 48, 1);
   drawPad(a, Math.round(x + w * 0.4), Math.round(x + w * 0.6), Math.round(y + h * 0.78), t);
   drawRocket(a, Math.round(x + w / 2), Math.round(y + h * 0.5), 0);
 }
@@ -40,7 +44,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  contract: 1, version: 6, rating: '4+',
+  contract: 1, version: 8, rating: '4+',
   id: 'rocketx', order: 8, slug: 'rocketx', genre: 'LAND', players: 1,
   page: {
     title: 'ROCKETX',

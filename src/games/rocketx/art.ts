@@ -7,33 +7,39 @@ type Api = { g: Screen2D; col(role: string): string };
 /** A rocket of nine rows, tilted by `a` radians: each row shifts sideways a little more the higher it sits. */
 export function drawRocket(api: { g: Screen2D; col(r: string): string }, x: number, y: number, a: number, dead = false) {
   const g = api.g;
+  // the nose leans toward +sin(a); when the rocket is more than halfway over (cos a < 0) it is drawn upside down
   const lean = Math.sin(a);
-  const shift = (row: number) => Math.round(lean * (row - 4) * 1.2);
+  const flip = Math.cos(a) < 0;
+  const at = (r: number) => (flip ? 8 - r : r);      // the row a sprite row lands on
+  const shift = (r: number) => Math.round(lean * (4 - r) * 1.2);
   const body = dead ? 'hud' : 'text';
   g.fillStyle = api.col(body);
   for (let r = 0; r < 9; r++) {
-    const half = r < 2 ? 1 : 2;                   // a nose cone above the body
-    g.fillRect(x + shift(r) - half, y - 4 + r, half * 2 + 1, 1);
+    const half = r < 2 ? 1 : 2;                   // a nose cone at the top (row 0)
+    const row = at(r);
+    g.fillRect(x + shift(row) - half, y - 4 + row, half * 2 + 1, 1);
   }
-  // fins at the bottom
+  // fins at the base (row 7), and a porthole, so it reads as a rocket and not a bar
   g.fillStyle = api.col('hud');
-  g.fillRect(x + shift(7) - 4, y + 2, 2, 2);
-  g.fillRect(x + shift(7) + 3, y + 2, 2, 2);
-  // a porthole, so it reads as a rocket and not a bar
+  g.fillRect(x + shift(at(7)) - 4, y - 4 + at(7), 2, 2);
+  g.fillRect(x + shift(at(7)) + 3, y - 4 + at(7), 2, 2);
   g.fillStyle = api.col('bg');
-  g.fillRect(x + shift(3), y - 1, 1, 1);
+  g.fillRect(x + shift(at(3)), y - 4 + at(3), 1, 1);
 }
 
 /** The flame under the engine: two flickering tongues, drawn only while the main engine burns. */
 export function drawFlame(api: { g: Screen2D; col(r: string): string }, x: number, y: number, a: number, t: number) {
   const g = api.g;
+  // the exhaust leaves from the base, opposite the nose
   const lean = Math.sin(a);
-  const base = y + 6;
+  const flip = Math.cos(a) < 0;
+  const base = flip ? y - 10 : y + 6;
+  const dir = flip ? -1 : 1;
   const flick = Math.floor(t * 20) % 2;
   g.fillStyle = api.col('text');
-  g.fillRect(x + Math.round(lean * 6) - 1, base, 3, 3 + flick);
+  g.fillRect(x - Math.round(lean * 6) - 1, base, 3, 3 + flick);
   g.fillStyle = api.col('hud');
-  g.fillRect(x + Math.round(lean * 6), base + 3, 1, 3 + (1 - flick));
+  g.fillRect(x - Math.round(lean * 6), base + dir * 3, 1, 3 + (1 - flick));
 }
 
 /** The pad on the ground: a bar across the pad's width, with two lights at its ends that blink. */

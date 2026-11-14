@@ -23,13 +23,20 @@ describe('rocketx rules', () => {
 
   it('the main engine pushes sideways when the rocket is tilted', () => {
     const r = stepRocket(still({ a: 0.3, y: 0.6 }), { ...NONE, main: true }, 0.1, 0);
-    expect(r.vx).toBeLessThan(0);
+    expect(r.vx).toBeGreaterThan(0);   // leaning right pushes right
     expect(Math.abs(r.vx)).toBeGreaterThan(0);
   });
 
   it('an empty tank gives no thrust: the rocket just falls', () => {
     const r = stepRocket(still({ fuel: 0, y: 0.6 }), { ...NONE, main: true }, 0.1, 0);
     expect(r.vy).toBeCloseTo(G * 0.1, 6);
+  });
+
+  it('holding right tilts the rocket right, and the engine then pushes right', () => {
+    let r = still({ y: 0.6 });
+    for (let i = 0; i < 30; i++) r = stepRocket(r, { main: true, rcs: 1, level: false }, 1 / 60, 0);
+    expect(r.a).toBeGreaterThan(0);
+    expect(r.vx).toBeGreaterThan(0);
   });
 
   it('side thrusters turn the rocket and burn a little fuel', () => {
