@@ -27,8 +27,9 @@ A 1983-style home console in the browser, on an old phosphor monitor. Switch it 
 | 5 | **Bricks** | `BRICKS.EXE` | 2.2 s | One bat and one ember. Serve it into a wall of clay, kiln, glass and cinder, and clear every breakable brick. Anvils stay. Broken bricks sometimes drop a capsule: Broad or Slim changes the bat, Flare or Damp the ember's speed, and Sear lets it through the next three breakable bricks. Up and down bow the bat. A miss loses a bat; three to start, another every 2,000, up to six. |
 | 6 | **Martian Storm** | `STORM.EXE` | 3.8 s | Fly a skiff up through a Martian dust storm. Hold to spray shots. The Blaster to start, then four guns up to level 3 that stack and fire together: Spread, Laser, homing Missile and Wave; a capsule flashes S, L, M, W, so catch a new gun to add it or one you have to level it up. The third spore shot from a flight drops a capsule, and most barbs drop something. SPEED pickups make the skiff faster (up to three). BOMB, beside FIRE or <kbd>V</kbd>, clears the screen of spores, barbs and their shots and cracks slabs: two a skiff, up to five. Three hearts a skiff (up to five): a hit costs a heart, the last costs the skiff, its guns and its speed. Three skiffs, one more per leg cleared, every 5,000 and from 1UPs, up to nine. BOOST spends a tuck: untouchable, guns silent, back where it started. Barbs take three shots and slabs fourteen (a missile counts as two); slabs always drop a pickup. Eight legs with a warp between each, where everything the skiff holds carries over, then the pad. |
 | 7 | **Reef Run** | `REEFRUN.COM` | 1.5 s | A fish swims a reef current. Press for an upward kick; without one it sinks. Slip the openings in the coral and the rock. Touch either, or the surface, or the seabed, and the swim is over. Each opening scores one, and the current quickens as the score climbs. |
+| 8 | **ROCKETX** | `ROCKETX.EXE` | 2.4 s | Burn an inbound rocket down onto its pad. The main engine slows it, the side thrusters turn it, and attitude hold levels it. Land soft, upright and on the pad. Each level comes in faster, the pad narrows and the wind picks up. |
 
-The characters, art, sound and code in all seven are original.
+The characters, art, sound and code in all eight are original.
 
 Each game also has its own page that boots straight into its disk: `/tunnel-raider`, `/dino-run`, `/invader-force`, `/i-invade`, `/bricks`, `/martian-storm` and `/reef-run`, each with its own title, description and share image.
 
@@ -220,7 +221,7 @@ Once the console has its own address:
 
 ## Credits
 
-Tunnel Raider is a tribute to Windmill Software's *Digger* (1983); Dino Run to the offline dinosaur game in Google Chrome (2014); Invader Force to Taito's *Space Invaders* (1978), and I Invade turns that genre round so you play the invaders. Bricks is a one-bat brick game: one bat, one ember, and a wall to clear. Martian Storm is a vertical shooter through a Martian dust storm: one skiff, five guns that stack, bombs, a tuck, and eight legs. Reef Run is a one-button swim through a reef: one kick lifts the fish, and the current does the rest. All seven are original work: no characters, art, sound or code are copied.
+Tunnel Raider is a tribute to Windmill Software's *Digger* (1983); Dino Run to the offline dinosaur game in Google Chrome (2014); Invader Force to Taito's *Space Invaders* (1978), and I Invade turns that genre round so you play the invaders. Bricks is a one-bat brick game: one bat, one ember, and a wall to clear. Martian Storm is a vertical shooter through a Martian dust storm: one skiff, five guns that stack, bombs, a tuck, and eight legs. Reef Run is a one-button swim through a reef: one kick lifts the fish, and the current does the rest. ROCKETX is a booster landing: burn the main engine, turn with the side thrusters and land on the pad. All eight are original work: no characters, art, sound or code are copied.
 
 ## Licence
 
