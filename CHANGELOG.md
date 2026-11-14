@@ -3,6 +3,12 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.18.0] - 2026-11-14
+
+### Features
+
+- Add ROCKETX, a booster landing game (#147)
+
 ## [0.17.0] - 2026-11-13
 
 ### Features
