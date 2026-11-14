@@ -4,16 +4,16 @@
 export const GROUND = 0.9;          // the rocket's centre touches the ground here
 export const G = 0.42;              // gravity, pulling down
 export const MAIN_THRUST = 0.9;     // the main engine, along the rocket's axis (more than G, so it can climb)
-export const MAIN_FUEL = 0.16;      // fuel per second the main engine burns
+export const MAIN_FUEL = 0.11;      // fuel per second the main engine burns
 export const RCS_TORQUE = 2.4;      // side thrusters: turning rate change, rad/s²
 export const RCS_FUEL = 0.02;       // fuel per second the side thrusters burn
 export const RCS_DAMP = 1.4;        // turning slows on its own, /s
 export const LEVEL_GAIN = 7;        // attitude hold pulls the angle to zero, /s²
 export const LEVEL_FUEL = 0.05;     // fuel per second attitude hold burns
 export const LEVEL_DAMP = 4;        // attitude hold steadies the turn quickly, /s (critically damped with LEVEL_GAIN)
-export const LAND_VY = 0.14;        // softest touchdown allowed, downward
+export const LAND_VY = 0.18;        // softest touchdown allowed, downward
 export const LAND_VX = 0.07;        // sideways speed allowed at touchdown
-export const LAND_TILT = 0.14;      // angle allowed at touchdown, rad (about 8 degrees)
+export const LAND_TILT = 0.18;      // angle allowed at touchdown, rad (about 8 degrees)
 
 export interface Rocket {
   x: number; y: number; vx: number; vy: number;
@@ -31,7 +31,7 @@ export interface Input {
 /** How fast the inbound rocket is falling when the level starts: each level comes in faster, up to a cap
     the main engine can still stop from full fuel. */
 export function inboundSpeed(level: number): number {
-  return Math.min(0.3, 0.1 + 0.035 * (Math.max(1, level) - 1));
+  return Math.min(0.22, 0.06 + 0.025 * (Math.max(1, level) - 1));
 }
 
 export function startRocket(x: number, level = 1): Rocket {
@@ -40,12 +40,12 @@ export function startRocket(x: number, level = 1): Rocket {
 
 /** The pad: its centre and half-width, which narrows with the level. */
 export function padFor(level: number): { centre: number; half: number } {
-  return { centre: 0.5, half: Math.max(0.035, 0.07 - (level - 1) * 0.008) };
+  return { centre: 0.5, half: Math.max(0.05, 0.095 - (level - 1) * 0.006) };
 }
 
 /** Sideways push from the wind on this level. It is deterministic, so a replay matches. */
 export function windFor(level: number): number {
-  return Math.sin(level * 1.7) * Math.min(0.06, 0.012 * level);
+  return Math.sin(level * 1.7) * Math.min(0.03, 0.006 * level);
 }
 
 /** One step. Fuel can run out mid-burn: the engine just stops then. */

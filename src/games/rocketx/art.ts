@@ -54,27 +54,28 @@ export function drawInbound(api: Api & { LW: number; LH: number; HUD: number }, 
   drawRocket(api, x, y, Math.sin(t * 2) * 0.12);
 }
 
-/** The ROCKETX logo: an original rocket glyph beside a bold pixel wordmark, with a landing-pad bar under it.
-    It is ROCKETX's own mark, not any company's. `scale` 1 for the cover and preview, 2 for the loading screen. */
+/** The ROCKETX logo: an original rocket glyph to the left of a bold pixel wordmark, with a landing-pad bar under the
+    whole mark. The 16px wordmark is about 78 px wide on the tube; the parts are laid out from that, centred on cx. */
 export function drawLogo(api: { g: Screen2D; col(r: string): string; txt(s: string, x: number, y: number, role?: string, align?: string, size?: number): void }, cx: number, y: number) {
   const g = api.g;
-  // the glyph: a small rocket, nose up, with two fins and a flame
+  const WORD_W = 78;
+  const wordX = cx + 10;                       // the wordmark's centre
+  const gx = wordX - WORD_W / 2 - 16;          // the glyph's middle, left of the word
+  api.txt('ROCKETX', wordX, y + 1, 'text', 'center', 16);
   g.fillStyle = api.col('text');
-  g.fillRect(cx - 40, y - 2, 4, 2);
-  g.fillRect(cx - 41, y, 6, 6);
-  g.fillRect(cx - 42, y + 6, 8, 4);
+  g.fillRect(gx - 1, y - 2, 4, 2);
+  g.fillRect(gx - 2, y, 6, 6);
+  g.fillRect(gx - 3, y + 6, 8, 4);
   g.fillStyle = api.col('hud');
-  g.fillRect(cx - 44, y + 6, 2, 4);
-  g.fillRect(cx - 34, y + 6, 2, 4);
+  g.fillRect(gx - 5, y + 6, 2, 4);
+  g.fillRect(gx + 5, y + 6, 2, 4);
   g.fillStyle = api.col('text');
-  g.fillRect(cx - 40, y + 10, 4, 2);
-  // the wordmark, in the title face
-  api.txt('ROCKET', cx + 6, y + 1, 'text', 'left', 16);
-  api.txt('X', cx + 6 + 6 * 11 + 2, y + 1, 'hud', 'left', 16);
-  // the pad: a bar under the wordmark with lights at each end
+  g.fillRect(gx - 1, y + 10, 4, 2);
+  // the pad: a bar under the whole mark, with lights at each end
+  const x0 = cx - 50, x1 = cx + 50;
   g.fillStyle = api.col('hud');
-  g.fillRect(cx - 42, y + 18, 96, 2);
+  g.fillRect(x0, y + 18, x1 - x0, 2);
   g.fillStyle = api.col('text');
-  g.fillRect(cx - 44, y + 16, 2, 2);
-  g.fillRect(cx + 52, y + 16, 2, 2);
+  g.fillRect(x0 - 2, y + 16, 2, 2);
+  g.fillRect(x1, y + 16, 2, 2);
 }

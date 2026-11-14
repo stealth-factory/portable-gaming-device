@@ -48,7 +48,7 @@ describe('rocketx rules', () => {
   it('the inbound rocket comes in faster on every level, up to a cap', () => {
     expect(inboundSpeed(2)).toBeGreaterThan(inboundSpeed(1));
     expect(inboundSpeed(3)).toBeGreaterThan(inboundSpeed(2));
-    expect(inboundSpeed(40)).toBeCloseTo(0.3, 6);
+    expect(inboundSpeed(40)).toBeCloseTo(0.22, 6);
     expect(startRocket(0.5, 4).vy).toBeCloseTo(inboundSpeed(4), 6);
   });
 
@@ -66,7 +66,7 @@ describe('rocketx rules', () => {
   it('the pad narrows as levels go up, and wind grows', () => {
     expect(padFor(5).half).toBeLessThan(padFor(1).half);
     expect(Math.abs(windFor(6))).toBeGreaterThan(0);
-    expect(Math.abs(windFor(6))).toBeLessThanOrEqual(0.06);
+    expect(Math.abs(windFor(6))).toBeLessThanOrEqual(0.03);
   });
 
   it('a landing is worth more with fuel left and a centred touchdown', () => {
