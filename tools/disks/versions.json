@@ -23,6 +23,10 @@
     "version": 2,
     "sha256": "cfa8560d9667c23600045893364418d4160b35debab2ce75978887ffdd4a97cc"
   },
+  "rocketx": {
+    "version": 2,
+    "sha256": "aa71d9cfff9f82c56d826a81d875e5e76c3cf5a839af547e643f972faceb4299"
+  },
   "tunnel": {
     "version": 1,
     "sha256": "3b08eb0bccc8e50487e072df8900d5caf0f8e100f843bc61c6925c44134873a5"

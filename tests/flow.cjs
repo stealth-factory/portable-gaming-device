@@ -259,6 +259,15 @@ async function playEveryDisk(p, tag){
       const snagged = await p.evaluate(() => __gg.S.mode);
       if (snagged !== 'dying') errs.push(tag + ' reef snag: ' + snagged);
       console.log(tag, 'reef snag', snagged);
+    } else if (id === 'rocketx') {
+      // the main engine: holding FIRE slows the fall and burns fuel
+      await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 15000 }).catch(() => {});
+      const before = await p.evaluate(() => __gg.runtime.debug.state());
+      await p.keyboard.down('Space'); await p.waitForTimeout(200); await p.keyboard.up('Space');
+      const burned = await p.evaluate(() => __gg.runtime.debug.state());
+      const burnOk = before.mode === 'play' && burned.fuel < before.fuel && burned.vy < before.vy;
+      if (!burnOk) errs.push(tag + ' rocketx burn: ' + JSON.stringify({ before: { vy: before.vy, fuel: before.fuel }, burned: { vy: burned.vy, fuel: burned.fuel, mode: burned.mode } }));
+      console.log(tag, 'rocketx burn', { vy: [Math.round(before.vy * 100) / 100, Math.round(burned.vy * 100) / 100], fuel: [Math.round(before.fuel * 100) / 100, Math.round(burned.fuel * 100) / 100] });
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
