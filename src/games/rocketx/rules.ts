@@ -121,3 +121,12 @@ export function speedMeter(vy: number, level = 1): { fill: number; inZone: boole
     inZone: Math.abs(vy) <= landingVy(level),
   };
 }
+
+/** The wind meter's full scale: the strongest wind any level can blow. */
+export const WIND_SCALE = 0.03;
+
+/** Which way the wind blows (-1 left, +1 right, 0 none) and how hard, from 0 to 1 of full scale. */
+export function windMeter(wind: number): { dir: -1 | 0 | 1; fill: number } {
+  const fill = Math.max(0, Math.min(1, Math.abs(wind) / WIND_SCALE));
+  return { dir: wind > 0 ? 1 : wind < 0 ? -1 : 0, fill };
+}

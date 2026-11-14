@@ -3,7 +3,7 @@
 import type { CreateGame } from '../types';
 import { drawFlame, drawLogo, drawPad, drawRocket } from './art';
 import {
-  GROUND, METER_SCALE, landingVy, landingScore, padFor, speedMeter, startRocket, stepRocket, touchdown, windFor,
+  GROUND, METER_SCALE, WIND_SCALE, landingVy, landingScore, padFor, speedMeter, windMeter, startRocket, stepRocket, touchdown, windFor,
   type Input, type Rocket,
 } from './rules';
 
@@ -139,6 +139,29 @@ const create: CreateGame = api => {
     api.txt('+', x + 2, bottom + 2, 'hud', 'center');
   }
 
+  /* the wind meter: a bar across the top of the playfield, with the centre marked. The fill runs out from the
+     centre the way the wind blows, and its length is the force, with an arrowhead at the tip. */
+  function drawWindMeter() {
+    const { dir, fill } = windMeter(wind);
+    const y = fieldTop + 3, half = 30, cx = Math.round(api.LW / 2);
+    api.g.fillStyle = api.col('hud');
+    api.g.fillRect(cx - half, y, half * 2, 1);                 // the rail
+    api.g.fillRect(cx - half, y + 3, half * 2, 1);
+    api.g.fillRect(cx - half, y, 1, 4);                        // the end caps
+    api.g.fillRect(cx + half - 1, y, 1, 4);
+    api.g.fillRect(cx, y - 1, 1, 6);                           // the centre mark
+    if (dir !== 0 && fill > 0) {
+      const len = Math.max(2, Math.round(fill * half));
+      const x0 = dir > 0 ? cx : cx - len, x1 = dir > 0 ? cx + len : cx;
+      api.g.fillStyle = api.col('text');
+      api.g.fillRect(x0, y + 1, x1 - x0, 2);
+      const tip = dir > 0 ? x1 : x0;
+      api.g.fillRect(tip - (dir > 0 ? 0 : 1), y - 1, 2, 4);     // the arrowhead
+      api.g.fillRect(dir > 0 ? tip - 2 : tip + 1, y - 2, 1, 6);
+    }
+    api.txt('WIND', cx - half - 4, y - 2, 'hud', 'right');
+  }
+
   function hud() {
     api.g.fillStyle = api.col('bg');
     api.g.fillRect(0, 0, api.LW, api.HUD);
@@ -164,9 +187,7 @@ const create: CreateGame = api => {
       if (api.S.mode !== 'dying' && input().main && rocket.fuel > 0) drawFlame(api, x, y, rocket.a, api.S.time);
       drawRocket(api, x, y, api.S.mode === 'dying' ? rocket.a + 0.6 : rocket.a, api.S.mode === 'dying');
     }
-    if (wind !== 0) {
-      api.txt(wind > 0 ? 'WIND >' : '< WIND', left, fieldTop + 2, 'hud');
-    }
+    drawWindMeter();
     drawSpeedMeter();
     hud();
     if (api.S.mode === 'ready') {

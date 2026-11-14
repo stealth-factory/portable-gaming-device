@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   G, GROUND, LAND_VY, MAIN_FUEL, MAIN_THRUST, RCS_FUEL, inboundSpeed, landingScore, padFor, startRocket,
-  stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, type Rocket,
+  stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, windMeter, type Rocket,
 } from '../../src/games/rocketx/rules';
 
 const NONE = { main: false, rcs: 0 as const, level: false };
@@ -105,5 +105,15 @@ describe('speed meter', () => {
     expect(speedMeter(landingVy(8) * 1.1, 8).inZone).toBe(false);
     expect(landingVy(1)).toBeGreaterThan(landingVy(5));
     expect(landingVy(5)).toBeGreaterThan(landingVy(40));
+  });
+});
+
+describe('wind meter', () => {
+  it('shows the direction and the force of the wind, up to full scale', () => {
+    expect(windMeter(0)).toEqual({ dir: 0, fill: 0 });
+    expect(windMeter(0.01).dir).toBe(1);
+    expect(windMeter(-0.01).dir).toBe(-1);
+    expect(windMeter(0.015).fill).toBeCloseTo(0.5, 6);
+    expect(windMeter(1).fill).toBe(1);
   });
 });

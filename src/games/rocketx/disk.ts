@@ -40,7 +40,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  contract: 1, version: 5, rating: '4+',
+  contract: 1, version: 6, rating: '4+',
   id: 'rocketx', order: 8, slug: 'rocketx', genre: 'LAND', players: 1,
   page: {
     title: 'ROCKETX',
