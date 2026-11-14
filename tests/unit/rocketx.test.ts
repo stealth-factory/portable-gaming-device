@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   G, GROUND, LAND_VY, MAIN_FUEL, MAIN_THRUST, RCS_FUEL, inboundSpeed, landingScore, padFor, startRocket,
-  stepRocket, touchdown, windFor, speedMeter, type Rocket,
+  stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, type Rocket,
 } from '../../src/games/rocketx/rules';
 
 const NONE = { main: false, rcs: 0 as const, level: false };
@@ -63,6 +63,12 @@ describe('rocketx rules', () => {
     expect(touchdown(still({ y: GROUND, x: 0.2 }), 1)).toBe('crashed');
   });
 
+  it('the sideways and downward limits tighten as the levels go up', () => {
+    expect(landingVx(1)).toBeGreaterThan(landingVx(10));
+    expect(landingVy(1)).toBeGreaterThan(landingVy(10));
+    expect(touchdown(still({ y: GROUND, vx: landingVx(9) * 1.2 }), 9)).toBe('crashed');
+  });
+
   it('the pad narrows as levels go up, and wind grows', () => {
     expect(padFor(5).half).toBeLessThan(padFor(1).half);
     expect(Math.abs(windFor(6))).toBeGreaterThan(0);
@@ -92,9 +98,12 @@ describe('speed meter', () => {
 
   it('the landing band is the speeds a touchdown allows, in both directions', () => {
     expect(speedMeter(0).inZone).toBe(true);
-    expect(speedMeter(LAND_VY).inZone).toBe(true);
-    expect(speedMeter(-LAND_VY).inZone).toBe(true);
-    expect(speedMeter(LAND_VY * 1.5).inZone).toBe(false);
-    expect(speedMeter(-LAND_VY * 1.5).inZone).toBe(false);
+    expect(speedMeter(landingVy(1)).inZone).toBe(true);
+    expect(speedMeter(-landingVy(1)).inZone).toBe(true);
+    expect(speedMeter(landingVy(1) * 1.5).inZone).toBe(false);
+    expect(speedMeter(-landingVy(1) * 1.5).inZone).toBe(false);
+    expect(speedMeter(landingVy(8) * 1.1, 8).inZone).toBe(false);
+    expect(landingVy(1)).toBeGreaterThan(landingVy(5));
+    expect(landingVy(5)).toBeGreaterThan(landingVy(40));
   });
 });

@@ -39,6 +39,16 @@ export function startRocket(x: number, level = 1): Rocket {
 }
 
 /** The pad: its centre and half-width. It is wide on the first level and narrows each level, down to a floor. */
+/** The softest touchdown the level allows, downward. Early levels allow more; it tightens each level to a floor. */
+export function landingVy(level: number): number {
+  return Math.max(0.12, 0.2 - (Math.max(1, level) - 1) * 0.01);
+}
+
+/** The most sideways speed a touchdown allows. It tightens with the level, like the downward speed. */
+export function landingVx(level: number): number {
+  return Math.max(0.04, 0.09 - (Math.max(1, level) - 1) * 0.005);
+}
+
 export function padFor(level: number): { centre: number; half: number } {
   return { centre: 0.5, half: Math.max(0.05, 0.16 - (level - 1) * 0.012) };
 }
@@ -83,7 +93,7 @@ export function touchdown(r: Rocket, level: number): Outcome {
   if (r.y < GROUND) return r.x < 0 || r.x > 1 ? 'crashed' : null;
   const pad = padFor(level);
   const onPad = Math.abs(r.x - pad.centre) <= pad.half;
-  const soft = Math.abs(r.vy) <= LAND_VY && Math.abs(r.vx) <= LAND_VX && Math.abs(r.a) <= LAND_TILT;
+  const soft = Math.abs(r.vy) <= landingVy(level) && Math.abs(r.vx) <= landingVx(level) && Math.abs(r.a) <= LAND_TILT;
   return onPad && soft ? 'landed' : 'crashed';
 }
 
@@ -91,7 +101,7 @@ export function touchdown(r: Rocket, level: number): Outcome {
 export function landingScore(r: Rocket, level: number): number {
   const pad = padFor(level);
   const centred = 1 - Math.min(1, Math.abs(r.x - pad.centre) / pad.half);
-  const gentle = 1 - Math.min(1, Math.abs(r.vy) / LAND_VY);
+  const gentle = 1 - Math.min(1, Math.abs(r.vy) / landingVy(level));
   const base = 100 + Math.round(fuelPoints(r.fuel) + 60 * centred + 40 * gentle);
   return base * Math.max(1, level);
 }
@@ -105,9 +115,9 @@ export const METER_SCALE = 0.3;
 
 /** Where the speed meter's needle sits: -1 is full climb, 0 is still, +1 is full fall, and `inZone` says the
     rocket is inside the landing band (the speeds a touchdown allows). */
-export function speedMeter(vy: number): { fill: number; inZone: boolean } {
+export function speedMeter(vy: number, level = 1): { fill: number; inZone: boolean } {
   return {
     fill: Math.max(-1, Math.min(1, vy / METER_SCALE)),
-    inZone: Math.abs(vy) <= LAND_VY,
+    inZone: Math.abs(vy) <= landingVy(level),
   };
 }
