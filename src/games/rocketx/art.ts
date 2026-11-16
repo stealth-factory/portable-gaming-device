@@ -108,3 +108,64 @@ export function drawLogo(api: { g: Screen2D; col(r: string): string; txt(s: stri
   g.fillRect(x0 - 2, y + 16, 2, 2);
   g.fillRect(x1, y + 16, 2, 2);
 }
+
+/** The sea: a rolling line across the whole tube at the water's height, with crests that travel and grow with the
+    swell (`amp` in pixels). Below it, a few rows of dashes for the water. */
+export function drawSea(api: { g: Screen2D; col(r: string): string }, w: number, y: number, amp: number, t: number) {
+  const g = api.g;
+  g.fillStyle = api.col('hud');
+  for (let x = 0; x < w; x += 2) {
+    const dy = Math.round(Math.sin(x * 0.09 + t * 1.6) * amp * 0.6 + Math.sin(x * 0.031 - t * 0.9) * amp * 0.4);
+    g.fillRect(x, y + dy, 2, 1);
+  }
+  // crests: brighter flecks riding the swell
+  g.fillStyle = api.col('text');
+  const n = Math.max(2, Math.round(w / 40));
+  for (let i = 0; i < n; i++) {
+    const x = Math.round(((i * 43 + t * 14) % w + w) % w);
+    const dy = Math.round(Math.sin(x * 0.09 + t * 1.6) * amp * 0.6 + Math.sin(x * 0.031 - t * 0.9) * amp * 0.4);
+    if (amp > 1) g.fillRect(x, y + dy - 1, 2, 1);
+  }
+  // the water under the line
+  g.fillStyle = api.col('hud');
+  for (let r = 1; r <= 3; r++) {
+    for (let x = (r * 7 + Math.floor(t * 6 * r)) % 12; x < w; x += 12) g.fillRect(x, y + 3 + r * 3, 3, 1);
+  }
+}
+
+/** The landing ship: a flat deck that tilts with `roll`, a hull under it down to the water, and a light at each end of
+    the deck that blinks. (x0, x1) is the deck across, y its height at the middle. */
+export function drawShip(api: { g: Screen2D; col(r: string): string }, x0: number, x1: number, y: number, roll: number, waterY: number, t: number) {
+  const g = api.g;
+  const mid = (x0 + x1) / 2;
+  const at = (x: number) => Math.round(y + (x - mid) * Math.tan(roll));
+  // the hull: a solid block under the deck, down to the waterline
+  g.fillStyle = api.col('hud');
+  for (let x = x0 + 2; x < x1 - 2; x++) {
+    const top = at(x) + 2;
+    g.fillRect(x, top, 1, Math.max(1, waterY - top));
+  }
+  // the deck itself, stepped along the roll
+  g.fillStyle = api.col('text');
+  for (let x = x0; x < x1; x++) g.fillRect(x, at(x), 1, 2);
+  // a landing mark in the middle of the deck: a ring the rocket aims for
+  g.fillStyle = api.col('bg');
+  g.fillRect(Math.round(mid) - 2, at(mid), 5, 1);
+  const on = Math.floor(t * 2) % 2 === 0;
+  g.fillStyle = api.col(on ? 'text' : 'hud');
+  g.fillRect(x0 - 1, at(x0) - 2, 2, 2);
+  g.fillRect(x1 - 1, at(x1) - 2, 2, 2);
+}
+
+/** A splash where the rocket went into the sea: a spray that rises and falls back over `p` (0 to 1). */
+export function drawSplash(api: { g: Screen2D; col(r: string): string }, x: number, y: number, p: number) {
+  const g = api.g;
+  const h = Math.round(Math.sin(Math.min(1, p) * Math.PI) * 14);
+  g.fillStyle = api.col('text');
+  for (let i = -3; i <= 3; i++) {
+    const hi = Math.max(0, h - Math.abs(i) * 3);
+    if (hi > 0) g.fillRect(x + i * 2, y - hi, 1, hi);
+  }
+  g.fillStyle = api.col('hud');
+  g.fillRect(x - 9, y, 19, 1);
+}

@@ -3,6 +3,7 @@ import {
   G, GROUND, LAND_VY, MAIN_FUEL, MAIN_THRUST, RCS_FUEL, inboundSpeed, landingScore, padFor, startRocket,
   stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, windMeter, type Rocket,
   CONTROLS, DEFAULT_CONTROL, FIN_MIN, ROCKETS, autoFin, finBite, gateLevel, levelUses, setupMove,
+  SEA_LEVEL, atSea, deckAt, landDeck, seaFor, shipHalf,
 } from '../../src/games/rocketx/rules';
 
 const NONE = { main: false, rcs: 0 as const, level: false };
@@ -200,5 +201,59 @@ describe('setup card', () => {
     expect(ready).toBeGreaterThan(0);
     const next = setupMove(c, 'right');
     expect(ROCKETS[next.rocket].ready).toBe(true);
+  });
+});
+
+describe('at sea', () => {
+  it('the first levels land ashore; from the sea level on, the ship', () => {
+    expect(atSea(SEA_LEVEL - 1)).toBe(false);
+    expect(atSea(SEA_LEVEL)).toBe(true);
+    expect(deckAt(1, 3)).toEqual(landDeck(1));
+    expect(deckAt(SEA_LEVEL, 0).ship).toBe(true);
+  });
+
+  it('the swell builds each sea level, to a cap', () => {
+    const a = seaFor(SEA_LEVEL), b = seaFor(SEA_LEVEL + 3), z = seaFor(99);
+    expect(b.heave).toBeGreaterThan(a.heave);
+    expect(b.roll).toBeGreaterThan(a.roll);
+    expect(z.heave).toBeLessThanOrEqual(0.03);
+    expect(z.roll).toBeLessThan(0.18);
+    expect(shipHalf(99)).toBeGreaterThanOrEqual(0.06);
+    expect(shipHalf(SEA_LEVEL)).toBeLessThan(landDeck(1).half);
+  });
+
+  it('the deck moves, and its speed is the slope of its path', () => {
+    const lvl = SEA_LEVEL + 2, t = 1.3, h = 1e-4;
+    const d = deckAt(lvl, t), d2 = deckAt(lvl, t + h);
+    expect((d2.y - d.y) / h).toBeCloseTo(d.vy, 3);
+    expect((d2.centre - d.centre) / h).toBeCloseTo(d.vx, 3);
+    expect(deckAt(lvl, 0.7).y).not.toBe(deckAt(lvl, 2.1).y);
+  });
+
+  it('a touchdown is judged against the deck: its speed and its roll', () => {
+    const lvl = SEA_LEVEL + 3;
+    const d = { ...deckAt(lvl, 0), vy: -0.1, roll: 0.1 };
+    // falling at 0.05 onto a deck rising at 0.1 meets it at 0.15: too fast at this level
+    const meet = still({ x: d.centre, y: d.y, vy: 0.05, vx: d.vx, a: d.roll });
+    expect(touchdown(meet, lvl, d)).toBe('crashed');
+    // riding down with it: lands
+    const match = still({ x: d.centre, y: d.y, vy: d.vy + 0.02, vx: d.vx, a: d.roll });
+    expect(touchdown(match, lvl, d)).toBe('landed');
+    // upright on a rolled deck is fine while the difference is inside the limit; tilted against the roll is not
+    expect(touchdown({ ...match, a: d.roll + 0.25 }, lvl, d)).toBe('crashed');
+  });
+
+  it('missing the ship is a splash; above the deck height nothing happens yet', () => {
+    const lvl = SEA_LEVEL;
+    const d = deckAt(lvl, 0);
+    expect(touchdown(still({ x: d.centre + d.half + 0.05, y: d.y + 0.01 }), lvl, d)).toBe(null);
+    expect(touchdown(still({ x: d.centre + d.half + 0.05, y: GROUND }), lvl, d)).toBe('splashed');
+  });
+
+  it('a landing at sea scores against the deck it landed on', () => {
+    const lvl = SEA_LEVEL;
+    const d = { ...deckAt(lvl, 0), centre: 0.6, vy: 0.05 };
+    const r = still({ x: 0.6, vy: 0.05 });
+    expect(landingScore(r, lvl, 1, d)).toBeGreaterThan(landingScore(still({ x: 0.5, vy: 0.05 }), lvl, 1, d));
   });
 });

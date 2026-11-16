@@ -37,7 +37,7 @@ function drawPreview(a: ConsoleAPI, x: number, y: number, w: number, h: number, 
 const MANUAL: GameDisk['manual'] = [
   { h: 'howH', p: 'rxHow' },
   { h: 'rxSetH', p: 'rxSet' },
-  { h: 'secScore', list: [{ k: 'rxS1', v: 'rxS1v' }, { k: 'rxS2', v: 'rxS2v' }, { k: 'rxS3', v: 'rxS3v' }] },
+  { h: 'secScore', list: [{ k: 'rxS1', v: 'rxS1v' }, { k: 'rxS2', v: 'rxS2v' }, { k: 'rxS3', v: 'rxS3v' }, { k: 'rxS4', v: 'rxS4v' }] },
   { h: 'ctlH', keys: true, wrap: true, list: [
     { k: 'rxK1', v: 'rxK1v' }, { k: 'rxK2', v: 'rxK2v' }, { k: 'rxK4', v: 'rxK4v' }, { k: 'rxK3', v: 'rxK3v' },
   ] },
@@ -45,11 +45,11 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  contract: 1, version: 9, rating: '4+',
+  contract: 1, version: 10, rating: '4+',
   id: 'rocketx', order: 8, slug: 'rocketx', genre: 'LAND', players: 1,
   page: {
     title: 'ROCKETX',
-    description: 'Pick your rocket and your controls, burn it down onto its pad, steer it with the nose thrusters and grid fins and land it soft, on the PGD-01 Portable Gaming Device: a 1983-style console in your browser.',
+    description: 'Pick your rocket and your controls, burn it down onto its pad or a ship riding the swell, steer it with the nose thrusters and grid fins and land it soft, on the PGD-01 Portable Gaming Device: a 1983-style console in your browser.',
   },
   title: 'ROCKETX', nameKey: 'rxName', file: 'ROCKETX.EXE', size: 12288, loadSecs: 2.4,
   steps: [[0, 0], [0.12, 0.1], [0.3, 0.35], [0.5, 0.52], [0.7, 0.7], [0.85, 0.92], [1, 1]],

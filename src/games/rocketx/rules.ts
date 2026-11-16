@@ -174,23 +174,84 @@ export function stepRocket(r: Rocket, input: Input, dt: number, wind: number, op
   return { x, y, vx, vy, a, w, fuel };
 }
 
-export type Outcome = 'landed' | 'crashed' | null;
+export type Outcome = 'landed' | 'crashed' | 'splashed' | null;
 
-/** Touchdown: the rocket has reached the ground. It counts only when slow, upright and on the pad. */
-export function touchdown(r: Rocket, level: number): Outcome {
-  if (r.y < GROUND) return r.x < 0 || r.x > 1 ? 'crashed' : null;
+/* ---- at sea (STILT from level 4): the ship's deck heaves, rolls and drifts with the swell ---- */
+
+/** The first level flown out to the ship at sea; levels before it land on the pad ashore. */
+export const SEA_LEVEL = 4;
+/** How far above the sea the deck stands, in field heights (the rocket's centre rests this high above the water). */
+export const DECK_HEIGHT = 0.04;
+
+export function atSea(level: number): boolean { return level >= SEA_LEVEL; }
+
+/** The swell on this level: heave (up and down, field heights), roll (rad), drift (side to side, field widths) and
+    the swell's period in seconds. Calm before the sea levels; it builds each level out there, to a cap. */
+export interface SeaState { heave: number; roll: number; drift: number; period: number }
+export function seaFor(level: number): SeaState {
+  if (!atSea(level)) return { heave: 0, roll: 0, drift: 0, period: 1 };
+  const n = level - SEA_LEVEL;
+  return {
+    heave: Math.min(0.03, 0.012 + 0.004 * n),
+    roll: Math.min(0.12, 0.04 + 0.016 * n),
+    drift: Math.min(0.06, 0.02 + 0.008 * n),
+    period: Math.max(3, 4.5 - 0.3 * n),
+  };
+}
+
+/** Where the landing surface is: its centre and half-width across, its height (the rocket's centre at touchdown), its
+    roll, and how fast it moves (the rocket is judged against the deck, not the sea). */
+export interface Deck { centre: number; half: number; y: number; roll: number; vx: number; vy: number; ship: boolean }
+
+/** The pad ashore: still and flat, at ground level. */
+export function landDeck(level: number): Deck {
   const pad = padFor(level);
-  const onPad = Math.abs(r.x - pad.centre) <= pad.half;
-  const soft = Math.abs(r.vy) <= landingVy(level) && Math.abs(r.vx) <= landingVx(level) && Math.abs(r.a) <= LAND_TILT;
-  return onPad && soft ? 'landed' : 'crashed';
+  return { centre: pad.centre, half: pad.half, y: GROUND, roll: 0, vx: 0, vy: 0, ship: false };
+}
+
+/** The ship's deck is narrower than the pad and shrinks a little each sea level, to a floor. */
+export function shipHalf(level: number): number {
+  return Math.max(0.06, 0.11 - (Math.max(SEA_LEVEL, level) - SEA_LEVEL) * 0.008);
+}
+
+/** The deck at time `t` seconds into the level: the pad ashore, or the ship riding the swell. Deterministic, so a
+    replay matches. Heave, roll and drift each run on their own period, so the deck never repeats a simple pattern. */
+export function deckAt(level: number, t: number): Deck {
+  if (!atSea(level)) return landDeck(level);
+  const s = seaFor(level);
+  const wh = (2 * Math.PI) / s.period;            // heave
+  const wr = wh * 0.83;                           // roll, a little slower than the heave
+  const wd = wh / 2.7;                            // drift, slow
+  return {
+    centre: 0.5 + s.drift * Math.sin(wd * t),
+    half: shipHalf(level),
+    y: GROUND - DECK_HEIGHT + s.heave * Math.sin(wh * t),
+    roll: s.roll * Math.sin(wr * t + 1.1),
+    vx: s.drift * wd * Math.cos(wd * t),
+    vy: s.heave * wh * Math.cos(wh * t),
+    ship: true,
+  };
+}
+
+/** Touchdown: the rocket has reached the deck (or the ground, or the sea). It counts only when slow, upright and on
+    the deck, all measured against the deck: its speed, its roll. Missing the ship at sea is a splash. */
+export function touchdown(r: Rocket, level: number, deck: Deck = landDeck(level)): Outcome {
+  const onDeck = Math.abs(r.x - deck.centre) <= deck.half;
+  if (deck.ship && !onDeck) {
+    if (r.y >= GROUND) return 'splashed';
+    return r.x < 0 || r.x > 1 ? 'crashed' : null;
+  }
+  if (r.y < deck.y) return r.x < 0 || r.x > 1 ? 'crashed' : null;
+  const soft = Math.abs(r.vy - deck.vy) <= landingVy(level) && Math.abs(r.vx - deck.vx) <= landingVx(level)
+    && Math.abs(r.a - deck.roll) <= LAND_TILT;
+  return onDeck && soft ? 'landed' : 'crashed';
 }
 
 /** Points for a landing: fuel left, a centred touchdown and a gentle one, times the level, times the control's
-    multiplier (STICK 1, PILOT 1.5, ENGINEER 2). */
-export function landingScore(r: Rocket, level: number, mult = 1): number {
-  const pad = padFor(level);
-  const centred = 1 - Math.min(1, Math.abs(r.x - pad.centre) / pad.half);
-  const gentle = 1 - Math.min(1, Math.abs(r.vy) / landingVy(level));
+    multiplier (STICK 1, PILOT 1.5, ENGINEER 2). Measured against the deck it landed on. */
+export function landingScore(r: Rocket, level: number, mult = 1, deck: Deck = landDeck(level)): number {
+  const centred = 1 - Math.min(1, Math.abs(r.x - deck.centre) / deck.half);
+  const gentle = 1 - Math.min(1, Math.abs(r.vy - deck.vy) / landingVy(level));
   const base = 100 + Math.round(fuelPoints(r.fuel) + 60 * centred + 40 * gentle);
   return Math.round(base * Math.max(1, level) * mult);
 }
