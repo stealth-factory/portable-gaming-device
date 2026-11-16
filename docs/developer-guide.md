@@ -315,7 +315,7 @@ A game doesn't draw or place its own buttons. The set has a fixed group of physi
 | `fire` | The big red button | <kbd>Space</kbd>, <kbd>Z</kbd>, <kbd>X</kbd> | Always (hidden while the pad is up, but <kbd>Space</kbd> still presses it) |
 | `boost` | The second button, under or beside FIRE | <kbd>Shift</kbd>, <kbd>B</kbd> | Always |
 | `fireL`, `fireR` | Extra buttons either side of FIRE, sharing its row | <kbd>Z</kbd>, <kbd>V</kbd> | Only if the game maps them. With all three, each is about 32 px wide on a small phone, so keep their labels to three letters |
-| `pad1` … `pad6` | A pad of buttons in the stick's place | `pad1` <kbd>←</kbd> <kbd>Z</kbd>, `pad2` <kbd>↑</kbd> <kbd>X</kbd>, `pad3` <kbd>→</kbd> <kbd>C</kbd>, `pad4` <kbd>A</kbd>, `pad5` <kbd>S</kbd>, `pad6` <kbd>D</kbd> | Only with `controls: 'pad'`, and only the ones the game maps, while the game is up |
+| `pad1` … `pad6` | A pad of buttons in the stick's place | `pad1` <kbd>←</kbd> <kbd>Z</kbd>, `pad2` <kbd>↑</kbd> <kbd>X</kbd>, `pad3` <kbd>→</kbd> <kbd>C</kbd>, `pad4` <kbd>A</kbd>, `pad5` <kbd>S</kbd>, `pad6` <kbd>D</kbd> | With `controls: 'pad'`, or while a stick game maps them with `setButtons`; only the ones the game maps, while the game is up |
 
 An optional slot the game doesn't map stays hidden and leaves its keys to the others (so <kbd>Z</kbd> is FIRE in most games, and the left bay in I Invade).
 
@@ -348,7 +348,7 @@ Each entry changes the label, `enabled`, or both; a field you leave out keeps it
 ### The stick or the pad: `controls`
 
 - **`controls: 'stick'`** (the default): the 4-way stick, with FIRE and BOOST.
-- **`controls: 'pad'`**: for a game with no use for a stick. While the game is in `ready`, `play`, `dying`, `clear` or `paused`, the stick's place holds a pad of up to six buttons in two rows of three (`pad1` to `pad3` red on top, `pad4` to `pad6` amber below), and the FIRE row steps aside. The arrows, <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> and <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> become pad keys, so don't steer with `wantDir()`. Leave `pad6` out and `pad4` and `pad5` share the bottom row. The stick comes back for the console's own screens.
+- **`controls: 'pad'`**: for a game with no use for a stick. While the game is in `ready`, `play`, `dying`, `clear` or `paused`, the stick's place holds a pad of up to six buttons in two rows of three (`pad1` to `pad3` red on top, `pad4` to `pad6` amber below), and the FIRE row steps aside. The arrows, <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> and <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> become pad keys, so don't steer with `wantDir()`. Leave `pad6` out and `pad4` and `pad5` share the bottom row. The stick comes back for the console's own screens. A `'stick'` game can switch to the pad while it plays by mapping pad slots with `setButtons` (ROCKETX does for its PILOT and ENGINEER controls), and back to the stick by putting them back with `null`; leave them out of the disk's `buttons` so the stick is the default.
 
 ### Where they sit
 
@@ -361,7 +361,7 @@ The console's layout follows the screen, and the game has no say in it:
 | Tall console (tablet or foldable sideways) | Full height, left of the tube | Bottom right, under the dial and the switches |
 | Phone and tablet upright | Under the tube, on the left | Under the tube, on the right |
 
-On desk and the upright layouts the pad keeps its two rows. On the sideways console layouts it is split for I Invade: `pad1` to `pad3` on the right with `pad4` under them, and BOOST above `pad5` on the left. `pad6` has no place there yet, so a second pad game with a different set of keys means revisiting that block in `src/styles/console.css`.
+On desk and the upright layouts the pad keeps its two rows. On the sideways console layouts it is split for I Invade: `pad1` to `pad3` on the right with `pad4` under them, and BOOST above `pad5` on the left. `pad6` has no place there yet. ROCKETX swaps `pad4` and `pad5` there (its left fin goes to the left hand), keyed on `data-game`; a further pad game with a different set of keys means another such block in `src/styles/console.css`.
 
 ### What a game can't do with buttons (yet)
 

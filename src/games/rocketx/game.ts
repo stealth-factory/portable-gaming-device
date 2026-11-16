@@ -1,13 +1,24 @@
 /* Return Burn: land an inbound rocket back on its pad with the main engine and the side thrusters.
    The rocket, the pad, the art, the sound and the code are original. */
 import type { CreateGame } from '../types';
-import { drawFlame, drawLogo, drawPad, drawRocket } from './art';
+import { drawFlame, drawLogo, drawPad, drawPuff, drawRocket } from './art';
 import {
-  GROUND, METER_SCALE, WIND_SCALE, landingVy, landingScore, padFor, speedMeter, windMeter, startRocket, stepRocket, touchdown, windFor,
-  type Input, type Rocket,
+  CONTROLS, DEFAULT_CONTROL, GROUND, METER_SCALE, ROCKETS, autoFin, gateLevel, landingVy, landingScore, levelUses, padFor,
+  setupMove, speedMeter, windMeter, startRocket, stepRocket, touchdown, windFor,
+  type Input, type LevelGate, type Rocket, type SetupChoice,
 } from './rules';
 
 const BOXES = 3;
+/** The setup card waits this long, then flies with what's chosen (an arcade's select timer). */
+const SETUP_SECS = 8;
+/** PILOT and ENGINEER: the thruster buttons in the stick's place. Top row: left thruster, the main engine, right
+    thruster; bottom row: the grid fins. The sixth slot stays dark. */
+const PAD_ON = {
+  pad1: { label: 'rxRcsL', enabled: true }, pad2: { label: 'rxPadBurn', enabled: true }, pad3: { label: 'rxRcsR', enabled: true },
+  pad4: { label: 'rxFinL', enabled: true }, pad5: { label: 'rxFinR', enabled: true },
+};
+const PAD_OFF = { pad1: null, pad2: null, pad3: null, pad4: null, pad5: null };
+type Dir4 = 'up' | 'down' | 'left' | 'right';
 
 const create: CreateGame = api => {
   let rocket: Rocket = startRocket(0.5, 1);
@@ -17,6 +28,15 @@ const create: CreateGame = api => {
   let fieldBottom = 0;
   let flash = 0;
   let lastOutcome = '';
+  // the setup card: kept for as long as this runtime lives, so FLY AGAIN offers the last choice
+  // (a device-wide memory needs a storage call in ConsoleAPI: a follow-up)
+  let choice: SetupChoice = { row: 1, rocket: 0, control: DEFAULT_CONTROL };
+  let setup = false;
+  let setupT = 0;
+  let lastDir: Dir4 | null = null;
+  let gate: LevelGate = { left: Infinity, active: false };
+  let lastInput: Input = { main: false, rcs: 0, level: false, fin: 0 };
+  const control = () => CONTROLS[choice.control];
 
   const readField = () => {
     fieldTop = api.HUD + 2;
@@ -28,8 +48,39 @@ const create: CreateGame = api => {
   function spawn(level: number) {
     rocket = startRocket(0.5, level);
     wind = windFor(level);
+    gate = { left: levelUses(control().id, level), active: false };
+    syncButtons();
     api.S.mode = 'ready';
     api.S.modeT = 1.4;
+  }
+
+  /* the buttons follow the choice: the pad of thrusters for PILOT and ENGINEER, the stick for STICK; LEVEL goes dark
+     when this rocket has no uses left */
+  function syncButtons() {
+    api.setButtons(!setup && control().buttons ? PAD_ON : PAD_OFF);
+    api.setButtons({ boost: { enabled: setup || gate.left > 0 || gate.active } });
+  }
+
+  function confirmSetup() {
+    setup = false;
+    api.tone(660, 0.05, 0.03);
+    api.tone(990, 0.06, 0.025, 0, 0.05);
+    api.track('rocketx_setup', { rocket: ROCKETS[choice.rocket].id, control: control().id });
+    spawn(api.S.level);
+  }
+
+  function updateSetup(dt: number) {
+    const dir = (api.stickDir ?? api.held[api.held.length - 1] ?? null) as Dir4 | null;
+    if (dir && dir !== lastDir) {
+      const next = setupMove(choice, dir);
+      if (next.rocket !== choice.rocket || next.control !== choice.control || next.row !== choice.row) api.tone(440, 0.03, 0.02);
+      choice = next;
+      setupT = SETUP_SECS;   // a choice being made: give it time
+    }
+    lastDir = dir;
+    const go = api.fireQueued || api.tapQueued || api.boostQueued;
+    api.clearFire(); api.clearTap(); api.clearBoost();
+    if (go || (setupT -= dt) <= 0) confirmSetup();
   }
 
   function start() {
@@ -44,17 +95,31 @@ const create: CreateGame = api => {
     api.S.charge = 1;
     api.S.boost = 0;
     api.S.boostT = 0;
+    // the setup card first: the rocket waits in `ready` until the player flies
+    setup = true;
+    setupT = SETUP_SECS;
+    lastDir = (api.stickDir ?? api.held[api.held.length - 1] ?? null) as Dir4 | null;
     spawn(1);
   }
 
+  const pair = (l: boolean, r: boolean): -1 | 0 | 1 => (l === r ? 0 : r ? 1 : -1);
+
+  /* what the player holds now. STICK: the stick (or arrows) turns it and the fins work themselves; PILOT and
+     ENGINEER: a button for each thruster and each fin, and the middle button (or FIRE, or the screen) burns */
   function input(): Input {
-    const left = api.held.includes('left') || api.stickDir === 'left';
-    const right = api.held.includes('right') || api.stickDir === 'right';
-    const rcs: -1 | 0 | 1 = left === right ? 0 : right ? 1 : -1;
+    const c = control();
+    const main = api.fireHeld || api.tapHeld || (c.buttons && api.button('pad2').held);
+    const levelHeld = !!api.button('boost').held;
+    if (!c.buttons) {
+      const left = api.held.includes('left') || api.stickDir === 'left';
+      const right = api.held.includes('right') || api.stickDir === 'right';
+      return { main, rcs: pair(left, right), level: levelHeld, fin: c.autoFins ? autoFin(rocket) : 0 };
+    }
     return {
-      main: api.fireHeld || api.tapHeld,
-      rcs,
-      level: !!api.button('boost').held,
+      main,
+      rcs: pair(api.button('pad1').held, api.button('pad3').held),
+      level: levelHeld,
+      fin: pair(api.button('pad4').held, api.button('pad5').held),
     };
   }
 
@@ -69,7 +134,7 @@ const create: CreateGame = api => {
   }
 
   function land() {
-    const gained = landingScore(rocket, api.S.level);
+    const gained = landingScore(rocket, api.S.level, control().mult);
     api.S.score += gained;
     api.S.level += 1;
     if (api.S.score > api.best) api.best = api.S.score;
@@ -84,6 +149,7 @@ const create: CreateGame = api => {
   function update(dt: number) {
     readField();
     const t = api.S;
+    if (t.mode === 'ready' && setup) { updateSetup(dt); return; }
     if (t.mode === 'ready') {
       api.clearFire();
       api.clearTap();
@@ -102,11 +168,19 @@ const create: CreateGame = api => {
     const held = input();
     api.clearFire();
     api.clearTap();
+    const g = gateLevel(gate, held.level);
+    const spent = g.gate.left !== gate.left;
+    gate = g.gate;
+    held.level = g.on;
+    if (spent) syncButtons();
+    lastInput = held;
     const before = rocket;
-    rocket = stepRocket(rocket, held, dt, wind);
+    rocket = stepRocket(rocket, held, dt, wind, { settle: control().settle });
     if (held.main && rocket.fuel > 0 && before.fuel > 0 && Math.floor(t.time * 16) % 3 === 0) {
       api.tone(150, 0.03, 0.012, -20);
     }
+    // the nose thrusters hiss while they fire
+    if (held.rcs !== 0 && rocket.fuel > 0 && Math.floor(t.time * 20) % 4 === 0) api.tone(2400, 0.015, 0.006, -900);
     if (flash > 0) flash -= dt;
 
     const outcome = touchdown(rocket, t.level);
@@ -176,16 +250,49 @@ const create: CreateGame = api => {
     api.g.fillRect(6, api.HUD - 4, Math.round(full * rocket.fuel), 2);
     // boxes left, shown as small rockets
     for (let i = 0; i < api.S.lives; i++) api.g.fillRect(api.LW - 8 - i * 6, api.HUD - 4, 3, 2);
+    // LEVEL's uses left, as pips under the level number, when they are counted
+    if (Number.isFinite(gate.left) && control().id !== 'engineer') {
+      const cx = Math.round(api.LW / 2);
+      for (let i = 0; i < gate.left; i++) api.g.fillRect(cx - 7 + i * 6, api.HUD - 4, 3, 2);
+    }
+  }
+
+  /* the setup card: two rows, ROCKET and CONTROL, each changed with left and right; FIRE (or a tap) flies */
+  function drawSetup() {
+    const cx = Math.round(api.LW / 2);
+    const top = fieldTop + Math.max(4, Math.round((fieldBottom - fieldTop - 104) / 3));
+    drawLogo(api, cx, top);
+    const rows: [string, string, string][] = [
+      ['ROCKET', ROCKETS[choice.rocket].name, ROCKETS.some(r => !r.ready) ? 'MORE ROCKETS SOON' : ''],
+      ['CONTROL', control().name, control().line],
+    ];
+    rows.forEach(([label, value, note], i) => {
+      const y = top + 32 + i * 28;
+      const on = choice.row === i;
+      api.txt(label, cx, y, 'hud', 'center');
+      const blink = on && Math.floor(api.S.time * 3) % 2 === 0;
+      api.txt((on ? (blink ? '< ' : ' <') : '  ') + ' ' + value + ' ' + (on ? (blink ? ' >' : '> ') : '  '), cx, y + 9, on ? 'text' : 'hud', 'center');
+      if (note) api.txt(note, cx, y + 18, 'hud', 'center');
+    });
+    const left = Math.max(0, Math.ceil(setupT));
+    api.txt('FIRE TO FLY  ' + left, cx, top + 92, 'text', 'center');
   }
 
   function draw() {
+    if (setup) {
+      hud();
+      drawSetup();
+      return;
+    }
     const pad = padFor(api.S.level);
     drawPad(api, px(pad.centre - pad.half), px(pad.centre + pad.half), py(GROUND), api.S.time);
     const left = px(0.12);
     {
       const x = px(rocket.x), y = py(rocket.y);
-      if (api.S.mode !== 'dying' && input().main && rocket.fuel > 0) drawFlame(api, x, y, rocket.a, api.S.time);
-      drawRocket(api, x, y, api.S.mode === 'dying' ? rocket.a + 0.6 : rocket.a, api.S.mode === 'dying');
+      const flying = api.S.mode === 'play';
+      if (flying && lastInput.main && rocket.fuel > 0) drawFlame(api, x, y, rocket.a, api.S.time);
+      drawRocket(api, x, y, api.S.mode === 'dying' ? rocket.a + 0.6 : rocket.a, api.S.mode === 'dying', true);
+      if (flying && lastInput.rcs !== 0 && rocket.fuel > 0) drawPuff(api, x, y, rocket.a, lastInput.rcs, api.S.time);
     }
     drawWindMeter();
     drawSpeedMeter();
@@ -202,7 +309,16 @@ const create: CreateGame = api => {
   return {
     start, update, draw,
     debug: {
-      state: () => ({ x: rocket.x, y: rocket.y, vy: rocket.vy, a: rocket.a, fuel: rocket.fuel, mode: api.S.mode, lives: api.S.lives, level: api.S.level }),
+      state: () => ({
+        x: rocket.x, y: rocket.y, vy: rocket.vy, a: rocket.a, w: rocket.w, fuel: rocket.fuel, mode: api.S.mode, lives: api.S.lives, level: api.S.level,
+        setup, setupT, rocket: ROCKETS[choice.rocket].id, control: control().id, row: choice.row,
+        levelLeft: Number.isFinite(gate.left) ? gate.left : -1,
+      }),
+      /** Pick on the setup card and fly at once: the tests' shortcut. */
+      fly: (control?: 'stick' | 'pilot' | 'engineer') => {
+        if (control) choice = { ...choice, control: Math.max(0, CONTROLS.findIndex(c => c.id === control)) };
+        if (setup) confirmSetup(); else syncButtons();
+      },
     },
   };
 };

@@ -565,6 +565,9 @@ h1 .h-dx{color:#cfc3a3}
 [data-pad][data-layout="console"] #btnpad #pad4Btn{grid-area:clus;height:52px;margin-inline:4px;font-size:11px;align-self:end}
 [data-pad][data-layout="console"] #btnpad #pad5Btn{grid-area:met;height:52px;margin-inline:4px;font-size:11px;align-self:end}
 [data-pad][data-layout="console"] #boostBtn{grid-area:ufo;height:52px;width:auto;margin-inline:4px;align-self:end}
+/* ROCKETX's thruster pad: its fins are a pair, so the left fin (pad4) goes to the left hand under LEVEL, the right fin (pad5) to the right */
+[data-pad][data-layout="console"][data-game="rocketx"] #btnpad #pad4Btn{grid-area:met}
+[data-pad][data-layout="console"][data-game="rocketx"] #btnpad #pad5Btn{grid-area:clus}
 @media (min-height:560px){
   [data-pad][data-layout="console"] .tv-face{grid-template-rows:auto minmax(0,1fr) auto auto minmax(0,1fr) auto auto;grid-template-areas:"pwr screen plate" ". screen ." ". screen dial" ". screen rock" ". screen ." "ufo screen bays" "met screen clus"}
 }

@@ -200,7 +200,9 @@ export interface GameDisk {
   tap?: boolean;
   /** 'pad' swaps the on-screen stick for a pad of up to six buttons (slots `pad1`…`pad6`: top row ← ↑ → or Z X C,
       bottom row A S D) while the game is playing, and hides the FIRE row beside it; the stick comes back whenever the
-      console runs (menu, loading, name entry, high scores). Default 'stick'. */
+      console runs (menu, loading, name entry, high scores). Default 'stick'. A 'stick' game can still switch to the
+      pad while it plays by mapping pad slots with `setButtons` (ROCKETX's thruster controls); the stick is back once
+      it puts them back (`null`). */
   controls?: 'stick' | 'pad';
   /** What each action button is for in this game: an I18N key for its label, and `enabled: false` to leave it dark. Slots left out go dark. */
   buttons: ButtonMap;

@@ -41,6 +41,11 @@ export function defineSlot(id: string, keys: string[], fallback: string, el?: HT
   return s;
 }
 export function slotIds(): string[] { return [...slots.keys()]; }
+/** Whether the app on screen has put anything on the button pad (`pad1`…`pad6`), declared or by setButtons. */
+export function padMapped(): boolean {
+  for (const s of slots.values()) if (s.optional && s.mapped && /^pad\d$/.test(s.id)) return true;
+  return false;
+}
 /** The slot a key presses. A mapped optional slot comes first (Z is the left bomb bay in I Invade, FIRE elsewhere);
     an optional slot nobody maps takes no keys. */
 export function slotForKey(code: string): Slot | undefined {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   G, GROUND, LAND_VY, MAIN_FUEL, MAIN_THRUST, RCS_FUEL, inboundSpeed, landingScore, padFor, startRocket,
   stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, windMeter, type Rocket,
+  CONTROLS, DEFAULT_CONTROL, FIN_MIN, ROCKETS, autoFin, finBite, gateLevel, levelUses, setupMove,
 } from '../../src/games/rocketx/rules';
 
 const NONE = { main: false, rcs: 0 as const, level: false };
@@ -122,5 +123,82 @@ describe('wind meter', () => {
     expect(windMeter(-0.01).dir).toBe(-1);
     expect(windMeter(0.015).fill).toBeCloseTo(0.5, 6);
     expect(windMeter(1).fill).toBe(1);
+  });
+});
+
+describe('grid fins', () => {
+  it('bite only while the rocket falls fast, and cost no fuel', () => {
+    expect(finBite(0)).toBe(0);
+    expect(finBite(-0.2)).toBe(0);
+    expect(finBite(FIN_MIN)).toBe(0);
+    expect(finBite(0.12)).toBeGreaterThan(0);
+    expect(finBite(1)).toBe(1);
+    const fast = stepRocket(still({ vy: 0.25 }), { ...NONE, fin: 1 }, 0.1, 0);
+    expect(fast.w).toBeGreaterThan(0);
+    expect(fast.fuel).toBe(1);
+    const slow = stepRocket(still({ vy: 0 }), { ...NONE, fin: 1 }, 0.1, 0);
+    expect(slow.w).toBe(0);
+  });
+
+  it("STICK's fins lean back against a tilt, and rest when upright or slow", () => {
+    expect(autoFin(still({ vy: 0.25, a: 0.2 }))).toBe(-1);
+    expect(autoFin(still({ vy: 0.25, a: -0.2 }))).toBe(1);
+    expect(autoFin(still({ vy: 0.25, a: 0 }))).toBe(0);
+    expect(autoFin(still({ vy: 0, a: 0.2 }))).toBe(0);
+  });
+});
+
+describe('controls', () => {
+  it('STICK, PILOT and ENGINEER pay x1, x1.5 and x2, and only STICK keeps the stick', () => {
+    expect(CONTROLS.map(c => c.id)).toEqual(['stick', 'pilot', 'engineer']);
+    expect(CONTROLS.map(c => c.mult)).toEqual([1, 1.5, 2]);
+    expect(CONTROLS.map(c => c.buttons)).toEqual([false, true, true]);
+    expect(CONTROLS[DEFAULT_CONTROL].id).toBe('pilot');
+    const r = still({ x: 0.5, fuel: 1, vy: 0 });
+    expect(landingScore(r, 2, 2)).toBe(landingScore(r, 2) * 2);
+    expect(Number.isInteger(landingScore(r, 3, 1.5))).toBe(true);
+  });
+
+  it("ENGINEER's turn keeps going until a thruster stops it; the others settle", () => {
+    let settled = still({ w: 1 }), kept = still({ w: 1 });
+    for (let i = 0; i < 60; i++) {
+      settled = stepRocket(settled, NONE, 1 / 60, 0);
+      kept = stepRocket(kept, NONE, 1 / 60, 0, { settle: false });
+    }
+    expect(Math.abs(settled.w)).toBeLessThan(0.5);
+    expect(kept.w).toBeCloseTo(1, 6);
+  });
+
+  it('LEVEL: always for STICK, three a rocket for PILOT from level 4, never for ENGINEER', () => {
+    expect(levelUses('stick', 9)).toBe(Infinity);
+    expect(levelUses('pilot', 3)).toBe(Infinity);
+    expect(levelUses('pilot', 4)).toBe(3);
+    expect(levelUses('engineer', 1)).toBe(0);
+  });
+
+  it('a press spends one use and holds while down; none left means no LEVEL', () => {
+    let g = { left: 1, active: false };
+    let s = gateLevel(g, true); expect(s.on).toBe(true); expect(s.gate.left).toBe(0); g = s.gate;
+    s = gateLevel(g, true); expect(s.on).toBe(true); expect(s.gate.left).toBe(0); g = s.gate;
+    s = gateLevel(g, false); expect(s.on).toBe(false); g = s.gate;
+    s = gateLevel(g, true); expect(s.on).toBe(false);
+  });
+});
+
+describe('setup card', () => {
+  it('up and down pick the row; left and right cycle the controls', () => {
+    const c = { row: 1 as const, rocket: 0, control: 1 };
+    expect(setupMove(c, 'up').row).toBe(0);
+    expect(setupMove(c, 'right').control).toBe(2);
+    expect(setupMove(c, 'left').control).toBe(0);
+    expect(setupMove({ ...c, control: 2 }, 'right').control).toBe(0);
+  });
+
+  it('skips rockets that are not built yet', () => {
+    const c = { row: 0 as const, rocket: 0, control: 1 };
+    const ready = ROCKETS.filter(r => r.ready).length;
+    expect(ready).toBeGreaterThan(0);
+    const next = setupMove(c, 'right');
+    expect(ROCKETS[next.rocket].ready).toBe(true);
   });
 });
