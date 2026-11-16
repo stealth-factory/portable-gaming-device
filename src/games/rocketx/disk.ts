@@ -37,7 +37,7 @@ function drawPreview(a: ConsoleAPI, x: number, y: number, w: number, h: number, 
 const MANUAL: GameDisk['manual'] = [
   { h: 'howH', p: 'rxHow' },
   { h: 'rxSetH', p: 'rxSet' },
-  { h: 'secScore', list: [{ k: 'rxS1', v: 'rxS1v' }, { k: 'rxS2', v: 'rxS2v' }, { k: 'rxS3', v: 'rxS3v' }, { k: 'rxS4', v: 'rxS4v' }, { k: 'rxS5', v: 'rxS5v' }] },
+  { h: 'secScore', list: [{ k: 'rxS1', v: 'rxS1v' }, { k: 'rxS2', v: 'rxS2v' }, { k: 'rxS3', v: 'rxS3v' }, { k: 'rxS4', v: 'rxS4v' }, { k: 'rxS5', v: 'rxS5v' }, { k: 'rxS6', v: 'rxS6v' }] },
   { h: 'ctlH', keys: true, wrap: true, list: [
     { k: 'rxK1', v: 'rxK1v' }, { k: 'rxK2', v: 'rxK2v' }, { k: 'rxK4', v: 'rxK4v' }, { k: 'rxK3', v: 'rxK3v' },
   ] },
@@ -45,7 +45,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  contract: 1, version: 14, rating: '4+',
+  contract: 1, version: 15, rating: '4+',
   id: 'rocketx', order: 8, slug: 'rocketx', genre: 'LAND', players: 1,
   page: {
     title: 'ROCKETX',

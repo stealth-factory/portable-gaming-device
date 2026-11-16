@@ -4,6 +4,7 @@ import {
   stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, windMeter, type Rocket,
   CONTROLS, DEFAULT_CONTROL, FIN_MIN, ROCKETS, autoFin, finBite, gateLevel, levelUses, setupMove,
   SEA_LEVEL, atSea, deckAt, deckSurface, deckVyAt, landDeck, seaFor, shipHalf,
+  BELLY_DRAG, CRUISE_FUEL, CRUISE_THRUST, FLIP_DONE, FLIP_Y, cruiserScore, startCruiser,
   ARM_Y, CORE_THRUST, RING_THRUST, STEP_Y, catchOutcome, catchScore, catchVy, goNoGo, haulerEngine, startHauler, towerFor,
 } from '../../src/games/rocketx/rules';
 
@@ -379,5 +380,59 @@ describe('HAULER can be caught', () => {
       }
       expect([level, out]).toEqual([level, 'caught']);
     }
+  });
+});
+
+describe('CRUISER', () => {
+  const opts = { belly: true, gimbal: true, thrust: CRUISE_THRUST, burn: CRUISE_FUEL };
+
+  it('belly first, it falls no faster than its terminal speed, and holds flat with the engines off', () => {
+    let r = startCruiser(1);
+    for (let i = 0; i < 240; i++) r = stepRocket(r, NONE, 1 / 60, 0, opts);
+    expect(r.vy).toBeLessThanOrEqual(G / BELLY_DRAG + 0.01);
+    expect(Math.abs(r.a - Math.PI / 2)).toBeLessThan(0.05);
+  });
+
+  it('the flaps glide it sideways while flat, without turning it', () => {
+    let r = startCruiser(1);
+    for (let i = 0; i < 60; i++) r = stepRocket(r, { ...NONE, fin: 1 }, 1 / 60, 0, opts);
+    expect(r.vx).toBeGreaterThan(0);
+    expect(Math.abs(r.a - Math.PI / 2)).toBeLessThan(0.05);
+  });
+
+  it('lighting the engines flat flips it upright', () => {
+    let r = startCruiser(1);
+    for (let i = 0; i < 90; i++) r = stepRocket(r, { ...NONE, main: true }, 1 / 60, 0, opts);
+    expect(Math.abs(r.a)).toBeLessThan(FLIP_DONE + 0.15);
+  });
+
+  it('a simple pilot glides over, flips by the line and is caught, at every level, in still air', () => {
+    for (let level = 1; level <= 10; level++) {
+      let r = startCruiser(level), out: string | null = null, flipped = false;
+      for (let i = 0; i < 60 * 40 && !out; i++) {
+        const t = towerFor(level);
+        if (r.y > FLIP_Y - 0.1) flipped = true;
+        const dx = t.x - r.x;
+        // the flip shoves it towards its nose (right), so the glide lines up a little short of the arms
+        const gx = dx - 0.12 - r.vx * 1.5;
+        const fin = !flipped ? (gx > 0.005 ? 1 : gx < -0.005 ? -1 : 0) : 0;
+        const dist = ARM_Y - r.y;
+        const plan = Math.min(0.2, Math.sqrt(Math.max(0, 2 * 0.15 * dist))) + 0.01;
+        const main = flipped && (Math.abs(r.a) > FLIP_DONE || r.vy > plan);
+        // after the flip: lean a little towards the arms, and swing the engines to hold that lean
+        const lean = Math.max(-0.12, Math.min(0.12, dx * 2 - r.vx * 3));
+        const u = lean - r.a - 0.4 * r.w;
+        const rcs = flipped && Math.abs(r.a) <= FLIP_DONE ? (u > 0.01 ? 1 : u < -0.01 ? -1 : 0) : 0;
+        r = stepRocket(r, { main, rcs: rcs as -1 | 0 | 1, level: false, fin: fin as -1 | 0 | 1 }, 1 / 60, 0, opts);
+        out = catchOutcome(r, level);
+      }
+      expect([level, out, Math.round(r.x * 100), Math.round(r.y * 100), Math.round(r.vy * 100), Math.round(r.a * 100), Math.round(r.fuel * 100)])
+        .toEqual([level, 'caught', expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.anything()]);
+    }
+  });
+
+  it('a catch with the flip is worth more than a HAULER catch', () => {
+    const r = still({ x: 0.5, y: ARM_Y });
+    expect(cruiserScore(r, 2)).toBeGreaterThan(catchScore(r, 2));
   });
 });

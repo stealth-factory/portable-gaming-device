@@ -53,6 +53,9 @@ export interface StepOptions {
   thrust?: number; burn?: number;
   /** The turn input swings the engines (HAULER) instead of firing nose thrusters: it only turns while burning. */
   gimbal?: boolean;
+  /** CRUISER: it falls belly first. The broadside brakes the fall, the flaps glide it sideways instead of turning it,
+      and lighting the engines while it lies flat flips it upright. */
+  belly?: boolean;
 }
 
 /* ---- the setup card: which rocket, and how much control ---- */
@@ -64,7 +67,7 @@ export interface RocketSpec { id: RocketId; name: string; ready: boolean }
 export const ROCKETS: readonly RocketSpec[] = [
   { id: 'stilt', name: 'STILT', ready: true },
   { id: 'hauler', name: 'HAULER', ready: true },
-  { id: 'cruiser', name: 'CRUISER', ready: false },
+  { id: 'cruiser', name: 'CRUISER', ready: true },
 ];
 
 export interface ControlSpec {
@@ -156,8 +159,15 @@ export function stepRocket(r: Rocket, input: Input, dt: number, wind: number, op
   if (input.main && fuel > 0) { thrust = opts.thrust ?? MAIN_THRUST; fuel = Math.max(0, fuel - (opts.burn ?? MAIN_FUEL) * dt); }
   // the main engine pushes along the axis: up when upright, sideways when tilted
   // the nose points along (sin a, -cos a): tilted right, the engine pushes right
-  const ax = Math.sin(r.a) * thrust + wind;
-  const ay = -Math.cos(r.a) * thrust + G;
+  // CRUISER mid-flip: the engines are only spooling up, so the flip doesn't fling it sideways
+  if (opts.belly && thrust > 0 && Math.abs(r.a) > FLIP_DONE) thrust *= FLIP_THROTTLE;
+  let ax = Math.sin(r.a) * thrust + wind;
+  let ay = -Math.cos(r.a) * thrust + G;
+  const flat = opts.belly ? Math.abs(Math.sin(r.a)) : 0;
+  if (opts.belly) {
+    ay -= BELLY_DRAG * flat * r.vy;                         // the broadside brakes the fall
+    ax += (input.fin ?? 0) * FLAP_GLIDE * flat - SIDE_DRAG * flat * r.vx;   // the flaps glide it sideways
+  }
 
   let torque = 0;
   if (opts.gimbal) { if (input.rcs !== 0 && thrust > 0) torque = input.rcs * GIMBAL_TORQUE; }   // free: the engines are burning anyway
@@ -166,9 +176,13 @@ export function stepRocket(r: Rocket, input: Input, dt: number, wind: number, op
     torque += -r.a * LEVEL_GAIN;
     fuel = Math.max(0, fuel - LEVEL_FUEL * dt);
   }
-  if (input.fin) torque += input.fin * FIN_TORQUE * finBite(r.vy);   // free: the fins cost no fuel
+  if (input.fin && !opts.belly) torque += input.fin * FIN_TORQUE * finBite(r.vy);   // free: the fins cost no fuel
+  // the flip: engines lit while it lies flat swing it upright, hard; the last of the way is the player's
+  if (opts.belly && thrust > 0 && Math.abs(r.a) > FLIP_DONE) torque += -FLIP_K * r.a - FLIP_D * r.w;
   const settle = opts.settle ?? true;
-  const damp = input.level ? LEVEL_DAMP : !settle ? 0 : input.rcs === 0 ? RCS_DAMP : RCS_DAMP * 0.2;
+  // lying flat with the engines off, the flaps hold its attitude
+  const damp = opts.belly && thrust === 0 && flat > 0.7 ? FLAP_HOLD
+    : input.level ? LEVEL_DAMP : !settle ? 0 : input.rcs === 0 ? RCS_DAMP : RCS_DAMP * 0.2;
   const w = r.w + (torque - damp * r.w) * dt;
   const a = r.a + w * dt;
 
@@ -386,4 +400,37 @@ export function catchScore(r: Rocket, level: number, mult = 1): number {
   const gentle = 1 - Math.min(1, Math.abs(r.vy) / catchVy(level));
   const base = 150 + Math.round(fuelPoints(r.fuel) + 60 * centred + 40 * gentle);
   return Math.round(base * Math.max(1, level) * mult);
+}
+
+/* ---- CRUISER: the upper stage. It falls belly first, glides on its flaps, flips and burns, and the tower catches it ---- */
+
+/** Belly first, the broadside brakes the fall: terminal speed is G / BELLY_DRAG. */
+export const BELLY_DRAG = 3.5;
+export const SIDE_DRAG = 1.2;
+/** Flaps: sideways push at full deflection while it lies flat. */
+export const FLAP_GLIDE = 0.16;
+/** Lying flat with the engines off, the flaps steady any turn at this rate, /s. */
+export const FLAP_HOLD = 4;
+/** The flip: the engines swing it towards upright, until it is within FLIP_DONE rad. */
+export const FLIP_K = 9;
+export const FLIP_D = 4.5;
+/** Mid-flip the engines give only this share of their push. */
+export const FLIP_THROTTLE = 0.2;
+export const FLIP_DONE = 0.2;
+/** Its engines: a modest push and a small tank. */
+export const CRUISE_THRUST = 0.8;
+export const CRUISE_FUEL = 0.13;
+/** Light the engines by this height or the flip and the burn run out of room. Drawn on the tube. */
+export const FLIP_Y = 0.38;
+
+/** It starts lying flat, nose right, off to the left of the tower: the flaps have to bring it over. Later levels start
+    further off, with less propellant left. */
+export function startCruiser(level = 1): Rocket {
+  const n = Math.max(1, level) - 1;
+  return { x: Math.max(0.12, 0.3 - 0.02 * n), y: 0.06, vx: 0, vy: 0.06, a: Math.PI / 2, w: 0, fuel: Math.max(0.55, 1 - 0.05 * n) };
+}
+
+/** Points for a CRUISER catch: a catch's points with a fifth more for the flip. */
+export function cruiserScore(r: Rocket, level: number, mult = 1): number {
+  return Math.round(catchScore(r, level, mult) * 1.2);
 }

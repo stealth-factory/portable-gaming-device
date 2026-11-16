@@ -199,3 +199,25 @@ export function drawTower(api: { g: Screen2D; col(r: string): string }, towerX: 
   g.fillStyle = api.col(on ? 'text' : 'hud');
   g.fillRect(towerX + 2, topY - 2, 2, 2);
 }
+
+/** CRUISER, the upper stage: a long body with flaps fore and aft, drawn truly rotated (it spends its fall lying flat,
+    which the leaning sprite above can't show). `flap` tilts the flaps while they work (-1, 0, 1). */
+export function drawCruiser(api: { g: Screen2D; col(r: string): string }, x: number, y: number, a: number, dead = false, flap = 0) {
+  const g = api.g;
+  const c = Math.cos(a), s = Math.sin(a);
+  // a point on the upright body (dx across, dy along, up negative) to the tube
+  const dot = (dx: number, dy: number) => g.fillRect(Math.round(x + dx * c - dy * s), Math.round(y + dx * s + dy * c), 1, 1);
+  g.fillStyle = api.col(dead ? 'hud' : 'text');
+  for (let dy = -6; dy <= 5; dy++) {
+    const half = dy <= -5 ? 0 : 1;                       // a pointed nose
+    for (let dx = -half; dx <= half; dx++) dot(dx, dy);
+  }
+  // flaps: small fore pair under the nose, bigger aft pair at the base; a working flap kicks out one more pixel
+  g.fillStyle = api.col('hud');
+  dot(-2, -3); dot(2, -3);
+  for (const dy of [3, 4]) { dot(-2, dy); dot(2, dy); }
+  if (flap < 0) dot(-3, 4);
+  if (flap > 0) dot(3, 4);
+  g.fillStyle = api.col('bg');
+  dot(0, -2);                                            // a porthole
+}
