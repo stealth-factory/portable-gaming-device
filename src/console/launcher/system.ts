@@ -25,6 +25,8 @@ export interface LauncherSystem {
   lastDiskId(): string | null;
   /** The player asked for less motion: no preview, no blinking cursor. */
   reducedMotion(): boolean;
+  /** The header's console name: `PGD-01 PORTABLE GAMING DEVICE`, or the framing app's (src/console/brand.ts). Optional. */
+  title?(): string;
   /** The move tick, and the drive's two-step seek, played on every move. */
   tick(): void;
   seek(): void;

@@ -16,6 +16,8 @@ import { mergeStrings } from './i18n';
 import { startConsole, pressSelect, forgetUnreachable } from './program/loader';
 import { readSource, gameFromScript, guard, mayInsert, type DiskSource } from './embed-disks';
 import { readPlate, applyPlate } from './nameplate';
+import { readSplash } from './splash-config';
+import { applySplash } from './web/splash-logo';
 
 const params = new URLSearchParams(location.search);
 const root = document.documentElement;
@@ -173,6 +175,10 @@ if (embed !== null && window.parent !== window) {
       case 'nameplate':
         try { applyPlate(readPlate(c.nameplate), document, error => event('nameplate_error', { error })); }
         catch (err) { applyPlate(readPlate(null)); event('nameplate_error', { error: message(err) }); }
+        break;
+      case 'splash':
+        try { applySplash(readSplash(c.splash), error => event('splash_error', { error })); }
+        catch (err) { applySplash(readSplash(null)); event('splash_error', { error: message(err) }); }
         break;
       case 'insert':
         if (!mayInsert(from, location.origin, allowList)) refuse(null, c.request, `${from} may not insert disks (add it to PUBLIC_PGD_EMBED_ORIGINS)`);

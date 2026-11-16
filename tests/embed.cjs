@@ -135,7 +135,39 @@ const check = (ok, what) => { if (!ok) fail.push(what); };
   await h.waitForTimeout(300);
   np = await plate();
   check(np.name === 'PGD · PORTABLE GAMING DEVICE' && !np.logo && /^PGD-01 · [A-Z]/.test(np.line || '') && !/B · /.test(np.line || ''), `/host: back to the PGD plate (${JSON.stringify(np)})`);
+  // the nameplate renames the console: the cabinet stamp, and (through brand.ts) the BIOS and the menu header
+  const stamp = () => h.frames()[1].evaluate(() => document.getElementById('emboss')?.textContent);
+  await h.selectOption('.host-side label:has-text("Nameplate") select', 'text');
+  await h.waitForTimeout(300);
+  check(await stamp() === 'HST-01 · 12″ PHOSPHOR MONITOR', `/host: the cabinet stamp follows the nameplate's model (${await stamp()})`);
+  await h.selectOption('.host-side label:has-text("Nameplate") select', 'pgd');
+  await h.waitForTimeout(300);
+  check(await stamp() === 'PGD-01 · 12″ PHOSPHOR MONITOR', `/host: and goes back with the PGD plate (${await stamp()})`);
+  // the splash prop: a logo that won't load reports splash_error, and a bad address is refused the same way
+  await h.evaluate(() => document.querySelector('iframe').contentWindow.postMessage({ pgd: 1, type: 'command', command: 'splash', splash: { text: 'BROKEN', image: 'data:image/png;base64,AAAA' } }, location.origin));
+  check(await seen(h, () => /splash_error/.test(document.querySelector('.host-log, .host')?.textContent || '')), '/host: a splash logo that fails to load sends splash_error');
   await h.close();
+
+  // the boot splash itself, on a test build: PGD's own first, then the BIOS; FIRE skips it; none goes straight to the BIOS
+  const t = await b.newPage({ viewport: { width: 1280, height: 900 } });
+  t.on('pageerror', e => fail.push(`splash: ${e.message}`));
+  await t.goto(`${BASE}?test`);
+  await t.waitForFunction(() => window.__gg && window.__gg.S);
+  await t.keyboard.press('Enter');
+  await t.waitForTimeout(600);
+  let sp = await t.evaluate(() => ({ mode: __gg.S.mode, on: __gg.S.splashOn }));
+  check(sp.mode === 'boot' && sp.on === true, `splash: a cold boot opens on the splash (${JSON.stringify(sp)})`);
+  await t.keyboard.press('Space');
+  await t.waitForTimeout(100);
+  sp = await t.evaluate(() => ({ mode: __gg.S.mode, on: __gg.S.splashOn }));
+  check(sp.mode === 'boot' && sp.on === false, `splash: Space skips it to the BIOS (${JSON.stringify(sp)})`);
+  check(await seen(t, () => __gg.S.mode === 'menu'), 'splash: then the menu');
+  await t.evaluate(() => __gg.setSplash(null));
+  await t.click('#resetBtn');
+  await t.waitForTimeout(300);
+  sp = await t.evaluate(() => ({ mode: __gg.S.mode, on: __gg.S.splashOn }));
+  check(sp.mode === 'boot' && sp.on === false, `splash: none goes straight to the BIOS (${JSON.stringify(sp)})`);
+  await t.close();
 
   await b.close(); server.close();
   if (fail.length) { console.log('FAIL:\n  ' + fail.join('\n  ')); process.exit(1); }

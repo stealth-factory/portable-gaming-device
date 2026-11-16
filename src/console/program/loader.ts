@@ -10,6 +10,8 @@ import type { GameDisk } from '../../games/types';
 import { useButtons } from '../buttons';
 import { BOOT_BUTTONS, MENU_BUTTONS } from '../console-buttons';
 import { bootScript, PROMPT } from '../boot';
+import { menuTitle } from '../brand';
+import { splash, drawSplash, SPLASH_LEN, SKIP_AFTER, CHIME_AT } from '../splash';
 import { readBest, readBoard } from './scores';
 import { game, setGame, startGame, fetchRuntime, runtimeReady } from './machine';
 
@@ -83,10 +85,32 @@ export function startConsole(kind: 'cold' | 'warm'){
   P.showHold(false);
   if (kind === 'cold') { age.dipLeft = 0.2; setAccReset(); }
   setGame(null); P.setManual('console'); useButtons(BOOT_BUTTONS);
-  playBoot(kind);
+  // a cold boot shows the splash first (unless the app framing the console turned it off); the BIOS and its
+  // sounds start when it ends, so a skipped splash doesn't leave them running late
+  S.splashOn = kind === 'cold' && !!splash();
+  if (S.splashOn) { S.splashAt = S.bootAt; S.splashT = 0; playChime(); } else playBoot(kind);
+}
+/** The splash's chime: three rising notes as the mark finishes drawing in. */
+function playChime(){
+  const P = host.platform;
+  if (!P.sounding) return;
+  [523.25, 659.25, 1046.5].forEach((f, i) => P.tone(f, i === 2 ? 0.32 : 0.09, 0.05, 0, CHIME_AT + i * 0.09));
+}
+/** End the splash (it ran its time, was skipped, or the app turned it off) and start the BIOS. */
+function endSplash(){
+  const { S, platform: P } = host;
+  S.splashOn = false; S.bootAt = P.now(); S.bootT = 0;
+  playBoot('cold');
+}
+/** FIRE during the splash skips it. True when it did. */
+export function skipSplash(){
+  const S = host.S;
+  if (S.mode !== 'boot' || !S.splashOn || S.splashT < SKIP_AFTER) return false;
+  endSplash(); return true;
 }
 export function drawBoot(){
   const { S, txt, g, col } = host;
+  if (S.splashOn) { const sp = splash(); if (sp) drawSplash(host.api, sp, S.splashT, host.platform.reducedMotion); return; }
   const t = S.bootT, warm = S.bootKind === 'warm', t1 = S.bootLen - 0.4;
   if (t < 0.05) return;
   const { lines, enterAt } = bootScript(t, warm), t0 = Math.max(enterAt, warm ? 0.7 : 2.1);
@@ -126,6 +150,7 @@ const system: LauncherSystem = {
   download: () => {},
   lastDiskId: lastId,
   reducedMotion: () => host.platform.reducedMotion,
+  title: () => menuTitle(),
   tick: () => { const P = host.platform; if (P.sounding) P.tone(660, 0.02, 0.03); },
   seek: () => { const P = host.platform; if (P.sounding) { P.click(0.02, 0.18, 2300); P.click(0.07, 0.18, 2500); } },
   label: key => String(I18N.en?.[key] ?? GAMES.map(d => d.strings.en?.[key]).find(v => typeof v === 'string') ?? key),
@@ -187,6 +212,11 @@ export function loadGame(i: number){
 // boots and loads run on the wall clock, like the drive sounds, so a slow frame rate can't stretch them
 export function updateBoot(){
   const { S, platform: P } = host;
+  if (S.splashOn) {
+    S.splashT = (P.now() - S.splashAt) / 1000;
+    if (S.splashT >= SPLASH_LEN || !splash()) endSplash();
+    return;
+  }
   S.bootT = (P.now() - S.bootAt) / 1000;
   if (S.bootT < S.bootLen) return;
   // a game's own page (/dino-run …) boots straight into its disk the first time; RESET and SELECT go to the menu

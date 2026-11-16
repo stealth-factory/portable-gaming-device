@@ -49,7 +49,10 @@ export interface PGDCustomDisk extends Omit<PGDDiskSource, 'game'> {
 }
 
 /** Your own name or logo on the set's nameplate, in place of `PGD · PORTABLE GAMING DEVICE`. The line under it
-    (`PGD-01 · GREEN P1`) keeps its phosphor name. */
+    (`PGD-01 · GREEN P1`) keeps its phosphor name. The console's name follows the plate everywhere else too: with
+    `text` (or, for a logo alone, `alt`) and `model` set, the BIOS banner reads `<MODEL> <TEXT>   BIOS 1.0`, the boot
+    starts `<TEXT>-DOS`, the disk menu's header reads `<MODEL> <TEXT> <REST>`, and the cabinet stamp under the tube,
+    the burnt-in title and the leaflet use your model code. */
 export interface PGDNameplate {
   /** The name, in the plate's bold capitals (up to 24 characters), e.g. `RETROBOX`. */
   text?: string;
@@ -63,6 +66,21 @@ export interface PGDNameplate {
   alt?: string;
   /** The model code in front of the phosphor name on the line under the plate. Default `PGD-01`. */
   model?: string;
+}
+
+/** Your own splash on the tube when the set is switched on (or RESET), in place of PGD's: a name, a logo or both,
+    drawn in by the beam with a short chime, for about two seconds before the BIOS lines. FIRE skips it. */
+export interface PGDSplash {
+  /** The big line, in the tube's 16 px capitals (8 px if it won't fit), e.g. `RETROBOX` (up to 24 characters). */
+  text?: string;
+  /** A smaller line typed in under it (up to 48 characters). */
+  sub?: string;
+  /** A logo above the text: an http(s) address, a path on the console's site, or a `data:image/…` URL. It is drawn
+      in the tube's four shades by brightness (light parts glow, dark and transparent parts stay dark) and fitted
+      within 160 × 64 px. An image on another site must be served with CORS (`Access-Control-Allow-Origin`). */
+  image?: string;
+  /** Draw a dark-on-light logo the other way round, so its ink glows. */
+  invert?: boolean;
 }
 
 /** The console's state, sent whenever any of it changes (score, level and lives at most four times a second). */
@@ -121,6 +139,9 @@ export type PGDCommand =
       address leaves the PGD plate and sends a `nameplate_error` event; so does an image that fails to load, after
       the plate falls back to its text (or PGD without any). */
   | { command: 'nameplate'; nameplate: PGDNameplate | string | null }
+  /** The splash a cold boot shows: yours (a string is its text), `null` for PGD's own, or `false` for none. A bad image
+      address, or one that fails to load, sends a `splash_error` event and the splash keeps its text (or PGD's). */
+  | { command: 'splash'; splash: PGDSplash | string | false | null }
   /** Press a set button. Without `down` it's a tap (pressed and released at once); `down: true` holds it and
       `down: false` releases it. Like a finger on the button, so FIRE on a console screen (the menu, a loading screen,
       the high scores) acts on that screen first. */
@@ -152,6 +173,9 @@ export interface PGDConsoleProps {
   disks?: PGDCustomDisk[];
   /** Your own name or logo on the set's nameplate (a string is the name). Leave it out for the PGD plate. */
   nameplate?: PGDNameplate | string | null;
+  /** The splash on the tube when the set is switched on: yours (a string is its text), `false` for none. Leave it
+      out for PGD's own. */
+  splash?: PGDSplash | string | false | null;
   /** Show the page around the set too: the header, the instructions bar and leaflet. Default false: just the set. */
   chrome?: boolean;
   /** The frame's accessible name. Default "PGD-01 Portable Gaming Device". */

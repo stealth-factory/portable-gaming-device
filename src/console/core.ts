@@ -9,7 +9,7 @@ import { Stick } from "./stick";
 import { makeHaptics, type Haptic } from "../kit/platform/haptics";
 import { DEFAULTS, SETTINGS_EVENT } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
-import { startConsole, menuKey, menuTap, pressSelect, loadGame, launcherTargets } from "./program/loader";
+import { startConsole, menuKey, menuTap, pressSelect, loadGame, launcherTargets, skipSplash } from "./program/loader";
 import { bindHost } from "./program/host";
 import { scores, loadScores, saveBest } from "./program/scores";
 import { NKEYS, keyRects, entryKey, entryTap } from "./program/entry";
@@ -24,6 +24,8 @@ import { makePixelFont } from "./font";
 import pixelFontURL from "../../tools/fonts/Silkscreen-Regular.ttf?url";
 import { layer, makeStamp } from "./layers";
 import { plateModel } from "./nameplate";
+import { brand, onBrand, fullName } from "./brand";
+import { setSplash } from "./splash";
 // Inputs and audio stay synchronous; only booting waits for the pinned drawing face.
 let powerQueued = false;
 const pixelFont = makePixelFont(pixelFontURL, {
@@ -64,6 +66,8 @@ export const dust = document.createElement('canvas'); dust.width = 720; dust.hei
   const hx = 520 + Math.random() * 150, hy = 60 + Math.random() * 100;
   d.moveTo(hx, hy); d.bezierCurveTo(hx + 20, hy + 30, hx - 15, hy + 50, hx + 12, hy + 80); d.stroke();   // a stray hair on the glass
 })();
+// a framing app renaming the console (its nameplate): the burnt-in title and the leaflet follow
+onBrand(b => { bus.set({ model: b.model, name: fullName(b) }); buildBurn(); });
 export function buildBurn(){
   if (pixelFont.state !== 'ready') return;
   // years of the same title screen wore the phosphor: those spots now glow a little less
@@ -71,7 +75,7 @@ export function buildBurn(){
   const b = burn.getContext('2d')!;
   b.fillStyle = '#fff'; b.fillRect(0, 0, LW, LH);
   b.fillStyle = '#d0d0d0'; b.font = '16px Silkscreen, "Courier New", monospace'; b.textAlign = 'center'; b.textBaseline = 'middle';
-  b.fillText('PGD-01', LW / 2, LH * 0.42);
+  b.fillText(brand().model, LW / 2, LH * 0.42);
   b.fillStyle = '#dadada'; b.font = '8px Silkscreen, "Courier New", monospace'; b.textAlign = 'left'; b.textBaseline = 'top';
   b.fillText('000000', 6, 6); b.fillText('HI 000000', 80, 6);
 }
@@ -215,6 +219,7 @@ addEventListener('keydown', e => {
   if ((e.target as Element)?.closest?.('.manual')) return;   // keys pressed on the leaflet's own buttons (Settings) are theirs, not the game's
   if (S.mode === 'entry' && !e.metaKey && !e.ctrlKey && !e.altKey) { if (entryKey(e.code)) e.preventDefault(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (S.mode === 'boot' && (e.code === 'Space' || e.code === 'Enter') && skipSplash()) { e.preventDefault(); return; }   // FIRE, Space, Enter or a tap skips the boot splash
   if (S.mode === 'menu' && menuKey(e.code)) { e.preventDefault(); return; }
   if (e.code === 'KeyG') { pressSelect(); e.preventDefault(); return; }
   { const sl = Btn.slotForKey(e.code); if (sl?.optional && inGame()) { if (Btn.press(sl.id) && S.mode !== 'play') Btn.clearQueued(sl.id); e.preventDefault(); return; } }   // an extra button the game maps takes its keys first while it plays (I Invade's pad: arrows, Z X C, A S)
@@ -312,7 +317,7 @@ document.addEventListener('visibilitychange', () => {
   Btn.defineSlot('fire', ['Space', 'KeyZ', 'KeyX'], 'spark', $('fireBtn'), null, true);
   Btn.defineSlot('boost', ['ShiftLeft', 'ShiftRight', 'KeyB'], 'boost', $('boostBtn'), $('boostBtn').querySelector('span') as HTMLElement | null, true);
   const fire = $('fireBtn');
-  fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
+  fire.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); buzz('tick'); if (skipSplash()) return; if (!Btn.button('fire').enabled) return; if (menuFire()) { fire.classList.add('on'); return; } Btn.press('fire'); try { fire.setPointerCapture(e.pointerId); } catch (_) {} });
   const off = () => Btn.release('fire');
   fire.addEventListener('pointerup', off); fire.addEventListener('pointercancel', off); fire.addEventListener('lostpointercapture', off);
   fire.addEventListener('contextmenu', e => e.preventDefault());
@@ -542,6 +547,7 @@ addEventListener('pointerup', () => { tapHeld = false; });
 addEventListener('pointercancel', () => { tapHeld = false; });
 cv.addEventListener('pointerdown', e => {
   const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * LW, y = (e.clientY - r.top) / r.height * LH;
+  if (S.mode === 'boot' && skipSplash()) { e.preventDefault(); return; }
   if (S.mode === 'menu') { e.preventDefault(); ensureAudio(); menuTap(x, y); return; }
   if (game.tap && (S.mode === 'play' || S.mode === 'ready')) { e.preventDefault(); tapQueued = true; tapHeld = true; tapX = x; return; }   // games that take taps (jump, fire)
   if (S.mode !== 'entry' && !(S.mode === 'over' && S.showBoard)) return;
@@ -791,7 +797,7 @@ export function clearTap(){ tapQueued = false; }
 export function setAccReset(){ accReset = true; }
 
 /* test hook for the Playwright checks; only with ?test in the address */
-if (/[?&]test\b/.test(location.search)) (window as any).__gg = { S, get board(){ return scores.board; }, get keyRects(){ return keyRects; }, NKEYS, cv, get LW(){ return LW; }, get LH(){ return LH; }, overlay, killPlayer: (c?: string) => runtime?.debug?.kill?.(c), loadGame, DISKS, get game(){ return game; }, get runtime(){ return runtime; }, finishGame, get audioOut(){ return audioOut(); }, tone, lowres, cover: captureCover, launcherTargets, setGrid };
+if (/[?&]test\b/.test(location.search)) (window as any).__gg = { S, get board(){ return scores.board; }, get keyRects(){ return keyRects; }, NKEYS, cv, get LW(){ return LW; }, get LH(){ return LH; }, overlay, killPlayer: (c?: string) => runtime?.debug?.kill?.(c), loadGame, DISKS, get game(){ return game; }, get runtime(){ return runtime; }, finishGame, get audioOut(){ return audioOut(); }, tone, lowres, cover: captureCover, launcherTargets, setGrid, setSplash };
 
 /** Test builds: the low-res buffer as it was last shown, one palette index (0 to 3) per pixel, before the CRT pass. */
 function lowres(){

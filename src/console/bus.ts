@@ -7,6 +7,9 @@ export interface ConsoleState {
   lang: string;
   /** Whose instructions the leaflet shows: 'console', or a disk id. */
   manual: string;
+  /** The console's model code and full name (src/console/brand.ts), which a framing app can change. */
+  model: string;
+  name: string;
 }
 
 type Bus = {
@@ -16,13 +19,13 @@ type Bus = {
 };
 
 function makeBus(): Bus {
-  let state: ConsoleState = { lang: 'en', manual: 'console' };
+  let state: ConsoleState = { lang: 'en', manual: 'console', model: 'PGD-01', name: 'PGD-01 Portable Gaming Device' };
   const subs = new Set<() => void>();
   return {
     get: () => state,
     set(patch){
       const next = { ...state, ...patch };
-      if (next.lang === state.lang && next.manual === state.manual) return;
+      if ((Object.keys(next) as (keyof ConsoleState)[]).every(k => next[k] === state[k])) return;
       state = next; subs.forEach(f => f());
     },
     subscribe(fn){ subs.add(fn); return () => { subs.delete(fn); }; },
