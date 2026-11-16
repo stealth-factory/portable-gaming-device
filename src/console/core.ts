@@ -219,7 +219,7 @@ addEventListener('keydown', e => {
   if ((e.target as Element)?.closest?.('.manual')) return;   // keys pressed on the leaflet's own buttons (Settings) are theirs, not the game's
   if (S.mode === 'entry' && !e.metaKey && !e.ctrlKey && !e.altKey) { if (entryKey(e.code)) e.preventDefault(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (S.mode === 'boot' && (e.code === 'Space' || e.code === 'Enter') && skipSplash()) { e.preventDefault(); return; }   // FIRE, Space, Enter or a tap skips the boot splash
+  if (S.mode === 'boot' && (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyZ' || e.code === 'KeyX') && skipSplash()) { e.preventDefault(); return; }   // FIRE (Space, Z, X), Enter or a tap skips the boot splash
   if (S.mode === 'menu' && menuKey(e.code)) { e.preventDefault(); return; }
   if (e.code === 'KeyG') { pressSelect(); e.preventDefault(); return; }
   { const sl = Btn.slotForKey(e.code); if (sl?.optional && inGame()) { if (Btn.press(sl.id) && S.mode !== 'play') Btn.clearQueued(sl.id); e.preventDefault(); return; } }   // an extra button the game maps takes its keys first while it plays (I Invade's pad: arrows, Z X C, A S)

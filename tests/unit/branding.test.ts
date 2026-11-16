@@ -34,6 +34,12 @@ describe('the console\'s name', () => {
     expect(menuTitle(m)).toBe('XYZ-2 PORTABLE GAMING DEVICE');
   });
 
+  it('keeps a plate\'s own long name even when it says PGD', () => {
+    const b = plateBrand(readPlate({ text: 'PGD', rest: 'Game Studio', model: 'PGD-02' }));
+    expect(menuTitle(b)).toBe('PGD-02 PGD GAME STUDIO');
+    expect(fullName(b)).toBe('PGD-02 PGD');
+  });
+
   it('keeps the DOS name to letters and digits', () => {
     expect(dosName({ name: 'MY ARCADE 3000!', long: '', model: 'M-1' })).toBe('MYARCADE-DOS');
     expect(dosName({ name: '★', long: '', model: 'M-1' })).toBe('PGD-DOS');

@@ -55,7 +55,8 @@ function Section({ sec, n, T }: { sec: ManualSection; n: number; T: Record<strin
 export default function Manual(){
   const { lang, manual, model, name } = useSyncExternalStore(bus.subscribe, bus.get, () => SERVER);
   // a framing app may rename the console (its nameplate): the leaflet's model line follows
-  const branded = (s: string) => s.replace('PGD-01 Portable Gaming Device', name).replace(/PGD-01/g, model);
+  // one pass over the original text, with callbacks, so the inserted words are never read as `$&` patterns or replaced again
+  const branded = (s: string) => s.replace(/PGD-01 Portable Gaming Device|PGD-01/g, m => m === 'PGD-01' ? model : name);
   const T = I18N[lang] || I18N.en, disk = DISKS.find(d => d.id === manual);
   const secs = disk ? disk.manual : CONSOLE_MANUAL;
   return (

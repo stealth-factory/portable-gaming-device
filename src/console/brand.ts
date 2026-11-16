@@ -24,7 +24,9 @@ export function setBrand(b: Brand){
 }
 export function onBrand(fn: (b: Brand) => void){ subs.add(fn); return () => { subs.delete(fn); }; }
 
-const isPGD = (b: Brand) => b.name === PGD_BRAND.name;
+/** PGD's own words: its name with its long name (a plate with only a model keeps them). A plate that says `PGD` with a
+    long name of its own is a custom brand. */
+const isPGD = (b: Brand) => b.name === PGD_BRAND.name && b.long === PGD_BRAND.long;
 
 /** The first line of the boot screen: `PGD-01 GAMING DEVICE   BIOS 1.0`, or `<MODEL> <NAME>   BIOS 1.0`. */
 export const biosLine = (b: Brand = current) => `${b.model} ${isPGD(b) ? 'GAMING DEVICE' : b.name}   BIOS 1.0`;

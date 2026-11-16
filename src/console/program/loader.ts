@@ -104,8 +104,9 @@ function endSplash(){
 }
 /** FIRE during the splash skips it. True when it did. */
 export function skipSplash(){
-  const S = host.S;
-  if (S.mode !== 'boot' || !S.splashOn || S.splashT < SKIP_AFTER) return false;
+  const { S, platform: P } = host;
+  // read the clock now: the last frame's splashT can lag behind a press that comes before the next update
+  if (S.mode !== 'boot' || !S.splashOn || (P.now() - S.splashAt) / 1000 < SKIP_AFTER) return false;
   endSplash(); return true;
 }
 export function drawBoot(){
