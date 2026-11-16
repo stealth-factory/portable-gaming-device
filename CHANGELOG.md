@@ -3,6 +3,14 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.20.0] - 2026-11-16
+
+### Features
+
+- **martian-storm**: Cap the gun stack at three, with a clock on the older guns (GAM-110) (#151)
+- **react**: Boot splash and full console branding for embedding apps (GAM-64) (#155)
+- **rocketx**: Pick your rocket and controls, with a thruster pad (GAM-111) (#156)
+
 ## [0.19.0] - 2026-11-16
 
 ### Features
