@@ -3,7 +3,7 @@ import {
   G, GROUND, LAND_VY, MAIN_FUEL, MAIN_THRUST, RCS_FUEL, inboundSpeed, landingScore, padFor, startRocket,
   stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, windMeter, type Rocket,
   CONTROLS, DEFAULT_CONTROL, FIN_MIN, ROCKETS, autoFin, finBite, gateLevel, levelUses, setupMove,
-  SEA_LEVEL, atSea, deckAt, landDeck, seaFor, shipHalf,
+  SEA_LEVEL, atSea, deckAt, deckSurface, landDeck, seaFor, shipHalf,
 } from '../../src/games/rocketx/rules';
 
 const NONE = { main: false, rcs: 0 as const, level: false };
@@ -248,6 +248,30 @@ describe('at sea', () => {
     const d = deckAt(lvl, 0);
     expect(touchdown(still({ x: d.centre + d.half + 0.05, y: d.y + 0.01 }), lvl, d)).toBe(null);
     expect(touchdown(still({ x: d.centre + d.half + 0.05, y: GROUND }), lvl, d)).toBe('splashed');
+  });
+
+  it('sliding into the ship below the deck hits the hull, however gently', () => {
+    const lvl = SEA_LEVEL;
+    const d = { ...deckAt(lvl, 0), vx: 0, vy: 0, roll: 0 };
+    const edge = d.centre + d.half;
+    // just outside the ship's side, under the deck, drifting in slowly: the hull, not a landing
+    const r = still({ x: edge - 0.005, y: d.y + 0.02, vx: -0.04 });
+    expect(touchdown(r, lvl, d, 1, { x: edge + 0.002, y: d.y + 0.02, deck: d })).toBe('crashed');
+    // the same speeds coming down from above the deck land
+    expect(touchdown(r, lvl, d, 1, { x: edge - 0.004, y: d.y - 0.001, deck: d })).toBe('landed');
+  });
+
+  it('a rolled deck is higher at one end, as drawn', () => {
+    const lvl = SEA_LEVEL;
+    const d = { ...deckAt(lvl, 0), vx: 0, vy: 0, roll: 0.1 };
+    const aspect = 1.4;
+    const lowEnd = d.centre + d.half * 0.9;    // a positive roll drops the right end (y grows downward)
+    const surf = deckSurface(d, lowEnd, aspect);
+    expect(surf).toBeGreaterThan(d.y);
+    expect(surf - d.y).toBeCloseTo(d.half * 0.9 * Math.tan(0.1) * aspect, 6);
+    // at the centre height but above the low end's surface: not down yet
+    expect(touchdown(still({ x: lowEnd, y: d.y + 0.001, a: 0.1 }), lvl, d, aspect)).toBe(null);
+    expect(touchdown(still({ x: lowEnd, y: surf, a: 0.1 }), lvl, d, aspect)).toBe('landed');
   });
 
   it('a landing at sea scores against the deck it landed on', () => {

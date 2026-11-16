@@ -233,15 +233,28 @@ export function deckAt(level: number, t: number): Deck {
   };
 }
 
+/** The deck's surface height under `x`: a rolled deck is higher at one end than the other. `aspect` is the field's
+    width over its height on the tube, so the slope matches the deck as drawn. */
+export function deckSurface(deck: Deck, x: number, aspect = 1): number {
+  return deck.y + (x - deck.centre) * Math.tan(deck.roll) * aspect;
+}
+
+/** What the last step looked like, so a touchdown can tell a rocket coming down onto the deck from one sliding into
+    the ship's side below it. */
+export type TouchdownPrev = { x: number; y: number; deck: Deck };
+
 /** Touchdown: the rocket has reached the deck (or the ground, or the sea). It counts only when slow, upright and on
-    the deck, all measured against the deck: its speed, its roll. Missing the ship at sea is a splash. */
-export function touchdown(r: Rocket, level: number, deck: Deck = landDeck(level)): Outcome {
+    the deck, all measured against the deck: its speed, its roll. Missing the ship at sea is a splash, and coming in
+    from the side below the deck (it was already under the deck's surface last step) hits the hull. */
+export function touchdown(r: Rocket, level: number, deck: Deck = landDeck(level), aspect = 1, prev?: TouchdownPrev): Outcome {
   const onDeck = Math.abs(r.x - deck.centre) <= deck.half;
   if (deck.ship && !onDeck) {
     if (r.y >= GROUND) return 'splashed';
     return r.x < 0 || r.x > 1 ? 'crashed' : null;
   }
-  if (r.y < deck.y) return r.x < 0 || r.x > 1 ? 'crashed' : null;
+  const surface = deck.ship ? deckSurface(deck, r.x, aspect) : deck.y;
+  if (r.y < surface) return r.x < 0 || r.x > 1 ? 'crashed' : null;
+  if (deck.ship && prev && prev.y >= deckSurface(prev.deck, prev.x, aspect)) return 'crashed';
   const soft = Math.abs(r.vy - deck.vy) <= landingVy(level) && Math.abs(r.vx - deck.vx) <= landingVx(level)
     && Math.abs(r.a - deck.roll) <= LAND_TILT;
   return onDeck && soft ? 'landed' : 'crashed';

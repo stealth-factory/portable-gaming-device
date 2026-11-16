@@ -163,6 +163,7 @@ const create: CreateGame = api => {
     readField();
     const t = api.S;
     if (t.mode === 'ready' && setup) { updateSetup(dt); return; }
+    const lastDeck = deck;
     if (t.mode === 'ready' || t.mode === 'play' || t.mode === 'dying') {
       seaT += dt;
       deck = deckAt(t.level, seaT);
@@ -202,7 +203,8 @@ const create: CreateGame = api => {
     if (held.rcs !== 0 && rocket.fuel > 0 && Math.floor(t.time * 20) % 4 === 0) api.tone(2400, 0.015, 0.006, -900);
     if (flash > 0) flash -= dt;
 
-    const outcome = touchdown(rocket, t.level, deck);
+    const aspect = api.LW / Math.max(1, fieldBottom - fieldTop);
+    const outcome = touchdown(rocket, t.level, deck, aspect, { x: before.x, y: before.y, deck: lastDeck });
     if (outcome === 'landed') land();
     else if (outcome === 'crashed') crash();
     else if (outcome === 'splashed') crash(true);
