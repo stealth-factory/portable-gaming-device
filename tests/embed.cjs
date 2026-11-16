@@ -121,6 +121,11 @@ const check = (ok, what) => { if (!ok) fail.push(what); };
   await h.waitForTimeout(300);
   np = await plate();
   check(np.logo && np.nameHidden && /^PGD-01 · /.test(np.line || ''), `/host: a logo nameplate (${JSON.stringify(np)})`);
+  // a logo that won't load falls back to the plate's text and reports it
+  await h.evaluate(() => document.querySelector('iframe').contentWindow.postMessage({ pgd: 1, type: 'command', command: 'nameplate', nameplate: { text: 'BROKEN', image: 'data:image/png;base64,AAAA' } }, location.origin));
+  check(await seen(h, () => /nameplate_error/.test(document.querySelector('.host-log, .host')?.textContent || '')), '/host: a logo that fails to load sends nameplate_error');
+  np = await plate();
+  check(np.name === 'BROKEN' && !np.nameHidden && !np.logo, `/host: a broken logo falls back to the text (${JSON.stringify(np)})`);
   await h.selectOption('.host-side label:has-text("Nameplate") select', 'pgd');
   await h.waitForTimeout(300);
   np = await plate();

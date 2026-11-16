@@ -156,7 +156,7 @@ The silver badge on the set reads `PGD · PORTABLE GAMING DEVICE`, over a `PGD-0
 | --- | --- |
 | `text` | The name, in the plate's bold capitals (up to 24 characters). A string `nameplate` is this. |
 | `rest` | More of the name, after a dot, as in ` · PORTABLE GAMING DEVICE` (up to 48 characters). Hidden on the upright phone layout, where the plate is small. |
-| `image` | A logo to show instead of the text: an `http(s)` address, a path on the console's site (`/…`, `./…`), or a `data:image/…` URL. It is fitted to the plate's height (14 px on the desk, 10 px on phones and the sideways layout), so a wide, short wordmark in dark ink on the silver plate works best. Anything else is refused: the PGD plate stays and the console sends a `nameplate_error` event. |
+| `image` | A logo to show instead of the text: an `http(s)` address, a path on the console's site (`/…`, `./…`), or a `data:image/…` URL. It is fitted to the plate's height (14 px on the desk, 10 px on phones and the sideways layout), so a wide, short wordmark in dark ink on the silver plate works best. Anything else is refused: the PGD plate stays and the console sends a `nameplate_error` event. An image that fails to load (a 404, bad data) also sends `nameplate_error`, and the plate falls back to its `text`, or to PGD without one. |
 | `alt` | The logo's accessible name. Defaults to `text`. |
 | `model` | The model code in front of the phosphor name on the line under the plate. Default `PGD-01`. |
 

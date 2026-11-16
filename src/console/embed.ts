@@ -171,7 +171,7 @@ if (embed !== null && window.parent !== window) {
       case 'sound': if (c.on === muted) toggleMute(); break;
       case 'pause': wantPause = !!c.on; applyPause(); break;
       case 'nameplate':
-        try { applyPlate(readPlate(c.nameplate)); }
+        try { applyPlate(readPlate(c.nameplate), document, error => event('nameplate_error', { error })); }
         catch (err) { applyPlate(readPlate(null)); event('nameplate_error', { error: message(err) }); }
         break;
       case 'insert':

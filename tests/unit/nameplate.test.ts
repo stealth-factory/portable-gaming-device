@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { Nameplate } from '../../src/components/Nameplate';
 import { VERSION } from '../../src/components/site';
-import { readPlate, PGD_PLATE } from '../../src/console/nameplate';
+import { readPlate, withoutImage, PGD_PLATE } from '../../src/console/nameplate';
 
 const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../package.json'), 'utf8'));
 
@@ -70,5 +70,14 @@ describe('nameplate from the framing page', () => {
     for (const image of ['javascript:alert(1)', '//evil.example/x.png', 'data:text/html,<b>', 'ftp://x/y.png', 42]) {
       expect(() => readPlate({ image })).toThrow(/nameplate image/);
     }
+  });
+});
+
+describe('a logo that fails to load', () => {
+  it('falls back to the plate text', () => {
+    expect(withoutImage(readPlate({ text: 'RETROBOX', image: '/x.png', model: 'RBX-01' }))).toEqual({ text: 'RETROBOX', rest: '', image: null, alt: 'RETROBOX', model: 'RBX-01' });
+  });
+  it('falls back to the PGD plate, keeping the model, when there is no text', () => {
+    expect(withoutImage(readPlate({ image: '/x.png', model: 'RBX-01' }))).toEqual({ ...PGD_PLATE, model: 'RBX-01' });
   });
 });

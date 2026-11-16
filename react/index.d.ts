@@ -118,7 +118,8 @@ export type PGDCommand =
   | { command: 'sound'; on: boolean }
   | { command: 'pause'; on: boolean }
   /** Put your own name or logo on the nameplate; a string is the name. `null` puts the PGD plate back. A bad image
-      address leaves the PGD plate and sends a `nameplate_error` event. */
+      address leaves the PGD plate and sends a `nameplate_error` event; so does an image that fails to load, after
+      the plate falls back to its text (or PGD without any). */
   | { command: 'nameplate'; nameplate: PGDNameplate | string | null }
   /** Press a set button. Without `down` it's a tap (pressed and released at once); `down: true` holds it and
       `down: false` releases it. Like a finger on the button, so FIRE on a console screen (the menu, a loading screen,

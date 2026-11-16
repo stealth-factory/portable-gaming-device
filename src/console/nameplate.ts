@@ -43,8 +43,13 @@ let current: Plate = PGD_PLATE;
 /** The model code on the plate's second line (`PGD-01` unless the page set another). */
 export const plateModel = () => current.model;
 
-/** Put a plate on the set. Text only through textContent; the image through an <img> the badge already has. */
-export function applyPlate(plate: Plate, doc: Document = document){
+/** What the set shows when a plate's logo won't load: its text if it has some, otherwise the PGD plate (keeping the model). */
+export const withoutImage = (plate: Plate): Plate => plate.text ? { ...plate, image: null } : { ...PGD_PLATE, model: plate.model };
+
+/** Put a plate on the set. Text only through textContent; the image through an <img> the badge already has. If the
+    image fails to load (a 404, bad data) and this plate is still the one on the set, it falls back (`withoutImage`)
+    and `onImageError` hears why. */
+export function applyPlate(plate: Plate, doc: Document = document, onImageError?: (error: string) => void){
   current = plate;
   const name = doc.getElementById('np-name'), logo = doc.getElementById('np-logo') as HTMLImageElement | null;
   if (name) {
@@ -56,7 +61,16 @@ export function applyPlate(plate: Plate, doc: Document = document){
     name.hidden = !!plate.image;
   }
   if (logo) {
-    if (plate.image) { logo.src = plate.image; logo.alt = plate.alt; logo.hidden = false; }
+    logo.onerror = null;
+    if (plate.image) {
+      // an image load fails later, after the command: only the plate that asked for it may fall back
+      logo.onerror = () => {
+        if (current !== plate) return;
+        applyPlate(withoutImage(plate), doc);
+        onImageError?.('nameplate image did not load');
+      };
+      logo.src = plate.image; logo.alt = plate.alt; logo.hidden = false;
+    }
     else { logo.removeAttribute('src'); logo.alt = ''; logo.hidden = true; }
   }
   // the second line keeps its phosphor name (setMode writes it): swap just the model code in front
