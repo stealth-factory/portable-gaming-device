@@ -109,12 +109,26 @@ export function skipSplash(){
   if (S.mode !== 'boot' || !S.splashOn || (P.now() - S.splashAt) / 1000 < SKIP_AFTER) return false;
   endSplash(); return true;
 }
+/** A framing app's long model and name can be wider than an upright phone's tube: shorten the name, then the gap,
+    and keep `BIOS 1.0` whole. PGD's own banner already fits. */
+function fitBanner(s: string, max: number){
+  const { g } = host;
+  g.font = '8px Silkscreen, "Courier New", monospace';
+  const w = (t: string) => g.measureText(t).width;
+  if (w(s) <= max) return s;
+  const i = s.lastIndexOf('   BIOS');
+  if (i < 0) return s;
+  let head = s.slice(0, i), tail = ' BIOS 1.0';
+  while (head.length > 1 && w(head + tail) > max) head = head.slice(0, -1);
+  return head.trimEnd() + tail;
+}
 export function drawBoot(){
   const { S, txt, g, col } = host;
   if (S.splashOn) { const sp = splash(); if (sp) drawSplash(host.api, sp, S.splashT, host.platform.reducedMotion); return; }
   const t = S.bootT, warm = S.bootKind === 'warm', t1 = S.bootLen - 0.4;
   if (t < 0.05) return;
   const { lines, enterAt } = bootScript(t, warm), t0 = Math.max(enterAt, warm ? 0.7 : 2.1);
+  if (lines.length) lines[0] = fitBanner(lines[0], host.LW - 24);
   lines.forEach((s, i) => txt(s, 12, 14 + i * 14, 'text'));
   let y = 14 + lines.length * 14, cx = 12, cy = y + 6;
   if (t <= enterAt && lines[lines.length - 1].startsWith(PROMPT)) {
