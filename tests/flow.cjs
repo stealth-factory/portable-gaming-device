@@ -246,6 +246,10 @@ async function playEveryDisk(p, tag){
       const bombOk = bombKey.shown && /BOMB/.test(bombKey.text) && afterBomb.state.bombs === beforeBomb - 1 && afterBomb.mode === 'play';
       if (!stackOk || !bombOk) errs.push(tag + ' martian storm stack/bomb: ' + JSON.stringify({ guns: stack.guns, shots: stack.shots, bombKey, beforeBomb, afterBomb: afterBomb.state.bombs, mode: afterBomb.mode }));
       console.log(tag, 'martian storm stack/bomb', { guns: stack.guns, shots: stack.shots, bombs: [beforeBomb, afterBomb.state.bombs], key: bombKey.text });
+      // GAM-110: three guns at most (a fourth pushes the oldest out), and the older ones run out while the newest stays
+      const capped = await p.evaluate(() => { const d = __gg.runtime.debug; d.arm('missile', 1); d.arm('wave', 1); const full = Object.keys(d.state().guns); d.age(60); return { full, kept: Object.keys(d.state().guns) }; });
+      if (capped.full.join() !== 'laser,missile,wave' || capped.kept.join() !== 'wave') errs.push(tag + ' martian storm stack cap: ' + JSON.stringify(capped));
+      console.log(tag, 'martian storm stack cap', capped);
     } else if (id === 'reef') {
       const before = await p.evaluate(() => __gg.runtime.debug.state());
       await p.keyboard.press('Space');

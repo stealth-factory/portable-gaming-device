@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import create from '../../src/games/martian-storm/game';
+import { badgesWidth } from '../../src/kit/play';
 import { strings } from '../../src/games/martian-storm/strings';
 import { disk } from '../../src/games/martian-storm/disk';
 import type { ConsoleAPI, Dir } from '../../src/games/types';
 import {
   BARB_HP, BOMB_CAP, BOMB_DMG, BOMBS_START, SPEED_MAX, HEART_CAP, HEARTS_START, LEG_CLOCK, LIFE_CAP, SHOT_CAP, SKIFF_SPEED, SLAB_HP, SLAB_WAIT, TUCK_CAP, TUCK_SECS,
-  WEAPON_MAX, barbCount, beatFits, beatGap, beatSchedule, capsuleWeapon, arsenalLabel, catchGift, catchGun, damage, dropFor, gunsOf, skiffSpeed, spendBomb,
+  GUN_SECS, GUN_WARN, STACK_MAX, WEAPON_MAX, barbCount, beatFits, beatGap, beatSchedule, capsuleWeapon, arsenalLabel, catchGift, catchGun, gunBadges, tickGuns, damage, dropFor, gunsOf, skiffSpeed, spendBomb,
   flightCount, flightOffsets, flightVelocity, hpFor, landingBonus, legReward, missileSalvo, offerToken, onSporeGone,
   pelletSpeed, scrollSpeed, insetBox, skiffVelocity, slabCount, spendTuck, steerMissile, takeHit, touchBox, tuckCovers,
   volley, volleyFits,
 } from '../../src/games/martian-storm/rules';
-import type { Weapon } from '../../src/games/martian-storm/rules';
+import type { Arsenal, Weapon } from '../../src/games/martian-storm/rules';
 import {
   BARB, BARB_H, BARB_W, SKIFF_H, SKIFF_W, SLAB, SLAB_H, SLAB_W, SPORE, SPORE_H, SPORE_W,
 } from '../../src/games/martian-storm/art';
@@ -236,18 +237,57 @@ describe('weapons (GAM-59)', () => {
     expect(capsuleWeapon(0, 2)).toBe('missile');
   });
 
-  it('stacks a new gun beside the others and levels up one you have', () => {
-    expect(gunsOf({})).toEqual([{ weapon: 'blaster', level: 1 }]);
-    let a = catchGun({}, 'spread');
-    expect(a).toEqual({ arsenal: { spread: 1 }, level: 1, points: 0 });
+  it('stacks a new gun on top and levels up one you have, moving it to the top', () => {
+    expect(gunsOf([])).toEqual([{ weapon: 'blaster', level: 1 }]);
+    let a = catchGun([], 'spread');
+    expect(a).toEqual({ arsenal: [{ weapon: 'spread', level: 1, left: Infinity }], level: 1, points: 0 });
     a = catchGun(a.arsenal, 'laser');
+    expect(a.arsenal).toEqual([{ weapon: 'spread', level: 1, left: GUN_SECS }, { weapon: 'laser', level: 1, left: Infinity }]);
     a = catchGun(a.arsenal, 'spread');
-    expect(a.arsenal).toEqual({ spread: 2, laser: 1 });
-    expect(gunsOf(a.arsenal)).toEqual([{ weapon: 'spread', level: 2 }, { weapon: 'laser', level: 1 }]);
-    expect(arsenalLabel({})).toBe('BLAST');
-    expect(arsenalLabel({ wave: 1, spread: 3, missile: 2 })).toBe('S3M2W1');
-    expect(arsenalLabel({ spread: 3, laser: 3, missile: 3, wave: 3 }).length).toBeLessThanOrEqual('MISSILE 3'.length);
-    expect(catchGun({ laser: WEAPON_MAX }, 'laser')).toEqual({ arsenal: { laser: WEAPON_MAX }, level: WEAPON_MAX, points: 200 });
+    expect(a.arsenal.map(g => [g.weapon, g.level])).toEqual([['laser', 1], ['spread', 2]]);
+    expect(gunsOf(a.arsenal)).toEqual([{ weapon: 'laser', level: 1 }, { weapon: 'spread', level: 2 }]);
+    const top = catchGun([{ weapon: 'laser', level: WEAPON_MAX, left: Infinity }], 'laser');
+    expect(top).toEqual({ arsenal: [{ weapon: 'laser', level: WEAPON_MAX, left: Infinity }], level: WEAPON_MAX, points: 200 });
+  });
+
+  it('holds three guns at most, and a fourth pushes the oldest out', () => {
+    let a: Arsenal = [];
+    for (const w of ['spread', 'laser', 'missile'] as const) a = catchGun(a, w).arsenal;
+    expect(a.map(g => g.weapon)).toEqual(['spread', 'laser', 'missile']);
+    a = catchGun(a, 'wave').arsenal;
+    expect(a).toHaveLength(STACK_MAX);
+    expect(a.map(g => g.weapon)).toEqual(['laser', 'missile', 'wave']);
+  });
+
+  it('runs the older guns out and keeps the newest until another is stacked on it', () => {
+    let a: Arsenal = catchGun(catchGun([], 'spread').arsenal, 'wave').arsenal;
+    a = tickGuns(a, GUN_SECS - 1);
+    expect(a.map(g => g.weapon)).toEqual(['spread', 'wave']);
+    a = tickGuns(a, 1);
+    expect(a.map(g => g.weapon)).toEqual(['wave']);
+    a = tickGuns(a, 600);
+    expect(a).toEqual([{ weapon: 'wave', level: 1, left: Infinity }]);
+    // stack on the kept gun: it starts a fresh clock, the new one is kept
+    a = catchGun(a, 'laser').arsenal;
+    expect(a).toEqual([{ weapon: 'wave', level: 1, left: GUN_SECS }, { weapon: 'laser', level: 1, left: Infinity }]);
+  });
+
+  it('names the stack on the HUD, oldest first, with a draining clock and a blink near the end', () => {
+    expect(arsenalLabel([])).toBe('BLAST');
+    expect(gunBadges([])).toEqual([{ text: 'BLAST', warn: false }]);
+    const a: Arsenal = [
+      { weapon: 'spread', level: 3, left: GUN_WARN - 0.5 },
+      { weapon: 'missile', level: 2, left: GUN_SECS / 2 },
+      { weapon: 'wave', level: 1, left: Infinity },
+    ];
+    expect(arsenalLabel(a)).toBe('S3M2W1');
+    expect(gunBadges(a)).toEqual([
+      { text: 'S3', frac: (GUN_WARN - 0.5) / GUN_SECS, warn: true },
+      { text: 'M2', frac: 0.5, warn: false },
+      { text: 'W1', warn: false },
+    ]);
+    // three badges with a gap after each fit where four gapless guns and a gap did before, on a 240 px tube
+    expect(badgesWidth(gunBadges(a).map(g => ({ text: g.text, role: 'gold' as const })))).toBeLessThanOrEqual(badgesWidth([{ text: 'S3L3M3W3', role: 'gold' }]));
   });
 
   it('sprays more with each level, and fits under the shot cap', () => {
@@ -397,7 +437,7 @@ describe('hearts, lives and pickups (GAM-59)', () => {
     expect([st.speed, st.bombs]).toEqual([0, BOMBS_START]);
   });
 
-  it('carries guns, speed, bombs and extra tucks into the next leg, through a warp', () => {
+  it('carries the kept gun, speed, bombs and extra tucks into the next leg, through a warp', () => {
     const { S, runtime } = harness();
     play(runtime, S);
     runtime.debug!.untouchable(true);
@@ -418,7 +458,8 @@ describe('hearts, lives and pickups (GAM-59)', () => {
     expect(warped).toBeGreaterThan(0.8);
     expect(runtime.debug!.state().warp).toBeGreaterThan(0.5);
     const st = runtime.debug!.state();
-    expect(st.guns).toEqual({ spread: 2, wave: 1 });
+    // the leg runs longer than GUN_SECS, so the spread under the wave has run out; the wave, caught last, is kept
+    expect(st.guns).toEqual({ wave: 1 });
     expect([st.speed, st.bombs, st.tucks]).toEqual([1, BOMBS_START + 1, 5]);
     for (let i = 0; i < 90; i++) runtime.update(1 / 60);
     expect([S.mode, runtime.debug!.state().warp]).toEqual(['play', 0]);

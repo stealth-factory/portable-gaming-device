@@ -16,8 +16,8 @@
     "sha256": "59b3d7789bb0d39b1e073f5118e9345b67fe822b24bc4514026dcede82893651"
   },
   "martian-storm": {
-    "version": 1,
-    "sha256": "1186172621128a83b3193035149dd189d237c1401fce00f1e6b2f63179f4ce82"
+    "version": 2,
+    "sha256": "62a1f70e05bdc32d646e3cf3ea638c92ff698aa3fa3654a5cf38ae0e4a0496d6"
   },
   "reef": {
     "version": 2,

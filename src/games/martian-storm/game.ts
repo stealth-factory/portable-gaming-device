@@ -11,9 +11,9 @@ import {
   BOMB_DMG, BOMB_SECS, BOMBS_START, CLEAR_SECS, EXTRA_EVERY, FLIGHT_TRIES, HEARTS_START, HIT_GRACE, LEG_CLOCK,
   LEGS, LIFE_CAP, LIVES_START, MAX_CRAFT, MISSILE_COOLDOWN, PICKUP_CAP, SLAB_HP, SLAB_WAIT, TUCK_CAP, TUCK_SECS, TUCKS_START,
   WEAPON_MAX, WEAPON_NAME,
-  arsenalLabel, beatFits, beatSchedule, capsuleWeapon, catchGift, catchGun, clampSkiff, damage, dropFor, flightOffsets,
-  flightVelocity, gunsOf, hpFor, insetBox, landingBonus, legReward, missileSalvo, offerToken, onSporeGone, pelletSpeed,
-  scrollSpeed, skiffSpeed, skiffVelocity, spendBomb, spendTuck, steerMissile, takeHit, touchBox, volley, volleyFits,
+  beatFits, beatSchedule, capsuleWeapon, catchGift, catchGun, clampSkiff, damage, dropFor, flightOffsets,
+  flightVelocity, gunBadges, gunsOf, hpFor, insetBox, landingBonus, legReward, missileSalvo, offerToken, onSporeGone, pelletSpeed,
+  scrollSpeed, skiffSpeed, skiffVelocity, spendBomb, spendTuck, steerMissile, takeHit, tickGuns, touchBox, volley, volleyFits,
   weaponCooldown,
 } from './rules';
 import type { Arsenal, Beat, CapsuleWeapon, FlightShape, FlightState, PickupKind, ShotKind, ShotSpec, Weapon } from './rules';
@@ -60,9 +60,8 @@ let vx = 0;
 let vy = 0;
 let tucks = TUCKS_START;
 let hearts = HEARTS_START;
-/** The guns on board, stacked; empty is the blaster. `lastGun` is the one caught most recently. */
-let arsenal: Arsenal = {};
-let lastGun: Weapon = 'blaster';
+/** The guns on board, oldest first, up to three; empty is the blaster. The last is the one caught most recently. */
+let arsenal: Arsenal = [];
 /** Speed pickups on board, 0 to SPEED_MAX. */
 let boosts = 0;
 /** Bombs on board, and what is left of the one going off. */
@@ -558,7 +557,6 @@ function collect(p: Pickup) {
     const got: CapsuleWeapon = capsuleWeapon(p.age, p.first);
     const next = catchGun(arsenal, got);
     arsenal = next.arsenal;
-    lastGun = got;
     if (next.points) score.add(next.points, p.x, p.y);
     else fx.pop(WEAPON_NAME[got] + (next.level > 1 ? ' ' + next.level : ''), p.x, p.y, { role: 'gold' });
     play(api, POWER_JINGLE);
@@ -711,7 +709,8 @@ function draw() {
     lives: { art: SKIFF_MINI, role: 'cart', spare: true, max: 4 },
     badges: [
       { text: 'TUCK ' + tucks, role: tuckLeft > 0 ? 'spark' : 'hud' },
-      { text: arsenalLabel(arsenal), role: 'gold' },
+      // a badge per gun, oldest first: a bar under each older gun drains with its clock, and it blinks near the end
+      ...gunBadges(arsenal).map(b => ({ text: b.text, role: 'gold' as const, frac: b.frac, blink: b.warn ? 6 : 0 })),
     ],
   });
   drawStatus();
@@ -748,8 +747,7 @@ function start() {
   api.S.lives = LIVES_START;
   api.S.level = 1;
   hearts = HEARTS_START;
-  arsenal = {};
-  lastGun = 'blaster';
+  arsenal = [];
   boosts = 0;
   bombs = BOMBS_START;
   bombLeft = 0;
@@ -797,6 +795,7 @@ function update(dt: number) {
   else if ((api.S.mode === 'ready' || api.S.mode === 'play') && tuckLeft <= 0 && !settled) steer(dt);
   else { vx = 0; vy = 0; }
 
+  if (api.S.mode === 'play' && !settled) arsenal = tickGuns(arsenal, dt);
   if (api.S.mode === 'play' && tuckLeft <= 0 && !settled) guns(dt);
   if (api.S.mode !== 'play' || settled) return;
   combat(dt);
@@ -811,8 +810,7 @@ const create: CreateGame = a => {
       placeSkiff();
       blinkLeft = 1.2;
       // a lost skiff takes its guns and its speed with it, as in the arcade; the next one has three hearts
-      arsenal = {};
-      lastGun = 'blaster';
+      arsenal = [];
       boosts = 0;
       bombs = BOMBS_START;
       bombLeft = 0;
@@ -832,24 +830,33 @@ const create: CreateGame = a => {
   return {
     start, update, draw,
     debug: {
-      state: () => ({
-        x, y, vx, vy, tucks, hearts, speed: boosts, bombs, bombing: bombLeft > 0, warp: warpFactor(),
-        /** the gun caught last and its level; `guns` is the whole stack */
-        weapon: lastGun, level: lastGun === 'blaster' ? 1 : arsenal[lastGun] ?? 1, guns: { ...arsenal }, leg: a.S.level, lives: a.S.lives, shots: shots.length,
-        pickups: pickups.map(p => p.kind),
-        /** craft wholly on screen below the HUD, so a capture can wait for something to look at */
-        craft: enemies.filter(e => e.alive && e.y > a.HUD + 4).length,
-      }),
+      state: () => {
+        const newest = arsenal[arsenal.length - 1];
+        return {
+          x, y, vx, vy, tucks, hearts, speed: boosts, bombs, bombing: bombLeft > 0, warp: warpFactor(),
+          /** the gun caught last and its level; `guns` is the whole stack */
+          weapon: newest?.weapon ?? 'blaster', level: newest?.level ?? 1,
+          guns: Object.fromEntries(arsenal.map(g => [g.weapon, g.level])), stack: arsenal.map(g => ({ ...g, left: g.left === Infinity ? -1 : g.left })), leg: a.S.level, lives: a.S.lives, shots: shots.length,
+          pickups: pickups.map(p => p.kind),
+          /** craft wholly on screen below the HUD, so a capture can wait for something to look at */
+          craft: enemies.filter(e => e.alive && e.y > a.HUD + 4).length,
+        };
+      },
       /** Keep the skiff from being hit, for the share capture's flipbook. */
       untouchable: (on: boolean) => { untouchable = on; },
       /** Hang an enemy pellet on the skiff so the next frame can overlap it. */
       pellet: () => { pellets.push({ x: x + SKIFF_W / 2 - 1, y: y + SKIFF_H / 2 - 1, vx: 0, vy: 8 }); },
-      /** Add a gun to the stack at a level, for tests and captures. The blaster empties the stack. */
+      /** Stack a gun at a level, as a catch would (a fourth pushes the oldest out), for tests and captures. The
+          blaster empties the stack. */
       arm: (w: Weapon, lv = WEAPON_MAX) => {
-        if (w === 'blaster') { arsenal = {}; lastGun = 'blaster'; return; }
-        arsenal = { ...arsenal, [w]: Math.max(1, Math.min(WEAPON_MAX, lv)) };
-        lastGun = w;
+        if (w === 'blaster') { arsenal = []; return; }
+        const next = catchGun(arsenal, w).arsenal;
+        const top = next[next.length - 1];
+        if (top) top.level = Math.max(1, Math.min(WEAPON_MAX, lv));
+        arsenal = next;
       },
+      /** Run the guns' clocks on, so a test need not wait out GUN_SECS. */
+      age: (secs: number) => { arsenal = tickGuns(arsenal, secs); },
       /** Drop a pickup on the skiff. */
       give: (kind: PickupKind) => { pickups.push({ kind, x: x + 2, y: y + 1, age: 0, first: 0 }); },
       /** End the blink after a hit, so the next shot counts. */
