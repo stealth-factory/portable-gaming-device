@@ -29,13 +29,16 @@ export const splash = () => current;
 export function setSplash(s: Splash | null){ current = s; }
 
 /** Where the splash is `t` seconds in: how much of the mark is drawn (0 to 1), how many letters of the small line
-    are typed, and whether it is fading out. With reduced motion, everything is there at once. */
-export function splashPhase(t: number, reduced: boolean){
-  if (reduced) return { reveal: 1, typed: Infinity, fading: t > SPLASH_LEN - 0.25 };
+    are typed, and whether it is fading out. A long line types faster, so all `subLen` letters are in a moment before the fade.
+    With reduced motion, everything is there at once. */
+export function splashPhase(t: number, reduced: boolean, subLen = 0){
+  const fading = t > SPLASH_LEN - 0.25;
+  if (reduced) return { reveal: 1, typed: Infinity, fading };
+  const from = CHIME_AT + 0.1, per = Math.min(0.03, (SPLASH_LEN - 0.35 - from) / Math.max(1, subLen));
   return {
     reveal: Math.min(1, Math.max(0, t / CHIME_AT)),
-    typed: Math.max(0, Math.floor((t - CHIME_AT - 0.1) / 0.03)),
-    fading: t > SPLASH_LEN - 0.25,
+    typed: fading ? Infinity : Math.max(0, Math.floor((t - from) / per)),
+    fading,
   };
 }
 
@@ -50,7 +53,7 @@ const width = (a: Api, s: string, font: string) => { a.g.font = font; return Mat
 
 /** Draw the splash `t` seconds in. */
 export function drawSplash(a: Api, s: Splash, t: number, reduced: boolean){
-  const { reveal, typed, fading } = splashPhase(t, reduced);
+  const { reveal, typed, fading } = splashPhase(t, reduced, s.sub.length);
   const main = fading ? 'textDim' : 'text', dim = fading ? 'hud' : 'textDim';
   // lay out the mark: the logo, then the big line (or PGD's block letters), then the small line
   const blocks = s.pgd ? Math.max(4, Math.min(10, Math.floor(a.LW * 0.34 / 11))) : 0;

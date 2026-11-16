@@ -87,6 +87,8 @@ describe('the boot splash', () => {
     expect(splashPhase(1.2, false).typed).toBeGreaterThan(5);
     expect(splashPhase(SPLASH_LEN - 0.1, false).fading).toBe(true);
     expect(splashPhase(0, true)).toMatchObject({ reveal: 1, typed: Infinity });
+    // the longest sub line a splash takes (48) is all typed before the fade
+    expect(splashPhase(SPLASH_LEN - 0.26, false, 48).typed).toBeGreaterThanOrEqual(48);
   });
 
   it('shades a logo by brightness and opacity, and inverts a dark one', () => {
