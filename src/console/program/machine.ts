@@ -12,7 +12,7 @@ import * as Btn from '../buttons';
 import { scoreKeys } from '../settings';
 import { scores, loadScores, saveBest, qualifies, forgetScores } from './scores';
 import { startEntry, enterOver, entryPick, updateEntry, updateOver, drawEntry, drawBoard } from './entry';
-import { updateBoot, updateMenu, updateLoad, drawBoot, drawMenu, drawLoad, loadGame, startConsole } from './loader';
+import { updateBoot, updateMenu, updateLoad, drawBoot, drawMenu, drawLoad, loadGame, startConsole, skipSplash } from './loader';
 
 /* ---------- the state bag: the console's fields, and room for each game's own ----------
    Made here; the host binds it as `host.S`, and everything in the program reads it from there (tests bind their own). */
@@ -115,7 +115,8 @@ export function clearScores(){
 export function menuFire(){
   const S = host.S;
   if (S.mode === 'menu') { loadGame(S.menuSel); return true; }
-  if (S.mode === 'boot' || S.mode === 'load') return true;
+  if (S.mode === 'boot') { skipSplash(); return true; }
+  if (S.mode === 'load') return true;
   if (S.mode === 'entry') { entryPick(); return true; }
   if (S.mode === 'over' && S.overT > 0.8) { startGame(); return true; }
   return false;

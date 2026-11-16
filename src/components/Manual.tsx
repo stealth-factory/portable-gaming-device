@@ -8,7 +8,7 @@ import { GitHubIcon } from './Icons';
 import { Settings } from './Settings';
 import { REPO_URL, REPO_LABEL } from './site';
 
-const SERVER: ConsoleState = { lang: 'en', manual: 'console' };
+const SERVER: ConsoleState = { lang: 'en', manual: 'console', model: 'PGD-01', name: 'PGD-01 Portable Gaming Device' };
 const html = (s: string) => ({ __html: s });
 
 /** One numbered section: a paragraph, a note (name, then wrapping text), or a dotted-leader list. */
@@ -53,14 +53,17 @@ function Section({ sec, n, T }: { sec: ManualSection; n: number; T: Record<strin
 /** The printed Operating Instructions: the console's while the disk menu is up, the loaded game's otherwise.
     A React island: it follows the console engine's language and loaded game through the shared bus. */
 export default function Manual(){
-  const { lang, manual } = useSyncExternalStore(bus.subscribe, bus.get, () => SERVER);
+  const { lang, manual, model, name } = useSyncExternalStore(bus.subscribe, bus.get, () => SERVER);
+  // a framing app may rename the console (its nameplate): the leaflet's model line follows
+  // one pass over the original text, with callbacks, so the inserted words are never read as `$&` patterns or replaced again
+  const branded = (s: string) => s.replace(/PGD-01 Portable Gaming Device|PGD-01/g, m => m === 'PGD-01' ? model : name);
   const T = I18N[lang] || I18N.en, disk = DISKS.find(d => d.id === manual);
   const secs = disk ? disk.manual : CONSOLE_MANUAL;
   return (
     <>
       <div className="man-head">
         <h2 id="manH">{disk ? T[disk.nameKey] : T.manTitle}</h2>
-        <span className="man-model" id="manModel">{disk ? T.diskFor : T.model}</span>
+        <span className="man-model" id="manModel">{branded(disk ? T.diskFor : T.model)}</span>
       </div>
       <div className="man-cols" id="manBody">
         {secs.map((sec, i) => <Section key={disk ? disk.id + i : 'c' + i} sec={sec} n={i + 1} T={T} />)}

@@ -24,7 +24,7 @@ export function ConsoleSet(){
           </div>
           <div className="grille" aria-hidden="true" />
           <PowerPanel />
-          <span className="emboss" aria-hidden="true">{MODEL} · 12″ PHOSPHOR MONITOR</span>
+          <span className="emboss" id="emboss" aria-hidden="true">{MODEL} · 12″ PHOSPHOR MONITOR</span>
         </div>
         <div className="pad" id="pad">
           <Joystick />

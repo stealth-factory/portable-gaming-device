@@ -53,7 +53,7 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
   const ready = useRef(false);
   const session = useRef(null);
   const frameLoaded = useRef(false);
-  const plateSent = useRef(false);
+  const plateSent = useRef(false), splashSent = useRef(false);
   // the set's height on the desk layout, as the console reports it
   const [deskHeight, setDeskHeight] = useState(null);
   const [upright, setUpright] = useState(false);
@@ -101,6 +101,7 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
       if (k === 'paused' && typeof p.paused === 'boolean') send({ command: 'pause', on: p.paused });
       // only once set: a console that was never given one keeps its own plate
       if (k === 'nameplate' && (p.nameplate !== undefined || plateSent.current)) { plateSent.current = true; send({ command: 'nameplate', nameplate: p.nameplate ?? null }); }
+      if (k === 'splash' && (p.splash !== undefined || splashSent.current)) { splashSent.current = true; send({ command: 'splash', splash: p.splash ?? null }); }
       if (k === 'disks' && Array.isArray(p.disks)) {
         const r = requests.current;
         for (const d of p.disks) {
@@ -136,8 +137,8 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
           // inserts sent to an earlier page in the frame will never be answered
           for (const [id, w] of r.waiting) if (w.session !== null) { r.waiting.delete(id); w.reject(new Error('the console reloaded before it answered')); }
           // disks first, so a `game` that names one of them finds it when the boot ends
-          plateSent.current = false;
-          sync(['disks', 'nameplate', 'lang', 'phosphor', 'sound', 'paused', 'power']);
+          plateSent.current = false; splashSent.current = false;
+          sync(['disks', 'nameplate', 'splash', 'lang', 'phosphor', 'sound', 'paused', 'power']);
           for (const cmd of r.pending.splice(0)) { const w = r.waiting.get(cmd.request); if (w) w.session = session.current; send(cmd); }
           // the address boots the game it was made with (urlGame, kept as it is so every reload compares against it):
           // a different `game` since then, before this console was listening or before a reload, is loaded now
@@ -196,6 +197,8 @@ export const PGDConsole = forwardRef(function PGDConsole(props, ref) {
   // by content, so an object made fresh on every render sends nothing new
   const plateKey = JSON.stringify(props.nameplate ?? null);
   useEffect(() => { if (shown.current && ready.current) sync(['nameplate']); }, [plateKey, sync]);
+  const splashKey = JSON.stringify(props.splash === false ? false : props.splash ?? null);
+  useEffect(() => { if (shown.current && ready.current) sync(['splash']); }, [splashKey, sync]);
   useEffect(() => { if (shown.current && ready.current && game) send({ command: 'load', game }); }, [game, send]);
   useEffect(() => { shown.current = true; }, []);
 

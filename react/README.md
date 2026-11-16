@@ -36,7 +36,8 @@ It renders on the server as a plain `<iframe>` and touches `window` only in effe
 | `sound` | The SOUND switch. |
 | `paused` | HOLD: pause a game in progress, or carry on. `true` with no game running pauses the next one as it starts. |
 | `disks` | Your own games, on the disk menu beside the console's (see below). |
-| `nameplate` | Your own name or logo on the set's nameplate, in place of `PGD · PORTABLE GAMING DEVICE` (see [Your own nameplate](#your-own-nameplate)). Leave it out for the PGD plate. |
+| `nameplate` | Your own name or logo on the set's nameplate, in place of `PGD · PORTABLE GAMING DEVICE`, which also renames the console on the tube and the cabinet (see [Your own nameplate](#your-own-nameplate)). Leave it out for the PGD plate. |
+| `splash` | Your own splash on the tube when the set is switched on: a name, a logo or both; `false` for none (see [Your own boot splash](#your-own-boot-splash)). Leave it out for PGD's own. |
 | `chrome` | `true` also shows the page around the set: the header, the instructions bar and the leaflet. |
 | `title`, `className`, `style` | For the iframe. Without a `height` in `style`, the frame takes the set's height on the desk layout, a 9:16 box (at most the screen's height) on the upright phone layout, and a 6:5 box on the others. Below 480 px wide the set switches to that upright phone layout, which fills whatever box it gets. |
 
@@ -46,7 +47,7 @@ It renders on the server as a plain `<iframe>` and touches `window` only in effe
 | --- | --- |
 | `onReady(ready)` | The console has started: `version`, `session` (new on every reload), `disks` (each with `id`, `slug`, `title`, `genre`, `players`, and `added` for yours), `phosphors`, `langs`. |
 | `onStateChange(state)` | Any of `power`, `mode`, `game`, `lang`, `phosphor` and `sound` changes, and `score`, `level` and `lives` at most four times a second. `mode` is one of `off`, `boot`, `menu`, `load`, `ready`, `play`, `dying`, `clear`, `paused`, `entry` and `over`. `game` is null on the boot screen and the menu. |
-| `onEvent(name, data)` | Every event the console tracks, with the same names and fields as its analytics (the table in the [main README](../README.md#analytics): `game_load`, `game_start`, `game_over`, `high_score` …), plus `disk_inserted`, `disk_error` and `nameplate_error`. |
+| `onEvent(name, data)` | Every event the console tracks, with the same names and fields as its analytics (the table in the [main README](../README.md#analytics): `game_load`, `game_start`, `game_over`, `high_score` …), plus `disk_inserted`, `disk_error`, `nameplate_error` and `splash_error`. |
 | `onGameOver({ game, score })` | A game ended. |
 | `onDiskError({ game, stage, message })` | One of your disks failed. `stage` is `insert` (a bad disk.js, a cover or preview that fails its checks, an origin that isn't allowed, or a `drawCover` or `drawPreview` that threw: the launcher then shows the floppy label), `load` (a bad game.js, no game sent, or `drawLoad` or `create` threw) or `run` (it threw while playing). After a `load` or `run` failure, the console goes back to the disk menu. Replacing the disk that is loading or playing also goes back to the menu, so the old code stops. |
 
@@ -158,11 +159,44 @@ The silver badge on the set reads `PGD · PORTABLE GAMING DEVICE`, over a `PGD-0
 | `rest` | More of the name, after a dot, as `PORTABLE GAMING DEVICE` follows `PGD` (up to 48 characters). Hidden on the upright phone layout, where the plate is small. |
 | `image` | A logo to show instead of the text: an `http(s)` address, a path on the console's site (`/…`, `./…`), or a `data:image/…` URL. It is fitted to the plate's height (14 px on the desk, 10 px on phones and the sideways layout), so a wide, short wordmark in dark ink on the silver plate works best. Anything else is refused: the PGD plate stays and the console sends a `nameplate_error` event. An image that fails to load (a 404, bad data) also sends `nameplate_error`, and the plate falls back to its `text`, or to PGD without one. |
 | `alt` | The logo's accessible name. Defaults to `text`. |
-| `model` | The model code in front of the phosphor name on the line under the plate. Default `PGD-01`. |
+| `model` | The model code in front of the phosphor name on the line under the plate, and everywhere else the console names its model (below). Default `PGD-01`. |
 
-The plate is sent when the console is ready and again whenever the prop's content changes; setting it back to `undefined` or `null` puts the PGD plate back. A path in `image` is on the console's site, so with a [self-hosted console](#self-hosting-the-console) it is your app's own `public/` folder. The release version under the plate and the `PGD-01 · 12" PHOSPHOR MONITOR` stamp on the cabinet stay as they are. Without the component, send `{ command: 'nameplate', nameplate }` over the protocol.
+The plate is sent when the console is ready and again whenever the prop's content changes; setting it back to `undefined` or `null` puts the PGD plate back. A path in `image` is on the console's site, so with a [self-hosted console](#self-hosting-the-console) it is your app's own `public/` folder. Without the component, send `{ command: 'nameplate', nameplate }` over the protocol.
 
-The nameplate arrives in the first release after v0.18.0: pin that tag or later (an older console ignores the command). On the PGD site, which works offline, an `https` logo from another site is cached once it has loaded (up to ten logos, for 30 days); a self-hosted console has no service worker, so a logo there is fetched like any other image on your page.
+The plate names the whole console, so a framed console carries your brand wherever it says its own name. With `{ text: 'RETROBOX', rest: 'GAME STUDIO', model: 'RBX-01' }`:
+
+| Where | PGD | Yours |
+| --- | --- | --- |
+| BIOS banner | `PGD-01 GAMING DEVICE   BIOS 1.0` | `RBX-01 RETROBOX   BIOS 1.0` |
+| The boot starting | `STARTING PGD-DOS...` | `STARTING RETROBOX-DOS...` (the name's letters and digits, up to 8) |
+| Disk menu header | `PGD-01 PORTABLE GAMING DEVICE` | `RBX-01 RETROBOX GAME STUDIO` (shortened with `..` if it won't fit) |
+| Cabinet stamp under the tube | `PGD-01 · 12″ PHOSPHOR MONITOR` | `RBX-01 · 12″ PHOSPHOR MONITOR` |
+| Burnt-in title on the tube | `PGD-01` | `RBX-01` |
+| Leaflet's model line (`chrome`) | `Model PGD-01 · 12″ phosphor monitor` | `Model RBX-01 · 12″ phosphor monitor` |
+
+A logo with no `text` names the console by its `alt`; a plate with only a `model` keeps PGD's words with your model code. The release version under the plate stays as it is, and so do the games' own titles.
+
+The nameplate arrives in v0.19.0, and the boot splash and the rest of the branding in the release after it: pin that tag or later (an older console ignores the commands). On the PGD site, which works offline, an `https` logo from another site is cached once it has loaded (up to ten logos, for 30 days); a self-hosted console has no service worker, so a logo there is fetched like any other image on your page.
+
+## Your own boot splash
+
+When the set is switched on (or RESET), the tube shows a splash for about two seconds before the BIOS lines: PGD's own is its name in the console's chunky pixel letters, drawn in by the beam from the top, with `PORTABLE GAMING DEVICE` typed under it and a short rising chime. Your app can show its own, or none:
+
+```tsx
+<PGDConsole src={SRC} splash="RETROBOX" />
+<PGDConsole src={SRC} splash={{ text: 'RETROBOX', sub: 'GAME STUDIO' }} />
+<PGDConsole src={SRC} splash={{ image: '/brand/splash.png', sub: 'GAME STUDIO' }} />
+<PGDConsole src={SRC} splash={false} />
+```
+
+| Field | What it does |
+| --- | --- |
+| `text` | The big line, in the tube's 16 px capitals (8 px if it won't fit), up to 24 characters. A string `splash` is this. |
+| `sub` | A smaller line typed in under it, up to 48 characters. |
+| `image` | A logo above the text: an `http(s)` address, a path on the console's site, or a `data:image/…` URL, fitted within 160 × 64 tube pixels. Like everything on the tube, it is drawn in the phosphor's four shades by brightness: light parts glow, dark and transparent parts stay dark, so a light logo on a dark or transparent background works best. An image on another site must be served with CORS (`Access-Control-Allow-Origin`), or the console can't read it. A bad address, or an image that won't load, sends `splash_error`; the splash then keeps its `text`, or goes back to PGD's without one. |
+| `invert` | `true` flips a dark-on-light logo, so its ink glows. |
+
+FIRE, <kbd>Space</kbd>, <kbd>Enter</kbd> or a tap on the tube skips the splash (after a quarter of a second, so the press that switched the set on doesn't). With reduced motion it appears whole, without the beam or the typing. A warm boot (back to the menu, or `load` while the set is on) never shows it. The splash goes with the boot's sounds, which start when it ends. `false` goes straight to the BIOS, as before this option existed; `null` or leaving the prop out shows PGD's. Without the component, send `{ command: 'splash', splash }`.
 
 ## Self-hosting the console
 
@@ -187,7 +221,7 @@ A copy of the console is a copy of PGD under its licence ([LICENSING.md](../LICE
 
 ## The protocol
 
-Everything goes through `postMessage` as `{ pgd: 1, type, … }`. The commands are power, reset, menu, button, load, phosphor, lang, sound, pause, nameplate, insert and game. The types (`PGDMessage`, `PGDCommandMessage`) are in [index.d.ts](index.d.ts), and `embedUrl()` and `isPGDMessage()` are exported for apps that make the iframe themselves. The console posts only to the page that framed it (the `origin` query parameter, or the referrer's origin), and it takes commands only from that window.
+Everything goes through `postMessage` as `{ pgd: 1, type, … }`. The commands are power, reset, menu, button, load, phosphor, lang, sound, pause, nameplate, splash, insert and game. The types (`PGDMessage`, `PGDCommandMessage`) are in [index.d.ts](index.d.ts), and `embedUrl()` and `isPGDMessage()` are exported for apps that make the iframe themselves. The console posts only to the page that framed it (the `origin` query parameter, or the referrer's origin), and it takes commands only from that window.
 
 ## Licence
 
