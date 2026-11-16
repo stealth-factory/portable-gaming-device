@@ -348,10 +348,11 @@ document.addEventListener('visibilitychange', () => {
   });
 })();
 /* a game with no stick (`controls: 'pad'`) gets the button pad in the stick's place while it plays; the stick is back
-   for the console's own screens (menu, loading, name entry, high scores), so SELECT and RESET restore it too */
+   for the console's own screens (menu, loading, name entry, high scores), so SELECT and RESET restore it too. A stick
+   game that puts buttons on the pad with setButtons (ROCKETX's thruster controls) gets the pad for as long as it does. */
 export let padShown = false;
 export function syncPad(){
-  const on = !!game && game.controls === 'pad' && inGame() && tvOn;
+  const on = !!game && (game.controls === 'pad' || Btn.padMapped()) && inGame() && tvOn;
   if (on === padShown) return;
   padShown = on;
   document.documentElement.toggleAttribute('data-pad', on);

@@ -206,6 +206,8 @@ const IMAGES = [
   await p.evaluate(() => { __gg.loadGame(__gg.DISKS.findIndex(d => d.id === 'rocketx')); __gg.S.loadLen = 4.2; });
   await until(() => __gg.S.loadT > 1.6); await shot('load-rocketx.png');
   await until(() => __gg.S.mode === 'ready' || __gg.S.mode === 'play');
+  // past the setup card with its defaults (STILT, PILOT), so the thruster pad shows on the set
+  await p.evaluate(() => __gg.runtime.debug.fly && __gg.runtime.debug.fly());
   // hold the main engine whenever the rocket drops below the middle, so it hovers in view for the picture
   await p.evaluate(() => { let down = false; setInterval(() => {
     const s = __gg.runtime && __gg.runtime.debug && __gg.runtime.debug.state && __gg.runtime.debug.state();

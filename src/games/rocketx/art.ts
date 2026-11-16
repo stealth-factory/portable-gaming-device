@@ -5,7 +5,7 @@ import type { Screen2D } from '../types';
 type Api = { g: Screen2D; col(role: string): string };
 
 /** A rocket of nine rows, tilted by `a` radians: each row shifts sideways a little more the higher it sits. */
-export function drawRocket(api: { g: Screen2D; col(r: string): string }, x: number, y: number, a: number, dead = false) {
+export function drawRocket(api: { g: Screen2D; col(r: string): string }, x: number, y: number, a: number, dead = false, gridFins = false) {
   const g = api.g;
   // the nose leans toward +sin(a); when the rocket is more than halfway over (cos a < 0) it is drawn upside down
   const lean = Math.sin(a);
@@ -25,6 +25,29 @@ export function drawRocket(api: { g: Screen2D; col(r: string): string }, x: numb
   g.fillRect(x + shift(at(7)) + 3, y - 4 + at(7), 2, 2);
   g.fillStyle = api.col('bg');
   g.fillRect(x + shift(at(3)), y - 4 + at(3), 1, 1);
+  // grid fins: a small square either side, just under the nose
+  if (gridFins) {
+    g.fillStyle = api.col('hud');
+    g.fillRect(x + shift(at(2)) - 4, y - 4 + at(2), 2, 1);
+    g.fillRect(x + shift(at(2)) + 3, y - 4 + at(2), 2, 1);
+  }
+}
+
+/** A puff from a nose thruster. `side` is the way the nose is being pushed (1 turns it right, so the gas leaves on
+    the left). Drawn while the thruster fires, flickering. */
+export function drawPuff(api: { g: Screen2D; col(r: string): string }, x: number, y: number, a: number, side: -1 | 1, t: number) {
+  const g = api.g;
+  const flip = Math.cos(a) < 0;
+  const row = flip ? 7 : 1;                                // the thrusters sit just under the nose
+  const nx = x + Math.round(Math.sin(a) * (4 - row) * 1.2);
+  const ny = y - 4 + row;
+  const out = -side;                                       // the gas leaves on the far side from the push
+  const flick = Math.floor(t * 30) % 2;
+  g.fillStyle = api.col('text');
+  g.fillRect(nx + out * 4 - (out < 0 ? 1 : 0), ny, 2, 1);
+  g.fillStyle = api.col('hud');
+  g.fillRect(nx + out * (6 + flick) - (out < 0 ? 1 : 0), ny - flick, 1, 1);
+  g.fillRect(nx + out * (7 - flick) - (out < 0 ? 1 : 0), ny + 1, 1, 1);
 }
 
 /** The flame under the engine: two flickering tongues, drawn only while the main engine burns. */

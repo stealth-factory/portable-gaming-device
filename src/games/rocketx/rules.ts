@@ -26,6 +26,91 @@ export interface Input {
   main: boolean;     // main engine held
   rcs: -1 | 0 | 1;   // side thrusters: -1 left, 1 right
   level: boolean;    // attitude hold held
+  fin?: -1 | 0 | 1;  // grid fins: -1 left, 1 right (free, but only while falling fast)
+}
+
+/* ---- grid fins: free steering that only bites while the rocket falls fast, fading to nothing near a stop ---- */
+export const FIN_TORQUE = 1.8;      // turning rate change at full bite, rad/s²
+export const FIN_MIN = 0.04;        // falling slower than this, the fins do nothing
+export const FIN_FULL = 0.2;        // falling this fast or faster, the fins bite fully
+
+/** How much the grid fins bite at this downward speed, 0 to 1. Climbing or hanging still, they do nothing. */
+export function finBite(vy: number): number {
+  return Math.max(0, Math.min(1, (vy - FIN_MIN) / (FIN_FULL - FIN_MIN)));
+}
+
+/** STICK's fins, worked for the player: lean back against the tilt (and the turn) while the fins can bite. */
+export function autoFin(r: Rocket): -1 | 0 | 1 {
+  const lean = r.a + r.w * 0.3;
+  if (finBite(r.vy) <= 0 || Math.abs(lean) < 0.03) return 0;
+  return lean > 0 ? -1 : 1;
+}
+
+/** Options for a step. `settle: false` is ENGINEER's rocket: a turn keeps going until a thruster stops it. */
+export interface StepOptions { settle?: boolean }
+
+/* ---- the setup card: which rocket, and how much control ---- */
+export type RocketId = 'stilt' | 'hauler' | 'cruiser';
+export type ControlId = 'stick' | 'pilot' | 'engineer';
+
+export interface RocketSpec { id: RocketId; name: string; ready: boolean }
+/** The rockets, in the setup card's order. Only STILT flies so far; the others come with the tower (GAM-111). */
+export const ROCKETS: readonly RocketSpec[] = [
+  { id: 'stilt', name: 'STILT', ready: true },
+  { id: 'hauler', name: 'HAULER', ready: false },
+  { id: 'cruiser', name: 'CRUISER', ready: false },
+];
+
+export interface ControlSpec {
+  id: ControlId; name: string;
+  /** What the card says about it, one short line in the pixel font. */
+  line: string;
+  /** Points are multiplied by this, so one table stays fair. */
+  mult: number;
+  /** Thruster buttons in the stick's place (the pad), not the stick. */
+  buttons: boolean;
+  /** Turns settle by themselves when no thruster fires (false: they keep going). */
+  settle: boolean;
+  /** The fins are worked for the player. */
+  autoFins: boolean;
+}
+export const CONTROLS: readonly ControlSpec[] = [
+  { id: 'stick', name: 'STICK', line: 'STICK STEERS  X1', mult: 1, buttons: false, settle: true, autoFins: true },
+  { id: 'pilot', name: 'PILOT', line: 'THRUSTER KEYS  X1.5', mult: 1.5, buttons: true, settle: true, autoFins: false },
+  { id: 'engineer', name: 'ENGINEER', line: 'NO LEVEL, NO HELP  X2', mult: 2, buttons: true, settle: false, autoFins: false },
+];
+/** A new player starts on PILOT, the thruster buttons. */
+export const DEFAULT_CONTROL = 1;
+
+/** How many times LEVEL can be switched on for one rocket. STICK: always; PILOT: always for the first three levels,
+    then three; ENGINEER: never. */
+export function levelUses(control: ControlId, level: number): number {
+  if (control === 'engineer') return 0;
+  if (control === 'pilot' && level >= 4) return 3;
+  return Infinity;
+}
+
+/** LEVEL's gate: a press starts a hold and spends one use; the hold lasts while the button stays down. */
+export interface LevelGate { left: number; active: boolean }
+export function gateLevel(g: LevelGate, held: boolean): { gate: LevelGate; on: boolean } {
+  if (!held) return { gate: { left: g.left, active: false }, on: false };
+  if (g.active) return { gate: g, on: true };
+  if (g.left <= 0) return { gate: g, on: false };
+  return { gate: { left: g.left - 1, active: true }, on: true };
+}
+
+export interface SetupChoice { row: 0 | 1; rocket: number; control: number }
+/** Move on the setup card: up and down pick the row, left and right change it. Rockets not built yet are skipped. */
+export function setupMove(c: SetupChoice, dir: 'up' | 'down' | 'left' | 'right'): SetupChoice {
+  if (dir === 'up' || dir === 'down') return { ...c, row: dir === 'up' ? 0 : 1 };
+  const step = dir === 'left' ? -1 : 1;
+  if (c.row === 1) return { ...c, control: (c.control + step + CONTROLS.length) % CONTROLS.length };
+  let i = c.rocket;
+  for (let n = 0; n < ROCKETS.length; n++) {
+    i = (i + step + ROCKETS.length) % ROCKETS.length;
+    if (ROCKETS[i].ready) return { ...c, rocket: i };
+  }
+  return c;
 }
 
 /** How fast the inbound rocket is falling when the level starts: each level comes in faster, up to a cap
@@ -59,7 +144,7 @@ export function windFor(level: number): number {
 }
 
 /** One step. Fuel can run out mid-burn: the engine just stops then. */
-export function stepRocket(r: Rocket, input: Input, dt: number, wind: number): Rocket {
+export function stepRocket(r: Rocket, input: Input, dt: number, wind: number, opts: StepOptions = {}): Rocket {
   let fuel = r.fuel;
   let thrust = 0;
   if (input.main && fuel > 0) { thrust = MAIN_THRUST; fuel = Math.max(0, fuel - MAIN_FUEL * dt); }
@@ -74,7 +159,9 @@ export function stepRocket(r: Rocket, input: Input, dt: number, wind: number): R
     torque += -r.a * LEVEL_GAIN;
     fuel = Math.max(0, fuel - LEVEL_FUEL * dt);
   }
-  const damp = input.level ? LEVEL_DAMP : input.rcs === 0 ? RCS_DAMP : RCS_DAMP * 0.2;
+  if (input.fin) torque += input.fin * FIN_TORQUE * finBite(r.vy);   // free: the fins cost no fuel
+  const settle = opts.settle ?? true;
+  const damp = input.level ? LEVEL_DAMP : !settle ? 0 : input.rcs === 0 ? RCS_DAMP : RCS_DAMP * 0.2;
   const w = r.w + (torque - damp * r.w) * dt;
   const a = r.a + w * dt;
 
@@ -98,13 +185,14 @@ export function touchdown(r: Rocket, level: number): Outcome {
   return onPad && soft ? 'landed' : 'crashed';
 }
 
-/** Points for a landing: fuel left, a centred touchdown and a gentle one, times the level. */
-export function landingScore(r: Rocket, level: number): number {
+/** Points for a landing: fuel left, a centred touchdown and a gentle one, times the level, times the control's
+    multiplier (STICK 1, PILOT 1.5, ENGINEER 2). */
+export function landingScore(r: Rocket, level: number, mult = 1): number {
   const pad = padFor(level);
   const centred = 1 - Math.min(1, Math.abs(r.x - pad.centre) / pad.half);
   const gentle = 1 - Math.min(1, Math.abs(r.vy) / landingVy(level));
   const base = 100 + Math.round(fuelPoints(r.fuel) + 60 * centred + 40 * gentle);
-  return base * Math.max(1, level);
+  return Math.round(base * Math.max(1, level) * mult);
 }
 
 export function fuelPoints(fuel: number): number {

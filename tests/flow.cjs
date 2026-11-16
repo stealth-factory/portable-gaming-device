@@ -93,6 +93,17 @@ async function playEveryDisk(p, tag){
     const id = disks[i];
     if (!await chooseDisk(p, tag, i)) { console.log(tag, 'disk', id, { pick: 'missed' }); continue; }
     await p.waitForFunction(id => (__gg.S.mode === 'load' || __gg.S.mode === 'ready' || __gg.S.mode === 'play') && __gg.game && __gg.game.id === id, id, { timeout: 4000 });
+    if (id === 'rocketx') {
+      // ROCKETX opens on its setup card (rocket and controls) and waits in ready; Space flies with what's chosen
+      const card = await p.waitForFunction(() => __gg.S.mode === 'ready' && __gg.runtime?.debug?.state().setup === true, null, { timeout: 12000 }).then(() => true, () => false);
+      const chosen = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { rocket: s.rocket, control: s.control, pad: document.documentElement.hasAttribute('data-pad') }; });
+      await p.screenshot({ path: `${out}/${tag}-rocketx-setup.png` });
+      await p.keyboard.press('Space');
+      const flew = await p.waitForFunction(() => __gg.runtime.debug.state().setup === false, null, { timeout: 2000 }).then(() => true, () => false);
+      const setupOk = card && flew && chosen.rocket === 'stilt' && chosen.control === 'pilot' && !chosen.pad;
+      if (!setupOk) errs.push(tag + ' rocketx setup: ' + JSON.stringify({ card, flew, chosen }));
+      console.log(tag, 'rocketx setup', { card, flew, chosen });
+    }
     await p.waitForFunction(id => __gg.S.mode === 'play' && __gg.game && __gg.game.id === id && globalThis.__ggBus.get().manual === id && (document.querySelector('#manH')?.textContent || '') !== 'Operating Instructions', id, { timeout: 12000 });
     // Bricks does not auto-serve. Enter is what the instructions promise, and it is the first key that moves the ember.
     if (id === 'bricks') {
@@ -272,6 +283,35 @@ async function playEveryDisk(p, tag){
       const burnOk = before.mode === 'play' && burned.fuel < before.fuel && burned.vy < before.vy;
       if (!burnOk) errs.push(tag + ' rocketx burn: ' + JSON.stringify({ before: { vy: before.vy, fuel: before.fuel }, burned: { vy: burned.vy, fuel: burned.fuel, mode: burned.mode } }));
       console.log(tag, 'rocketx burn', { vy: [Math.round(before.vy * 100) / 100, Math.round(burned.vy * 100) / 100], fuel: [Math.round(before.fuel * 100) / 100, Math.round(burned.fuel * 100) / 100] });
+      // PILOT: the thruster pad stands in for the stick; its left thruster turns the nose left, its middle button burns
+      const pilot = await p.evaluate(async () => {
+        const html = document.documentElement, btn = id => document.querySelector('#' + id + 'Btn');
+        const shown = html.hasAttribute('data-pad') && ['pad1', 'pad2', 'pad3', 'pad4', 'pad5'].every(id => !btn(id).hidden) && btn('pad6').hidden;
+        const labels = ['pad1', 'pad2', 'pad3', 'pad4', 'pad5'].map(id => btn(id).dataset.i18n);
+        const press = id => btn(id).dispatchEvent(new PointerEvent('pointerdown', { pointerId: 51, bubbles: true, cancelable: true }));
+        const lift = id => btn(id).dispatchEvent(new PointerEvent('pointerup', { pointerId: 51, bubbles: true, cancelable: true }));
+        const a0 = __gg.runtime.debug.state().a;
+        press('pad1'); await new Promise(r => setTimeout(r, 160)); lift('pad1');
+        const a1 = __gg.runtime.debug.state().a;
+        const f0 = __gg.runtime.debug.state().fuel;
+        press('pad2'); await new Promise(r => setTimeout(r, 160)); lift('pad2');
+        const f1 = __gg.runtime.debug.state().fuel;
+        return { shown, labels, turned: a1 < a0, burned: f1 < f0, mode: __gg.S.mode };
+      });
+      const pilotOk = pilot.shown && pilot.turned && pilot.burned && pilot.labels.join() === 'rxRcsL,rxPadBurn,rxRcsR,rxFinL,rxFinR';
+      if (!pilotOk) errs.push(tag + ' rocketx pilot pad: ' + JSON.stringify(pilot));
+      console.log(tag, 'rocketx pilot pad', pilot);
+      await p.screenshot({ path: `${out}/${tag}-rocketx-pilot.png` });
+      // STICK: the stick is back, and the arrow keys turn the rocket
+      await p.evaluate(() => __gg.runtime.debug.fly('stick'));
+      await p.waitForTimeout(80);
+      const stickPad = await p.evaluate(() => document.documentElement.hasAttribute('data-pad'));
+      const sa0 = await p.evaluate(() => __gg.runtime.debug.state().a);
+      await p.keyboard.down('ArrowRight'); await p.waitForTimeout(160); await p.keyboard.up('ArrowRight');
+      const sa1 = await p.evaluate(() => __gg.runtime.debug.state().a);
+      const stickOk = !stickPad && sa1 > sa0;
+      if (!stickOk) errs.push(tag + ' rocketx stick: ' + JSON.stringify({ stickPad, a: [sa0, sa1] }));
+      console.log(tag, 'rocketx stick', { stickPad, a: [sa0, sa1] });
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
