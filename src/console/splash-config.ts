@@ -20,3 +20,9 @@ export function readSplash(p: unknown): SplashConfig {
   if (!text && !image) return { kind: 'pgd' };
   return { kind: 'own', text, sub, image, invert: o.invert === true };
 }
+
+/** The fallback when the image address is refused: keep the text and sub line (or PGD's splash without text). */
+export function splashWithoutImage(p: unknown): SplashConfig {
+  if (p && typeof p === 'object') return readSplash({ ...(p as PGDSplash), image: undefined });
+  return readSplash(null);
+}

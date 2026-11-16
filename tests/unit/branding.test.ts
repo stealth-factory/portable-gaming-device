@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PGD_BRAND, biosLine, dosName, menuTitle, cabinetStamp, fullName, setBrand, brand, onBrand } from '../../src/console/brand';
 import { readPlate, plateBrand, PGD_PLATE } from '../../src/console/nameplate';
 import { bootScript } from '../../src/console/boot';
-import { readSplash } from '../../src/console/splash-config';
+import { readSplash, splashWithoutImage } from '../../src/console/splash-config';
 import { splashPhase, SPLASH_LEN, CHIME_AT, PGD_SPLASH } from '../../src/console/splash';
 import { shadeLogo } from '../../src/console/web/splash-logo';
 
@@ -70,6 +70,9 @@ describe('the boot splash', () => {
   it('refuses an image address the console won\'t show', () => {
     for (const image of ['javascript:alert(1)', '//evil.example/x.png', 'https://', 'data:text/html,hi', 42])
       expect(() => readSplash({ image }), String(image)).toThrow(/splash image/);
+    // the embed falls back to the rest of the splash, keeping its text
+    expect(splashWithoutImage({ text: 'Retrobox', sub: 'Games', image: 'https://' })).toMatchObject({ kind: 'own', text: 'RETROBOX', sub: 'GAMES', image: null });
+    expect(splashWithoutImage({ image: 'https://' })).toEqual({ kind: 'pgd' });
   });
 
   it('draws in, chimes, types its line and fades within its time', () => {
