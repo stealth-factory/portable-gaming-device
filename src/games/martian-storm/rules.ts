@@ -234,29 +234,58 @@ export function capsuleWeapon(age: number, first = 0): CapsuleWeapon {
   return CAPSULE_ORDER[i] ?? 'spread';
 }
 
-/** The guns on board and the level of each. Every gun in it fires together; an empty arsenal is the blaster. */
-export type Arsenal = Partial<Record<CapsuleWeapon, number>>;
+/** The stack holds at most this many guns. A new one on a full stack pushes the oldest out (GAM-110). */
+export const STACK_MAX = 3;
+/** Seconds a gun lasts once a newer one is stacked on it. The newest gun has no clock: it is the one you keep. */
+export const GUN_SECS = 15;
+/** A gun's letters blink on the HUD for its last few seconds. */
+export const GUN_WARN = 3;
 
-/** Catch a gun you don't have and it joins the ones you do, at level 1. Catch one you have and it goes up a
-    level (200 points at the top). The whole stack is kept until the skiff is lost. */
-export function catchGun(arsenal: Arsenal, got: CapsuleWeapon): { arsenal: Arsenal; level: number; points: number } {
-  const had = arsenal[got] ?? 0;
-  if (had >= WEAPON_MAX) return { arsenal: { ...arsenal }, level: WEAPON_MAX, points: 200 };
-  return { arsenal: { ...arsenal, [got]: had + 1 }, level: had + 1, points: 0 };
+/** One gun in the stack: its level, and the seconds it has left (Infinity while it is the newest). */
+export interface Gun { weapon: CapsuleWeapon; level: number; left: number }
+/** The guns on board, oldest first, at most STACK_MAX. Every gun in it fires together; an empty stack is the
+    blaster. The last one is the gun caught most recently, the one the skiff keeps when the others run out. */
+export type Arsenal = readonly Gun[];
+
+/** Put a gun on top of the stack. The one it covers starts its clock; a fourth gun pushes the oldest out. */
+function stackOn(arsenal: Arsenal, gun: Gun): Gun[] {
+  const under = arsenal.map(g => (g.left === Infinity ? { ...g, left: GUN_SECS } : { ...g }));
+  return [...under, gun].slice(-STACK_MAX);
 }
 
-/** The guns that fire, in capsule order, each with its level. With none caught yet, the blaster. */
+/** Catch a gun you don't have and it goes on top of the stack at level 1. Catch one you have and it goes up a
+    level (200 points at the top) and moves to the top, so it is the one you keep. The newest gun never runs
+    out; every one under it lasts GUN_SECS from when it was covered. A lost skiff loses the stack. */
+export function catchGun(arsenal: Arsenal, got: CapsuleWeapon): { arsenal: Gun[]; level: number; points: number } {
+  const had = arsenal.find(g => g.weapon === got)?.level ?? 0;
+  const level = Math.min(WEAPON_MAX, had + 1);
+  const rest = arsenal.filter(g => g.weapon !== got);
+  return { arsenal: stackOn(rest, { weapon: got, level, left: Infinity }), level, points: had >= WEAPON_MAX ? 200 : 0 };
+}
+
+/** Run the clocks for `dt` seconds. Guns whose time is up leave; the newest is never among them. */
+export function tickGuns(arsenal: Arsenal, dt: number): Gun[] {
+  return arsenal.map(g => ({ ...g, left: g.left - dt })).filter(g => g.left > 0);
+}
+
+/** The guns that fire, oldest first, each with its level. With none caught yet, the blaster. */
 export function gunsOf(arsenal: Arsenal): { weapon: Weapon; level: number }[] {
-  const out = CAPSULE_ORDER.filter(w => (arsenal[w] ?? 0) > 0).map(w => ({ weapon: w as Weapon, level: arsenal[w] ?? 1 }));
-  return out.length ? out : [{ weapon: 'blaster', level: 1 }];
+  return arsenal.length ? arsenal.map(g => ({ weapon: g.weapon as Weapon, level: g.level })) : [{ weapon: 'blaster', level: 1 }];
 }
 
-/** The HUD's short name for the stack: BLAST, or each gun's letter and level, such as S3M2W1. */
+/** The HUD's short name for the stack: BLAST, or each gun's letter and level, oldest first, such as S3M2W1. */
 export function arsenalLabel(arsenal: Arsenal): string {
-  const guns = gunsOf(arsenal);
-  if (guns[0]?.weapon === 'blaster') return WEAPON_NAME.blaster;
-  // no gaps: four guns read S3L3M3W3, eight characters, no wider than MISSILE 3 was, so the badge fits a 240 px tube
-  return guns.map(g => WEAPON_NAME[g.weapon].charAt(0) + g.level).join('');
+  if (!arsenal.length) return WEAPON_NAME.blaster;
+  return arsenal.map(g => WEAPON_NAME[g.weapon].charAt(0) + g.level).join('');
+}
+
+/** One HUD badge per gun, oldest first: its letter and level, the share of its clock left (none for the gun you
+    keep), and whether it is in its last GUN_WARN seconds, when it blinks. An empty stack is one BLAST badge. */
+export function gunBadges(arsenal: Arsenal): { text: string; frac?: number; warn: boolean }[] {
+  if (!arsenal.length) return [{ text: WEAPON_NAME.blaster, warn: false }];
+  return arsenal.map(g => g.left === Infinity
+    ? { text: WEAPON_NAME[g.weapon].charAt(0) + g.level, warn: false }
+    : { text: WEAPON_NAME[g.weapon].charAt(0) + g.level, frac: Math.max(0, g.left / GUN_SECS), warn: g.left <= GUN_WARN });
 }
 
 /** What the skiff holds that a pickup can add to. */

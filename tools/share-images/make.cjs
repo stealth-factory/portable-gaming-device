@@ -173,6 +173,8 @@ const IMAGES = [
   await p.evaluate(() => { __gg.runtime.debug.untouchable(true); __gg.runtime.debug.arm('spread', 3); __gg.runtime.debug.arm('laser', 2); });
   await p.keyboard.down('Space');
   await until(() => __gg.S.mode === 'play' && __gg.runtime.debug.state().craft >= 4, 20000).catch(() => {});
+  // the wait can outlast the older gun's clock (GAM-110), so stack both again just before the capture
+  await p.evaluate(() => { __gg.runtime.debug.arm('blaster'); __gg.runtime.debug.arm('spread', 3); __gg.runtime.debug.arm('laser', 2); });
   await p.waitForTimeout(500);
   await p.keyboard.up('Space');
   await p.evaluate(() => { __gg.S.mode = 'paused'; }); await p.waitForTimeout(250); await play('play-storm.png', 'martian-storm');
