@@ -162,6 +162,8 @@ The silver badge on the set reads `PGD · PORTABLE GAMING DEVICE`, over a `PGD-0
 
 The plate is sent when the console is ready and again whenever the prop's content changes; setting it back to `undefined` or `null` puts the PGD plate back. A path in `image` is on the console's site, so with a [self-hosted console](#self-hosting-the-console) it is your app's own `public/` folder. The release version under the plate and the `PGD-01 · 12" PHOSPHOR MONITOR` stamp on the cabinet stay as they are. Without the component, send `{ command: 'nameplate', nameplate }` over the protocol.
 
+The nameplate arrives in the first release after v0.18.0: pin that tag or later (an older console ignores the command). On the PGD site, which works offline, an `https` logo from another site is cached once it has loaded (up to ten logos, for 30 days); a self-hosted console has no service worker, so a logo there is fetched like any other image on your page.
+
 ## Self-hosting the console
 
 A console tag ships a built console with the component: one page, its scripts and two icons (about 800 KB, no service worker, no analytics). Copy it into your app's static folder and the console is served from your own origin, so it takes your app's disks with no settings, works offline in development, and moves with your deploys.

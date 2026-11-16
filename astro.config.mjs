@@ -95,6 +95,11 @@ export default defineConfig({
           urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
           handler: 'CacheFirst',
           options: { cacheName: 'gg-fonts', expiration: { maxEntries: 30, maxAgeSeconds: 31536000 }, cacheableResponse: { statuses: [0, 200] } },
+        }, {
+          // a framing app's nameplate logo (an https image from another site), so it still shows offline once seen
+          urlPattern: ({ request, sameOrigin, url }) => request.destination === 'image' && !sameOrigin && url.protocol === 'https:',
+          handler: 'CacheFirst',
+          options: { cacheName: 'gg-plate-logos', expiration: { maxEntries: 10, maxAgeSeconds: 2592000 }, cacheableResponse: { statuses: [0, 200] } },
         }],
       },
     }),
