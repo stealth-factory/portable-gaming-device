@@ -274,6 +274,20 @@ describe('at sea', () => {
     expect(touchdown(still({ x: lowEnd, y: surf, a: 0.1 }), lvl, d, aspect)).toBe('landed');
   });
 
+  it('a deck end dipped below the water line still meets a rocket at the water', () => {
+    const lvl = SEA_LEVEL + 5;
+    const d = { ...deckAt(lvl, 0), y: GROUND - 0.005, vx: 0, vy: 0, roll: 0.12 };
+    const x = d.centre + d.half * 0.9;
+    const aspect = 2.5;                         // a wide tube steepens the drawn slope
+    expect(d.y + (x - d.centre) * Math.tan(d.roll) * aspect).toBeGreaterThan(GROUND);
+    expect(deckSurface(d, x, aspect)).toBe(GROUND);
+    // falling onto it: stepRocket clamps the rocket at GROUND, and contact resolves there
+    let r = still({ x, y: GROUND - 0.01, vy: 0.2, a: 0.12 });
+    r = stepRocket(r, NONE, 0.1, 0);
+    expect(r.y).toBe(GROUND);
+    expect(touchdown(r, lvl, d, aspect)).not.toBe(null);
+  });
+
   it('a landing at sea scores against the deck it landed on', () => {
     const lvl = SEA_LEVEL;
     const d = { ...deckAt(lvl, 0), centre: 0.6, vy: 0.05 };

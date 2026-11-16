@@ -234,9 +234,10 @@ export function deckAt(level: number, t: number): Deck {
 }
 
 /** The deck's surface height under `x`: a rolled deck is higher at one end than the other. `aspect` is the field's
-    width over its height on the tube, so the slope matches the deck as drawn. */
+    width over its height on the tube, so the slope matches the deck as drawn. Never below the water line, where the
+    rocket stops falling: a deck end dipped into the swell meets the rocket there. */
 export function deckSurface(deck: Deck, x: number, aspect = 1): number {
-  return deck.y + (x - deck.centre) * Math.tan(deck.roll) * aspect;
+  return Math.min(GROUND, deck.y + (x - deck.centre) * Math.tan(deck.roll) * aspect);
 }
 
 /** What the last step looked like, so a touchdown can tell a rocket coming down onto the deck from one sliding into
