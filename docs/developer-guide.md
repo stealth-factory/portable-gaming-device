@@ -556,6 +556,8 @@ Three things to know if you generate disks outside this repo:
 
 A React app, such as a builder where an AI harness writes games, can embed the console with `<PGDConsole>` from `portable-gaming-device/react` (installed from this repo with `npm install github:stealth-factory/portable-gaming-device#<tag>`) and load games into it at run time. The console runs in an iframe, because the engine takes over the page it runs on. [`react/README.md`](../react/README.md) is the reference for the component: its props, callbacks, ref and message protocol. The site's own [`/host`](../src/pages/host.astro) page uses it, and is a quick way to try a disk: paste the two scripts in, or drop a `.pgdisk` file.
 
+The app can also brand the set: the `nameplate` prop puts its own name or logo on the badge in place of `PGD · PORTABLE GAMING DEVICE`, and can change the `PGD-01` model code under it ([Your own nameplate](../react/README.md#your-own-nameplate)). Nothing on the tube changes: the BIOS banner and the launcher still say PGD.
+
 The app can frame the PGD site, or serve the console itself: install a `console-vX.Y.Z` tag, run `npx pgd-console public/pgd` and use `<PGDConsole src="/pgd/index.html">` ([self-hosting](../react/README.md#self-hosting-the-console)). Self-hosted, the console shares the app's origin, so it takes the app's disks with nothing to configure. `npm run build:console` builds the same console from a checkout of this repo.
 
 The rest of this section covers only what a game author needs to know.

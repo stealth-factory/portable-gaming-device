@@ -101,6 +101,8 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
   box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 1px 2px rgba(0,0,0,.55)}
 .nameplate b{font-family:var(--display);font-size:11px;letter-spacing:.08em;font-weight:700}
 .np-badge span{font-family:var(--body);font-size:9px;letter-spacing:.04em;white-space:nowrap}
+.np-logo{display:block;height:14px;width:auto;max-width:100%;object-fit:contain}
+.np-logo[hidden]{display:none}
 .np-ver{margin:0;font-family:var(--display);font-size:8px;letter-spacing:.18em;line-height:1;color:var(--plastic-lo);text-shadow:0 1px 0 rgba(255,255,255,.22),0 -1px 0 rgba(0,0,0,.25)}
 .dial-block{display:grid;justify-items:center;gap:2px}
 .dial-wrap{position:relative;width:148px;height:148px}
@@ -535,6 +537,8 @@ h1 .h-dx{color:#cfc3a3}
 /* upright phones: the badge sits on the power row, centred on the rocker, and shows just "PGD": the full name
    would run into RESET */
 [data-layout="phone-portrait"] .nameplate{bottom:21px}
+/* a logo on the plate (the nameplate embed command): smaller where the plate's text is */
+[data-layout="console"] .np-logo,[data-layout$="portrait"] .np-logo{height:10px}
 /* the button pad: stands in for the stick while a game with no stick plays (`controls: 'pad'`, set as data-pad on <html>).
    It fills the stick's zone on desk and portrait: the bomb keys (red, like FIRE) along the top, the specials (amber, like
    BOOST) underneath; with the sixth slot unused the bottom two share the row. The FIRE row beside it steps aside.
