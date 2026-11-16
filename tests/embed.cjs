@@ -102,11 +102,29 @@ const check = (ok, what) => { if (!ok) fail.push(what); };
   const h = await b.newPage({ viewport: { width: 1280, height: 1000 } });
   h.on('pageerror', e => fail.push(`/host: ${e.message}`));
   await h.goto(`${BASE}host`);
-  check(await seen(h, () => /8 disks/.test(document.querySelector('.host-meta')?.textContent || '')), '/host: the console is ready with the sample disk');
+  check(await seen(h, () => /9 disks/.test(document.querySelector('.host-meta')?.textContent || '')), '/host: the console is ready with the sample disk');
   await h.click('text=Power on');
   await h.waitForTimeout(5000);
   await h.selectOption('.host-side select >> nth=0', 'rock-drop');
   check(await seen(h, () => /modeplaygamerock-drop/.test(document.querySelector('.host-state')?.textContent || '')), '/host: the sample disk plays');
+  // the nameplate prop: text, a logo, then back to the PGD plate
+  const plate = () => h.frames()[1].evaluate(() => ({
+    name: document.getElementById('np-name')?.textContent, nameHidden: document.getElementById('np-name')?.hidden,
+    logo: !document.getElementById('np-logo')?.hidden && /^data:image\/svg/.test(document.getElementById('np-logo')?.getAttribute('src') || ''),
+    line: document.getElementById('plate')?.textContent,
+  }));
+  await h.selectOption('.host-side label:has-text("Nameplate") select', 'text');
+  await h.waitForTimeout(300);
+  let np = await plate();
+  check(np.name === 'HOST APP · GAME PLAYER' && /^HST-01 · /.test(np.line || ''), `/host: a text nameplate (${JSON.stringify(np)})`);
+  await h.selectOption('.host-side label:has-text("Nameplate") select', 'logo');
+  await h.waitForTimeout(300);
+  np = await plate();
+  check(np.logo && np.nameHidden && /^PGD-01 · /.test(np.line || ''), `/host: a logo nameplate (${JSON.stringify(np)})`);
+  await h.selectOption('.host-side label:has-text("Nameplate") select', 'pgd');
+  await h.waitForTimeout(300);
+  np = await plate();
+  check(np.name === 'PGD · PORTABLE GAMING DEVICE' && !np.logo && /^PGD-01 · /.test(np.line || ''), `/host: back to the PGD plate (${JSON.stringify(np)})`);
   await h.close();
 
   await b.close(); server.close();

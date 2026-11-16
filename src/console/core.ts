@@ -23,6 +23,7 @@ import { makeScreen2D } from "./screen";
 import { makePixelFont } from "./font";
 import pixelFontURL from "../../tools/fonts/Silkscreen-Regular.ttf?url";
 import { layer, makeStamp } from "./layers";
+import { plateModel } from "./nameplate";
 // Inputs and audio stay synchronous; only booting waits for the pinned drawing face.
 let powerQueued = false;
 const pixelFont = makePixelFont(pixelFontURL, {
@@ -93,7 +94,7 @@ export function setMode(k: string){
   R.setProperty('--phos', M.pal[M.phos]); R.setProperty('--phos2', M.pal[M.phos2]);
   R.setProperty('--plastic-hi', hi); R.setProperty('--plastic', mid); R.setProperty('--plastic-lo', low);
   R.setProperty('--bezel-ink', ink); R.setProperty('--glass', glass);
-  $('plate').textContent = 'PGD-01 · ' + M.name;
+  $('plate').textContent = plateModel() + ' · ' + M.name;
   updateDial(MODE_ORDER.indexOf(k));
   try { localStorage.setItem('eb-mode', k); } catch (e) {}
   accReset = true; warmT = 0; age.dg = 0;

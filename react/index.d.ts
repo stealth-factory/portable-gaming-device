@@ -48,6 +48,23 @@ export interface PGDCustomDisk extends Omit<PGDDiskSource, 'game'> {
   game?: string | ((id: string) => string | Promise<string>);
 }
 
+/** Your own name or logo on the set's nameplate, in place of `PGD · PORTABLE GAMING DEVICE`. The line under it
+    (`PGD-01 · GREEN P1`) keeps its phosphor name. */
+export interface PGDNameplate {
+  /** The name, in the plate's bold capitals (up to 24 characters), e.g. `RETROBOX`. */
+  text?: string;
+  /** More of the name after a dot, like ` · PORTABLE GAMING DEVICE` (up to 48 characters). Hidden on the upright
+      phone layout, where the plate is small. */
+  rest?: string;
+  /** A logo to show instead of the text: an http(s) address, a path on the console's site, or a `data:image/…` URL.
+      It is fitted to the plate's height (about 14 px on the desk, 10 px on phones), so a wide, short image works best. */
+  image?: string;
+  /** The logo's accessible name. Defaults to `text`. */
+  alt?: string;
+  /** The model code in front of the phosphor name on the line under the plate. Default `PGD-01`. */
+  model?: string;
+}
+
 /** The console's state, sent whenever any of it changes (score, level and lives at most four times a second). */
 export interface PGDState {
   power: boolean;
@@ -100,6 +117,9 @@ export type PGDCommand =
   | { command: 'lang'; lang: PGDLang }
   | { command: 'sound'; on: boolean }
   | { command: 'pause'; on: boolean }
+  /** Put your own name or logo on the nameplate; a string is the name. `null` puts the PGD plate back. A bad image
+      address leaves the PGD plate and sends a `nameplate_error` event. */
+  | { command: 'nameplate'; nameplate: PGDNameplate | string | null }
   /** Press a set button. Without `down` it's a tap (pressed and released at once); `down: true` holds it and
       `down: false` releases it. Like a finger on the button, so FIRE on a console screen (the menu, a loading screen,
       the high scores) acts on that screen first. */
@@ -129,6 +149,8 @@ export interface PGDConsoleProps {
   /** Games to put in the box, beside the console's own. They're on the disk menu like any other; loading one fetches
       its game (calling `game` when it's a function). Sent when the console is ready and again whenever the array changes. */
   disks?: PGDCustomDisk[];
+  /** Your own name or logo on the set's nameplate (a string is the name). Leave it out for the PGD plate. */
+  nameplate?: PGDNameplate | string | null;
   /** Show the page around the set too: the header, the instructions bar and leaflet. Default false: just the set. */
   chrome?: boolean;
   /** The frame's accessible name. Default "PGD-01 Portable Gaming Device". */

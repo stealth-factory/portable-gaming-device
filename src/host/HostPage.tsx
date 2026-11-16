@@ -3,11 +3,18 @@
    and puts disks in the box: the sample, scripts typed or pasted in, or a .pgdisk file. Same origin, so inserting is allowed. */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { PGDConsole } from '../../react/index.js';
-import type { PGDConsoleHandle, PGDCustomDisk, PGDLang, PGDPhosphor, PGDReady, PGDState } from '../../react/index.js';
+import type { PGDConsoleHandle, PGDCustomDisk, PGDLang, PGDNameplate, PGDPhosphor, PGDReady, PGDState } from '../../react/index.js';
 import { SAMPLE_DISK, SAMPLE_GAME } from './sample';
 
 const PHOSPHORS: PGDPhosphor[] = ['greenP1', 'greenP39', 'radarP7', 'amberP3', 'whiteP4', 'cga1', 'cga0'];
 const LANGS: PGDLang[] = ['en', 'zh-hant', 'zh-hans'];
+/* nameplates to try: the PGD plate, a name, and a logo (an original wordmark drawn here as an SVG data URL) */
+const LOGO = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 20"><rect x="1" y="3" width="14" height="14" rx="3" fill="#1f1d19"/><rect x="5" y="7" width="6" height="6" fill="#e2dfd5"/><text x="20" y="15.5" font-family="monospace" font-weight="700" font-size="14" fill="#1f1d19">HOST APP</text></svg>')}`;
+const PLATES: Record<string, PGDNameplate | string | undefined> = {
+  pgd: undefined,
+  text: { text: 'HOST APP', rest: 'GAME PLAYER', model: 'HST-01' },
+  logo: { image: LOGO, alt: 'Host app' },
+};
 type Line = { at: string; kind: 'event' | 'error' | 'note'; text: string };
 
 const clock = () => new Date().toLocaleTimeString([], { hour12: false });
@@ -24,6 +31,7 @@ export default function HostPage({ src = '/' }: { src?: string }){
   const [diskJs, setDiskJs] = useState(SAMPLE_DISK);
   const [gameJs, setGameJs] = useState(SAMPLE_GAME);
   const [busy, setBusy] = useState(false);
+  const [plate, setPlate] = useState('pgd');
 
   const note = useCallback((kind: Line['kind'], text: string) => {
     setLog(l => [{ at: clock(), kind, text }, ...l].slice(0, 60));
@@ -67,6 +75,7 @@ export default function HostPage({ src = '/' }: { src?: string }){
             sound={sound}
             paused={paused}
             disks={disks}
+            nameplate={PLATES[plate]}
             onReady={r => { setReady(r); }}
             onStateChange={setState}
             onEvent={(name, data) => note('event', `${name} ${data ? JSON.stringify(data) : ''}`)}
@@ -111,6 +120,13 @@ export default function HostPage({ src = '/' }: { src?: string }){
             <label>Language
               <select value={lang} onChange={e => setLang(e.target.value as PGDLang)}>
                 {LANGS.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </label>
+            <label>Nameplate
+              <select value={plate} onChange={e => setPlate(e.target.value)}>
+                <option value="pgd">PGD (default)</option>
+                <option value="text">Text: HOST APP</option>
+                <option value="logo">Logo image</option>
               </select>
             </label>
             <label className="host-check"><input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /> Sound</label>
