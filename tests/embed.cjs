@@ -126,10 +126,15 @@ const check = (ok, what) => { if (!ok) fail.push(what); };
   check(await seen(h, () => /nameplate_error/.test(document.querySelector('.host-log, .host')?.textContent || '')), '/host: a logo that fails to load sends nameplate_error');
   np = await plate();
   check(np.name === 'BROKEN' && !np.nameHidden && !np.logo, `/host: a broken logo falls back to the text (${JSON.stringify(np)})`);
+  // a model code with a dot of its own is swapped out whole
+  await h.evaluate(() => document.querySelector('iframe').contentWindow.postMessage({ pgd: 1, type: 'command', command: 'nameplate', nameplate: { text: 'DOTS', model: 'A · B' } }, location.origin));
+  await h.waitForTimeout(300);
+  np = await plate();
+  check(/^A · B · [A-Z]/.test(np.line || ''), `/host: a model with a dot (${JSON.stringify(np)})`);
   await h.selectOption('.host-side label:has-text("Nameplate") select', 'pgd');
   await h.waitForTimeout(300);
   np = await plate();
-  check(np.name === 'PGD · PORTABLE GAMING DEVICE' && !np.logo && /^PGD-01 · /.test(np.line || ''), `/host: back to the PGD plate (${JSON.stringify(np)})`);
+  check(np.name === 'PGD · PORTABLE GAMING DEVICE' && !np.logo && /^PGD-01 · [A-Z]/.test(np.line || '') && !/B · /.test(np.line || ''), `/host: back to the PGD plate (${JSON.stringify(np)})`);
   await h.close();
 
   await b.close(); server.close();

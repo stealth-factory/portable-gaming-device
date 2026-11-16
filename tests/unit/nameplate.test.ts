@@ -67,7 +67,7 @@ describe('nameplate from the framing page', () => {
   });
 
   it('refuses other image addresses', () => {
-    for (const image of ['javascript:alert(1)', '//evil.example/x.png', 'data:text/html,<b>', 'ftp://x/y.png', 42]) {
+    for (const image of ['javascript:alert(1)', '//evil.example/x.png', 'data:text/html,<b>', 'ftp://x/y.png', 'https://', 'http:// bad host/x.png', 42]) {
       expect(() => readPlate({ image })).toThrow(/nameplate image/);
     }
   });
