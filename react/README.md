@@ -36,6 +36,7 @@ It renders on the server as a plain `<iframe>` and touches `window` only in effe
 | `sound` | The SOUND switch. |
 | `paused` | HOLD: pause a game in progress, or carry on. `true` with no game running pauses the next one as it starts. |
 | `disks` | Your own games, on the disk menu beside the console's (see below). |
+| `nameplate` | Your own name or logo on the set's nameplate, in place of `PGD · PORTABLE GAMING DEVICE` (see [Your own nameplate](#your-own-nameplate)). Leave it out for the PGD plate. |
 | `chrome` | `true` also shows the page around the set: the header, the instructions bar and the leaflet. |
 | `title`, `className`, `style` | For the iframe. Without a `height` in `style`, the frame takes the set's height on the desk layout, a 9:16 box (at most the screen's height) on the upright phone layout, and a 6:5 box on the others. Below 480 px wide the set switches to that upright phone layout, which fills whatever box it gets. |
 
@@ -45,7 +46,7 @@ It renders on the server as a plain `<iframe>` and touches `window` only in effe
 | --- | --- |
 | `onReady(ready)` | The console has started: `version`, `session` (new on every reload), `disks` (each with `id`, `slug`, `title`, `genre`, `players`, and `added` for yours), `phosphors`, `langs`. |
 | `onStateChange(state)` | Any of `power`, `mode`, `game`, `lang`, `phosphor` and `sound` changes, and `score`, `level` and `lives` at most four times a second. `mode` is one of `off`, `boot`, `menu`, `load`, `ready`, `play`, `dying`, `clear`, `paused`, `entry` and `over`. `game` is null on the boot screen and the menu. |
-| `onEvent(name, data)` | Every event the console tracks, with the same names and fields as its analytics (the table in the [main README](../README.md#analytics): `game_load`, `game_start`, `game_over`, `high_score` …), plus `disk_inserted` and `disk_error`. |
+| `onEvent(name, data)` | Every event the console tracks, with the same names and fields as its analytics (the table in the [main README](../README.md#analytics): `game_load`, `game_start`, `game_over`, `high_score` …), plus `disk_inserted`, `disk_error` and `nameplate_error`. |
 | `onGameOver({ game, score })` | A game ended. |
 | `onDiskError({ game, stage, message })` | One of your disks failed. `stage` is `insert` (a bad disk.js, a cover or preview that fails its checks, an origin that isn't allowed, or a `drawCover` or `drawPreview` that threw: the launcher then shows the floppy label), `load` (a bad game.js, no game sent, or `drawLoad` or `create` threw) or `run` (it threw while playing). After a `load` or `run` failure, the console goes back to the disk menu. Replacing the disk that is loading or playing also goes back to the menu, so the old code stops. |
 
@@ -141,6 +142,28 @@ PUBLIC_PGD_EMBED_ORIGINS="https://builder.example.com,https://*.vercel.app" npm 
 
 Everything else (props, state, events) works from any origin.
 
+## Your own nameplate
+
+The silver badge on the set reads `PGD · PORTABLE GAMING DEVICE`, over a `PGD-01 · GREEN P1` line that follows the phosphor dial. Your app can put its own name or logo there:
+
+```tsx
+<PGDConsole src={SRC} nameplate="RETROBOX" />
+<PGDConsole src={SRC} nameplate={{ text: 'RETROBOX', rest: 'GAME STUDIO', model: 'RBX-01' }} />
+<PGDConsole src={SRC} nameplate={{ image: '/brand/plate.svg', alt: 'Retrobox' }} />
+```
+
+| Field | What it does |
+| --- | --- |
+| `text` | The name, in the plate's bold capitals (up to 24 characters). A string `nameplate` is this. |
+| `rest` | More of the name, after a dot, as `PORTABLE GAMING DEVICE` follows `PGD` (up to 48 characters). Hidden on the upright phone layout, where the plate is small. |
+| `image` | A logo to show instead of the text: an `http(s)` address, a path on the console's site (`/…`, `./…`), or a `data:image/…` URL. It is fitted to the plate's height (14 px on the desk, 10 px on phones and the sideways layout), so a wide, short wordmark in dark ink on the silver plate works best. Anything else is refused: the PGD plate stays and the console sends a `nameplate_error` event. An image that fails to load (a 404, bad data) also sends `nameplate_error`, and the plate falls back to its `text`, or to PGD without one. |
+| `alt` | The logo's accessible name. Defaults to `text`. |
+| `model` | The model code in front of the phosphor name on the line under the plate. Default `PGD-01`. |
+
+The plate is sent when the console is ready and again whenever the prop's content changes; setting it back to `undefined` or `null` puts the PGD plate back. A path in `image` is on the console's site, so with a [self-hosted console](#self-hosting-the-console) it is your app's own `public/` folder. The release version under the plate and the `PGD-01 · 12" PHOSPHOR MONITOR` stamp on the cabinet stay as they are. Without the component, send `{ command: 'nameplate', nameplate }` over the protocol.
+
+The nameplate arrives in the first release after v0.18.0: pin that tag or later (an older console ignores the command). On the PGD site, which works offline, an `https` logo from another site is cached once it has loaded (up to ten logos, for 30 days); a self-hosted console has no service worker, so a logo there is fetched like any other image on your page.
+
 ## Self-hosting the console
 
 A console tag ships a built console with the component: one page, its scripts and two icons (about 800 KB, no service worker, no analytics). Copy it into your app's static folder and the console is served from your own origin, so it takes your app's disks with no settings, works offline in development, and moves with your deploys.
@@ -164,7 +187,7 @@ A copy of the console is a copy of PGD under its licence ([LICENSING.md](../LICE
 
 ## The protocol
 
-Everything goes through `postMessage` as `{ pgd: 1, type, … }`. The types (`PGDMessage`, `PGDCommandMessage`) are in [index.d.ts](index.d.ts), and `embedUrl()` and `isPGDMessage()` are exported for apps that make the iframe themselves. The console posts only to the page that framed it (the `origin` query parameter, or the referrer's origin), and it takes commands only from that window.
+Everything goes through `postMessage` as `{ pgd: 1, type, … }`. The commands are power, reset, menu, button, load, phosphor, lang, sound, pause, nameplate, insert and game. The types (`PGDMessage`, `PGDCommandMessage`) are in [index.d.ts](index.d.ts), and `embedUrl()` and `isPGDMessage()` are exported for apps that make the iframe themselves. The console posts only to the page that framed it (the `origin` query parameter, or the referrer's origin), and it takes commands only from that window.
 
 ## Licence
 

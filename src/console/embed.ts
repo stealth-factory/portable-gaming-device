@@ -15,6 +15,7 @@ import { press, release, clearQueued } from './buttons';
 import { mergeStrings } from './i18n';
 import { startConsole, pressSelect, forgetUnreachable } from './program/loader';
 import { readSource, gameFromScript, guard, mayInsert, type DiskSource } from './embed-disks';
+import { readPlate, applyPlate } from './nameplate';
 
 const params = new URLSearchParams(location.search);
 const root = document.documentElement;
@@ -169,6 +170,10 @@ if (embed !== null && window.parent !== window) {
       case 'lang': if (LANGS.includes(c.lang) && c.lang !== lang) applyLang(c.lang, false); break;
       case 'sound': if (c.on === muted) toggleMute(); break;
       case 'pause': wantPause = !!c.on; applyPause(); break;
+      case 'nameplate':
+        try { applyPlate(readPlate(c.nameplate), document, error => event('nameplate_error', { error })); }
+        catch (err) { applyPlate(readPlate(null)); event('nameplate_error', { error: message(err) }); }
+        break;
       case 'insert':
         if (!mayInsert(from, location.origin, allowList)) refuse(null, c.request, `${from} may not insert disks (add it to PUBLIC_PGD_EMBED_ORIGINS)`);
         else insert(c.disk as DiskSource, c.boot, c.request);

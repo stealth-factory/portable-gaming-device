@@ -64,7 +64,7 @@ Requirements 1 to 12 below are built: the console boots into a disk menu with se
 - The look stays nerdy and retro, a 1983 home console.
 - Where the name appears:
   - **Page header:** wordmark (`PGD-01 Portable Gaming Device`, `Header.tsx`) and the model badge (`.mk-model`, `MODEL` in `src/components/site.ts`), with the tagline beside it.
-  - **Nameplate on the set:** `PGD · PORTABLE GAMING DEVICE` (`Nameplate.tsx`, the long part in `.np-rest`, hidden on upright phones) with the `PGD-01 · <phosphor>` line set by `setMode()`.
+  - **Nameplate on the set:** `PGD · PORTABLE GAMING DEVICE` (`Nameplate.tsx`, the long part in `.np-rest`, hidden on upright phones) with the `PGD-01 · <phosphor>` line set by `setMode()`. An app that frames the console can swap the name for its own text or logo and change the model code (the `nameplate` embed command and `<PGDConsole nameplate>`; `src/console/nameplate.ts` checks it and writes `#np-name`, `#np-logo` and the model on `#plate`). PGD stays the default, and the tube, the cabinet stamp and the version line never change.
   - **On the tube:** the BIOS banner (`PGD-01 GAMING DEVICE   BIOS 1.0`) and `STARTING PGD-DOS...` in `src/console/boot.ts`, the launcher header (`src/console/launcher/draw.ts`) and the burnt-in title (`buildBurn()` in `core.ts`).
   - **Instructions:** the `model` and `diskFor` strings in `src/console/strings.ts`, all three languages.
   - **App identity:** `<title>`, `apple-mobile-web-app-title` (`PGD`), share tags and images (`tools/share-images/make.cjs`), the PWA manifest name and short name (`astro.config.mjs`), each disk's page description, README.
