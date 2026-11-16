@@ -169,10 +169,11 @@ const create: CreateGame = api => {
     api.clearFire();
     api.clearTap();
     const g = gateLevel(gate, held.level);
-    const spent = g.gate.left !== gate.left;
+    // a use spent, or the last hold let go: LEVEL's button follows (it goes dark once nothing is left)
+    const changed = g.gate.left !== gate.left || g.gate.active !== gate.active;
     gate = g.gate;
     held.level = g.on;
-    if (spent) syncButtons();
+    if (changed) syncButtons();
     lastInput = held;
     const before = rocket;
     rocket = stepRocket(rocket, held, dt, wind, { settle: control().settle });

@@ -190,6 +190,7 @@ It switches the set on, captures the menu, each game's loading screen and some p
 | `ii_ufo` | `level`, `tanks` | I Invade: the UFO is called in; `tanks` still standing |
 | `ii_meteors` | `level`, `tanks` | I Invade: the meteor swarm is let loose; `tanks` still standing |
 | `nuke` | `wave`, `rows` | Invader Force: an atomic bomb goes off (`rows` it wiped out) |
+| `rocketx_setup` | `rocket`, `control` | ROCKETX: the setup card is confirmed; `rocket` is `stilt`, `hauler` or `cruiser`, `control` is `stick`, `pilot` or `engineer` |
 | `theme` | `theme`, `via` | The phosphor changes by `dial` or `key` |
 | `settings_reset` | `layout` | The leaflet's Reset settings is confirmed |
 | `scores_cleared` | `game` | The leaflet's Clear high scores is confirmed (`game` is the disk loaded at the time) |
