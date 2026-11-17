@@ -3,7 +3,7 @@
 import type { CreateGame } from '../types';
 import { drawFlame, drawLogo, drawPad, drawPuff, drawRocket, drawSea, drawShip, drawSplash } from './art';
 import {
-  CONTROLS, DEFAULT_CONTROL, GROUND, METER_SCALE, ROCKETS, SEA_LEVEL, atSea, autoFin, deckAt, gateLevel, landingVy, landingScore,
+  CONTROLS, DEFAULT_CONTROL, GROUND, METER_SCALE, ROCKETS, SEA_LEVEL, atSea, autoFin, deckAt, deckVyAt, gateLevel, landingVy, landingScore,
   levelUses, seaFor,
   setupMove, speedMeter, windMeter, startRocket, stepRocket, touchdown, windFor,
   type Deck, type Input, type LevelGate, type Rocket, type SetupChoice,
@@ -49,6 +49,8 @@ const create: CreateGame = api => {
   };
   const px = (x: number) => Math.round(x * api.LW);
   const py = (y: number) => Math.round(fieldTop + y * (fieldBottom - fieldTop));
+  /** The field's width over its height on the tube: how steep the deck's roll looks, and so how it's judged. */
+  const aspect = () => api.LW / Math.max(1, fieldBottom - fieldTop);
 
   function spawn(level: number) {
     rocket = startRocket(0.5, level);
@@ -147,7 +149,7 @@ const create: CreateGame = api => {
   }
 
   function land() {
-    const gained = landingScore(rocket, api.S.level, control().mult, deck);
+    const gained = landingScore(rocket, api.S.level, control().mult, deck, aspect());
     api.S.score += gained;
     api.S.level += 1;
     if (api.S.score > api.best) api.best = api.S.score;
@@ -203,8 +205,7 @@ const create: CreateGame = api => {
     if (held.rcs !== 0 && rocket.fuel > 0 && Math.floor(t.time * 20) % 4 === 0) api.tone(2400, 0.015, 0.006, -900);
     if (flash > 0) flash -= dt;
 
-    const aspect = api.LW / Math.max(1, fieldBottom - fieldTop);
-    const outcome = touchdown(rocket, t.level, deck, aspect, { x: before.x, y: before.y, deck: lastDeck });
+    const outcome = touchdown(rocket, t.level, deck, aspect(), { x: before.x, y: before.y, deck: lastDeck });
     if (outcome === 'landed') land();
     else if (outcome === 'crashed') crash();
     else if (outcome === 'splashed') crash(true);
@@ -222,7 +223,7 @@ const create: CreateGame = api => {
     api.g.fillRect(x - 1, mid - bandH, w + 2, bandH * 2);         // the landing band
     api.g.fillStyle = api.col('bg');
     api.g.fillRect(x, mid - bandH + 1, w, Math.max(0, bandH * 2 - 2));
-    const m = speedMeter(rocket.vy - deck.vy, api.S.level);   // against the deck: the ship heaves too
+    const m = speedMeter(rocket.vy - deckVyAt(deck, rocket.x, aspect()), api.S.level);   // against the deck under the rocket: it heaves and rolls
     const len = Math.round(m.fill * half);
     api.g.fillStyle = api.col(m.inZone ? 'text' : 'hud');
     api.g.fillRect(x, len >= 0 ? mid : mid + len, w, Math.max(1, Math.abs(len)));

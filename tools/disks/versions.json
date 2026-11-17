@@ -24,8 +24,8 @@
     "sha256": "cfa8560d9667c23600045893364418d4160b35debab2ce75978887ffdd4a97cc"
   },
   "rocketx": {
-    "version": 12,
-    "sha256": "ce9d408efca2705d2eed2acf063cc882dc6fcae6ce942d518f13d6b7666e5181"
+    "version": 13,
+    "sha256": "e5e8ae282f174793859ce24155393b4d1c86b7ee7432a704db64c56c58c27962"
   },
   "tunnel": {
     "version": 1,

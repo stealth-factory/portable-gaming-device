@@ -3,7 +3,7 @@ import {
   G, GROUND, LAND_VY, MAIN_FUEL, MAIN_THRUST, RCS_FUEL, inboundSpeed, landingScore, padFor, startRocket,
   stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, windMeter, type Rocket,
   CONTROLS, DEFAULT_CONTROL, FIN_MIN, ROCKETS, autoFin, finBite, gateLevel, levelUses, setupMove,
-  SEA_LEVEL, atSea, deckAt, deckSurface, landDeck, seaFor, shipHalf,
+  SEA_LEVEL, atSea, deckAt, deckSurface, deckVyAt, landDeck, seaFor, shipHalf,
 } from '../../src/games/rocketx/rules';
 
 const NONE = { main: false, rcs: 0 as const, level: false };
@@ -286,6 +286,20 @@ describe('at sea', () => {
     r = stepRocket(r, NONE, 0.1, 0);
     expect(r.y).toBe(GROUND);
     expect(touchdown(r, lvl, d, aspect)).not.toBe(null);
+  });
+
+  it("the deck's speed under the rocket includes its roll and drift, as the slope of its surface", () => {
+    const lvl = SEA_LEVEL + 3, aspect = 408 / 162, t = 0.93, h = 1e-4;
+    const d = deckAt(lvl, t), d2 = deckAt(lvl, t + h);
+    const x = d.centre + d.half * 0.95;
+    expect(deckVyAt(d, x, aspect)).toBeCloseTo((deckSurface(d2, x, aspect) - deckSurface(d, x, aspect)) / h, 3);
+    // the edge moves differently from the centre, and a landing there is judged on the edge's speed
+    expect(Math.abs(deckVyAt(d, x, aspect) - d.vy)).toBeGreaterThan(0.005);
+    const edgeVy = deckVyAt(d, x, aspect);
+    const r = still({ x, y: deckSurface(d, x, aspect), vy: d.vy + landingVy(lvl) * 0.98, vx: d.vx, a: d.roll });
+    const ok = Math.abs(r.vy - edgeVy) <= landingVy(lvl);
+    expect(touchdown(r, lvl, d, aspect)).toBe(ok ? 'landed' : 'crashed');
+    expect(ok).toBe(false);
   });
 
   it('a landing at sea scores against the deck it landed on', () => {
