@@ -7,8 +7,8 @@
    nothing. Four directions use the stick's axis hysteresis; eight turn each axis on past about 24° from the other and
    off below about 18°, so a thumb resting near a boundary does not flicker.
 
-   `dirs` holds one direction, or two on an 8-way diagonal; `dir` (the first of them) is the stronger axis, and stays
-   the one already held while that is still held, so a game that reads one direction sees no jitter. */
+   `dirs` holds one direction, or two on an 8-way diagonal; `dir` (the first of them) is the direction already held,
+   if it still is, otherwise the stronger axis, so a game that reads one direction sees no jitter. */
 import { BIAS, type Dir } from './stick';
 
 export type PadMode = 'stick' | 'dpad' | 'dpad8';
