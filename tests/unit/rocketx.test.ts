@@ -343,6 +343,14 @@ describe('HAULER and the tower', () => {
     expect(catchOutcome(still({ x: t.x, y: 0.3 }), 1)).toBe(null);
   });
 
+  it('the tower is only as wide as its column, and dropping past the arms is lost', () => {
+    const t = towerFor(1);
+    expect(catchOutcome(still({ x: t.towerX + 0.02, y: ARM_Y + 0.05 }), 1)).toBe('crashed');
+    expect(catchOutcome(still({ x: 0.85, y: 0.5 }), 1)).toBe(null);
+    expect(catchOutcome(still({ x: t.x, y: ARM_Y + 0.04, vy: 0.15 }), 1)).toBe('crashed');
+    expect(catchOutcome(still({ x: t.x, y: ARM_Y + 0.03, vy: catchVy(1) * 0.5 }), 1)).toBe('caught');
+  });
+
   it('the catch gets tighter each level, and a catch scores more than a pad landing', () => {
     expect(towerFor(8).half).toBeLessThan(towerFor(1).half);
     expect(catchVy(8)).toBeLessThan(catchVy(1));

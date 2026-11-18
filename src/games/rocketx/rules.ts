@@ -342,6 +342,11 @@ export function haulerEngine(r: Rocket): { core: boolean; thrust: number; burn: 
   return { core, thrust: core ? CORE_THRUST : RING_THRUST, burn: core ? CORE_FUEL : RING_FUEL };
 }
 
+/** The tower column's width, a little over the six pixels it's drawn at on the narrowest tube. */
+export const TOWER_W = 0.04;
+/** How far above or below the arms' height the rocket's centre can be for them to close on it. */
+export const ARM_REACH = 0.035;
+
 /** The tower: the catch point's centre and half-width between the arms (narrower each level), the arms' height, and
     the tower's own column, just right of the arms. */
 export interface Tower { x: number; half: number; armY: number; towerX: number; topY: number }
@@ -366,10 +371,10 @@ export function goNoGo(r: Rocket, level: number): boolean {
     running into the tower, crashes it. Null while it is still on its way. */
 export function catchOutcome(r: Rocket, level: number): 'caught' | 'crashed' | null {
   const t = towerFor(level);
-  const tower = r.x >= t.towerX - 0.015 && r.y >= t.topY;
+  const tower = r.x >= t.towerX - 0.015 && r.x <= t.towerX + TOWER_W + 0.015 && r.y >= t.topY;
   if (tower || r.x < 0 || r.x > 1) return 'crashed';
-  if (r.y >= GROUND) return 'crashed';
-  const inBox = Math.abs(r.x - t.x) <= t.half && Math.abs(r.y - t.armY) <= 0.035;
+  if (r.y > t.armY + ARM_REACH) return 'crashed';
+  const inBox = Math.abs(r.x - t.x) <= t.half && Math.abs(r.y - t.armY) <= ARM_REACH;
   if (inBox && Math.abs(r.vy) <= catchVy(level) && Math.abs(r.vx) <= 0.05 && Math.abs(r.a) <= 0.1) return 'caught';
   return null;
 }
