@@ -47,7 +47,13 @@ export function autoFin(r: Rocket): -1 | 0 | 1 {
 }
 
 /** Options for a step. `settle: false` is ENGINEER's rocket: a turn keeps going until a thruster stops it. */
-export interface StepOptions { settle?: boolean }
+export interface StepOptions {
+  settle?: boolean;
+  /** The main engine's push and fuel per second, when not STILT's (HAULER's engine ring and its core). */
+  thrust?: number; burn?: number;
+  /** The turn input swings the engines (HAULER) instead of firing nose thrusters: it only turns while burning. */
+  gimbal?: boolean;
+}
 
 /* ---- the setup card: which rocket, and how much control ---- */
 export type RocketId = 'stilt' | 'hauler' | 'cruiser';
@@ -57,7 +63,7 @@ export interface RocketSpec { id: RocketId; name: string; ready: boolean }
 /** The rockets, in the setup card's order. Only STILT flies so far; the others come with the tower (GAM-111). */
 export const ROCKETS: readonly RocketSpec[] = [
   { id: 'stilt', name: 'STILT', ready: true },
-  { id: 'hauler', name: 'HAULER', ready: false },
+  { id: 'hauler', name: 'HAULER', ready: true },
   { id: 'cruiser', name: 'CRUISER', ready: false },
 ];
 
@@ -147,14 +153,15 @@ export function windFor(level: number): number {
 export function stepRocket(r: Rocket, input: Input, dt: number, wind: number, opts: StepOptions = {}): Rocket {
   let fuel = r.fuel;
   let thrust = 0;
-  if (input.main && fuel > 0) { thrust = MAIN_THRUST; fuel = Math.max(0, fuel - MAIN_FUEL * dt); }
+  if (input.main && fuel > 0) { thrust = opts.thrust ?? MAIN_THRUST; fuel = Math.max(0, fuel - (opts.burn ?? MAIN_FUEL) * dt); }
   // the main engine pushes along the axis: up when upright, sideways when tilted
   // the nose points along (sin a, -cos a): tilted right, the engine pushes right
   const ax = Math.sin(r.a) * thrust + wind;
   const ay = -Math.cos(r.a) * thrust + G;
 
   let torque = 0;
-  if (input.rcs !== 0 && fuel > 0) { torque = input.rcs * RCS_TORQUE; fuel = Math.max(0, fuel - RCS_FUEL * dt); }
+  if (opts.gimbal) { if (input.rcs !== 0 && thrust > 0) torque = input.rcs * GIMBAL_TORQUE; }   // free: the engines are burning anyway
+  else if (input.rcs !== 0 && fuel > 0) { torque = input.rcs * RCS_TORQUE; fuel = Math.max(0, fuel - RCS_FUEL * dt); }
   if (input.level && fuel > 0) {
     torque += -r.a * LEVEL_GAIN;
     fuel = Math.max(0, fuel - LEVEL_FUEL * dt);
@@ -304,4 +311,79 @@ export const WIND_SCALE = 0.03;
 export function windMeter(wind: number): { dir: -1 | 0 | 1; fill: number } {
   const fill = Math.max(0, Math.min(1, Math.abs(wind) / WIND_SCALE));
   return { dir: wind > 0 ? 1 : wind < 0 ? -1 : 0, fill };
+}
+
+/* ---- HAULER: the legless heavy booster, caught by the tower's arms ---- */
+
+/** The engine ring: a hard push for the landing burn, thirsty. Below the step line it drops to the core engines. */
+export const RING_THRUST = 1.5;
+export const RING_FUEL = 0.2;
+/** The core engines: a gentle push for the last stretch, just over gravity, so it can hover between the arms. */
+export const CORE_THRUST = 0.62;
+export const CORE_FUEL = 0.07;
+/** Swinging the burning engines turns HAULER: rad/s² at full swing. */
+export const GIMBAL_TORQUE = 2.2;
+/** Where the engines step from the ring to the core, and where the tower calls GO or NO-GO. */
+export const STEP_Y = 0.42;
+/** The arms' height: the rocket's centre stops here to be caught. */
+export const ARM_Y = 0.62;
+
+export function haulerInbound(level: number): number {
+  return Math.min(0.28, 0.12 + 0.02 * (Math.max(1, level) - 1));
+}
+
+export function startHauler(x: number, level = 1): Rocket {
+  return { x, y: 0.08, vx: 0, vy: haulerInbound(level), a: 0, w: 0, fuel: 1 };
+}
+
+/** The engine setting for HAULER at this height: the ring above the step line, the core below it. */
+export function haulerEngine(r: Rocket): { core: boolean; thrust: number; burn: number } {
+  const core = r.y >= STEP_Y;
+  return { core, thrust: core ? CORE_THRUST : RING_THRUST, burn: core ? CORE_FUEL : RING_FUEL };
+}
+
+/** The tower column's width, a little over the six pixels it's drawn at on the narrowest tube. */
+export const TOWER_W = 0.04;
+/** How far above or below the arms' height the rocket's centre can be for them to close on it. */
+export const ARM_REACH = 0.035;
+
+/** The tower: the catch point's centre and half-width between the arms (narrower each level), the arms' height, and
+    the tower's own column, just right of the arms. */
+export interface Tower { x: number; half: number; armY: number; towerX: number; topY: number }
+export function towerFor(level: number): Tower {
+  const half = Math.max(0.025, 0.06 - 0.004 * (Math.max(1, level) - 1));
+  return { x: 0.5, half, armY: ARM_Y, towerX: 0.5 + half + 0.05, topY: ARM_Y - 0.14 };
+}
+
+/** The slowest the rocket must be moving, up or down, for the arms to close on it. Tighter each level. */
+export function catchVy(level: number): number {
+  return Math.max(0.05, 0.1 - 0.006 * (Math.max(1, level) - 1));
+}
+
+/** GO or NO-GO, called as the rocket crosses the step line: on course for the arms and not falling too fast for the
+    core engines to stop. NO-GO diverts it away from the tower, and that rocket is lost. */
+export function goNoGo(r: Rocket, level: number): boolean {
+  const t = towerFor(level);
+  return Math.abs(r.x - t.x) <= 0.12 && r.vy <= 0.24 && Math.abs(r.a) <= 0.35;
+}
+
+/** The catch: the rocket stops between the arms, upright and slow, and the arms close. Dropping below the arms, or
+    running into the tower, crashes it. Null while it is still on its way. */
+export function catchOutcome(r: Rocket, level: number): 'caught' | 'crashed' | null {
+  const t = towerFor(level);
+  const tower = r.x >= t.towerX - 0.015 && r.x <= t.towerX + TOWER_W + 0.015 && r.y >= t.topY;
+  if (tower || r.x < 0 || r.x > 1) return 'crashed';
+  if (r.y > t.armY + ARM_REACH) return 'crashed';
+  const inBox = Math.abs(r.x - t.x) <= t.half && Math.abs(r.y - t.armY) <= ARM_REACH;
+  if (inBox && Math.abs(r.vy) <= catchVy(level) && Math.abs(r.vx) <= 0.05 && Math.abs(r.a) <= 0.1) return 'caught';
+  return null;
+}
+
+/** Points for a catch: fuel left, how centred and how still it was, times the level and the control's multiplier. */
+export function catchScore(r: Rocket, level: number, mult = 1): number {
+  const t = towerFor(level);
+  const centred = 1 - Math.min(1, Math.abs(r.x - t.x) / t.half);
+  const gentle = 1 - Math.min(1, Math.abs(r.vy) / catchVy(level));
+  const base = 150 + Math.round(fuelPoints(r.fuel) + 60 * centred + 40 * gentle);
+  return Math.round(base * Math.max(1, level) * mult);
 }

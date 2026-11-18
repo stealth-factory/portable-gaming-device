@@ -5,7 +5,7 @@ import type { Screen2D } from '../types';
 type Api = { g: Screen2D; col(role: string): string };
 
 /** A rocket of nine rows, tilted by `a` radians: each row shifts sideways a little more the higher it sits. */
-export function drawRocket(api: { g: Screen2D; col(r: string): string }, x: number, y: number, a: number, dead = false, gridFins = false) {
+export function drawRocket(api: { g: Screen2D; col(r: string): string }, x: number, y: number, a: number, dead = false, gridFins = false, heavy = false) {
   const g = api.g;
   // the nose leans toward +sin(a); when the rocket is more than halfway over (cos a < 0) it is drawn upside down
   const lean = Math.sin(a);
@@ -15,21 +15,27 @@ export function drawRocket(api: { g: Screen2D; col(r: string): string }, x: numb
   const body = dead ? 'hud' : 'text';
   g.fillStyle = api.col(body);
   for (let r = 0; r < 9; r++) {
-    const half = r < 2 ? 1 : 2;                   // a nose cone at the top (row 0)
+    const half = r < 2 ? 1 : heavy ? 3 : 2;       // a nose cone at the top (row 0); HAULER is broader
     const row = at(r);
     g.fillRect(x + shift(row) - half, y - 4 + row, half * 2 + 1, 1);
   }
   // fins at the base (row 7), and a porthole, so it reads as a rocket and not a bar
   g.fillStyle = api.col('hud');
-  g.fillRect(x + shift(at(7)) - 4, y - 4 + at(7), 2, 2);
-  g.fillRect(x + shift(at(7)) + 3, y - 4 + at(7), 2, 2);
+  if (!heavy) {                                  // STILT's legs; HAULER has none (the tower catches it)
+    g.fillRect(x + shift(at(7)) - 4, y - 4 + at(7), 2, 2);
+    g.fillRect(x + shift(at(7)) + 3, y - 4 + at(7), 2, 2);
+  } else {                                       // HAULER's catch pins, just under the grid fins
+    g.fillRect(x + shift(at(3)) - 4, y - 4 + at(3), 1, 1);
+    g.fillRect(x + shift(at(3)) + 4, y - 4 + at(3), 1, 1);
+  }
   g.fillStyle = api.col('bg');
   g.fillRect(x + shift(at(3)), y - 4 + at(3), 1, 1);
   // grid fins: a small square either side, just under the nose
   if (gridFins) {
     g.fillStyle = api.col('hud');
-    g.fillRect(x + shift(at(2)) - 4, y - 4 + at(2), 2, 1);
-    g.fillRect(x + shift(at(2)) + 3, y - 4 + at(2), 2, 1);
+    const o = heavy ? 1 : 0;
+    g.fillRect(x + shift(at(2)) - 4 - o, y - 4 + at(2), 2, 1);
+    g.fillRect(x + shift(at(2)) + 3 + o, y - 4 + at(2), 2, 1);
   }
 }
 
@@ -168,4 +174,28 @@ export function drawSplash(api: { g: Screen2D; col(r: string): string }, x: numb
   }
   g.fillStyle = api.col('hud');
   g.fillRect(x - 9, y, 19, 1);
+}
+
+/** The catch tower: a lattice column from the ground up past the arms, and two arms reaching left from it at the arms'
+    height. Open, the arms stand apart above and below the catch point; `closed` draws them shut on the rocket. */
+export function drawTower(api: { g: Screen2D; col(r: string): string }, towerX: number, topY: number, groundY: number,
+  armY: number, tipX: number, closed: boolean, t: number) {
+  const g = api.g;
+  g.fillStyle = api.col('hud');
+  g.fillRect(towerX, topY, 1, groundY - topY);
+  g.fillRect(towerX + 5, topY, 1, groundY - topY);
+  for (let y = topY; y < groundY; y += 6) {               // the lattice
+    g.fillRect(towerX, y, 6, 1);
+    g.fillRect(towerX + (Math.floor((y - topY) / 6) % 2 ? 1 : 3), y + 3, 2, 1);
+  }
+  g.fillRect(towerX - 2, groundY, 10, 2);                 // the foot
+  // the arms: two bars reaching left, apart when open, together when closed
+  const gap = closed ? 2 : 7;
+  g.fillStyle = api.col('text');
+  g.fillRect(tipX, armY - gap, towerX - tipX, 2);
+  g.fillRect(tipX, armY + gap - 1, towerX - tipX, 2);
+  // a light at the top that blinks
+  const on = Math.floor(t * 2) % 2 === 0;
+  g.fillStyle = api.col(on ? 'text' : 'hud');
+  g.fillRect(towerX + 2, topY - 2, 2, 2);
 }

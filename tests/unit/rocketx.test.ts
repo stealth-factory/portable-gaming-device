@@ -4,6 +4,7 @@ import {
   stepRocket, touchdown, windFor, speedMeter, landingVy, landingVx, windMeter, type Rocket,
   CONTROLS, DEFAULT_CONTROL, FIN_MIN, ROCKETS, autoFin, finBite, gateLevel, levelUses, setupMove,
   SEA_LEVEL, atSea, deckAt, deckSurface, deckVyAt, landDeck, seaFor, shipHalf,
+  ARM_Y, CORE_THRUST, RING_THRUST, STEP_Y, catchOutcome, catchScore, catchVy, goNoGo, haulerEngine, startHauler, towerFor,
 } from '../../src/games/rocketx/rules';
 
 const NONE = { main: false, rcs: 0 as const, level: false };
@@ -307,5 +308,76 @@ describe('at sea', () => {
     const d = { ...deckAt(lvl, 0), centre: 0.6, vy: 0.05 };
     const r = still({ x: 0.6, vy: 0.05 });
     expect(landingScore(r, lvl, 1, d)).toBeGreaterThan(landingScore(still({ x: 0.5, vy: 0.05 }), lvl, 1, d));
+  });
+});
+
+describe('HAULER and the tower', () => {
+  it('the ring brakes hard above the step line; the core, just over gravity, below it', () => {
+    expect(haulerEngine(startHauler(0.5)).core).toBe(false);
+    expect(haulerEngine(still({ y: STEP_Y + 0.01 })).core).toBe(true);
+    expect(RING_THRUST).toBeGreaterThan(CORE_THRUST);
+    expect(CORE_THRUST).toBeGreaterThan(G);
+  });
+
+  it('its turn input swings the engines: nothing without a burn, and no fuel of its own', () => {
+    const idle = stepRocket(still(), { ...NONE, rcs: 1 }, 0.1, 0, { gimbal: true });
+    expect(idle.w).toBe(0);
+    const burn = stepRocket(still(), { ...NONE, main: true, rcs: 1 }, 0.1, 0, { gimbal: true, thrust: CORE_THRUST, burn: 0.07 });
+    expect(burn.w).toBeGreaterThan(0);
+    expect(burn.fuel).toBeCloseTo(1 - 0.07 * 0.1, 6);
+  });
+
+  it('GO on course and slow enough; NO-GO off course or too fast', () => {
+    expect(goNoGo(still({ x: 0.5, y: STEP_Y, vy: 0.15 }), 1)).toBe(true);
+    expect(goNoGo(still({ x: 0.75, y: STEP_Y, vy: 0.15 }), 1)).toBe(false);
+    expect(goNoGo(still({ x: 0.5, y: STEP_Y, vy: 0.4 }), 1)).toBe(false);
+  });
+
+  it('caught when it stops between the arms, slow and upright', () => {
+    const t = towerFor(1);
+    expect(catchOutcome(still({ x: t.x, y: ARM_Y, vy: catchVy(1) * 0.5 }), 1)).toBe('caught');
+    expect(catchOutcome(still({ x: t.x, y: ARM_Y, vy: catchVy(1) * 2 }), 1)).toBe(null);
+    expect(catchOutcome(still({ x: t.x, y: ARM_Y, vy: 0, a: 0.3 }), 1)).toBe(null);
+    expect(catchOutcome(still({ x: t.x, y: GROUND }), 1)).toBe('crashed');
+    expect(catchOutcome(still({ x: t.towerX, y: ARM_Y }), 1)).toBe('crashed');
+    expect(catchOutcome(still({ x: t.x, y: 0.3 }), 1)).toBe(null);
+  });
+
+  it('the tower is only as wide as its column, and dropping past the arms is lost', () => {
+    const t = towerFor(1);
+    expect(catchOutcome(still({ x: t.towerX + 0.02, y: ARM_Y + 0.05 }), 1)).toBe('crashed');
+    expect(catchOutcome(still({ x: 0.85, y: 0.5 }), 1)).toBe(null);
+    expect(catchOutcome(still({ x: t.x, y: ARM_Y + 0.04, vy: 0.15 }), 1)).toBe('crashed');
+    expect(catchOutcome(still({ x: t.x, y: ARM_Y + 0.03, vy: catchVy(1) * 0.5 }), 1)).toBe('caught');
+  });
+
+  it('the catch gets tighter each level, and a catch scores more than a pad landing', () => {
+    expect(towerFor(8).half).toBeLessThan(towerFor(1).half);
+    expect(catchVy(8)).toBeLessThan(catchVy(1));
+    const r = still({ x: 0.5, y: ARM_Y, vy: 0 });
+    expect(catchScore(r, 1)).toBeGreaterThan(landingScore(still({ x: 0.5, y: GROUND, vy: 0 }), 1));
+  });
+
+  it('can stop from the worst GO in the core engines before the arms', () => {
+    const decel = CORE_THRUST - G;
+    expect((0.24 * 0.24) / (2 * decel)).toBeLessThan(ARM_Y - STEP_Y);
+  });
+});
+
+describe('HAULER can be caught', () => {
+  it('a simple pilot that brakes to a speed plan catches it at every level, in still air', () => {
+    for (let level = 1; level <= 10; level++) {
+      let r = startHauler(0.5, level), out: string | null = null, called = false;
+      for (let i = 0; i < 60 * 30 && !out; i++) {
+        const dist = ARM_Y - r.y;
+        const plan = Math.min(0.2, Math.sqrt(Math.max(0, 2 * 0.12 * dist))) + 0.01;
+        const eng = haulerEngine(r);
+        const before = r;
+        r = stepRocket(r, { main: r.vy > plan, rcs: 0, level: true }, 1 / 60, 0, { thrust: eng.thrust, burn: eng.burn, gimbal: true });
+        if (!called && before.y < STEP_Y && r.y >= STEP_Y) { called = true; if (!goNoGo(r, level)) out = 'nogo'; }
+        out = out ?? catchOutcome(r, level);
+      }
+      expect([level, out]).toEqual([level, 'caught']);
+    }
   });
 });

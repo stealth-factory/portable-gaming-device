@@ -325,6 +325,16 @@ async function playEveryDisk(p, tag){
       const seaOk = sea.ship && sea.moved && sea.level === 4;
       if (!seaOk) errs.push(tag + ' rocketx sea: ' + JSON.stringify(sea));
       console.log(tag, 'rocketx sea', sea);
+      // HAULER: the tower stands by the arms; with no burn it crosses the step line too fast and the tower calls NO-GO
+      await p.evaluate(() => __gg.runtime.debug.fly('pilot', 'hauler'));
+      await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 5000 }).catch(() => {});
+      await p.waitForTimeout(250);
+      await p.screenshot({ path: `${out}/${tag}-rocketx-hauler.png` });
+      await p.waitForFunction(() => __gg.runtime.debug.state().call !== null || __gg.S.mode !== 'play', null, { timeout: 8000 }).catch(() => {});
+      const haul = await p.evaluate(() => { const s = __gg.runtime.debug.state(); return { rocket: s.rocket, call: s.call, outcome: s.outcome, ship: s.deck.ship }; });
+      const haulOk = haul.rocket === 'hauler' && haul.call === 'nogo' && haul.outcome === 'nogo' && !haul.ship;
+      if (!haulOk) errs.push(tag + ' rocketx hauler: ' + JSON.stringify(haul));
+      console.log(tag, 'rocketx hauler', haul);
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
