@@ -1,10 +1,11 @@
 /* Return Burn: land an inbound rocket back on its pad with the main engine and the side thrusters.
    The rocket, the pad, the art, the sound and the code are original. */
 import type { CreateGame } from '../types';
-import { drawFlame, drawLogo, drawPad, drawPuff, drawRocket, drawSea, drawShip, drawSplash, drawTower } from './art';
+import { drawCruiser, drawFlame, drawLogo, drawPad, drawPuff, drawRocket, drawSea, drawShip, drawSplash, drawTower } from './art';
 import {
   CONTROLS, DEFAULT_CONTROL, GROUND, METER_SCALE, ROCKETS, SEA_LEVEL, atSea, autoFin, deckAt, deckVyAt, gateLevel, landingVy, landingScore,
   levelUses, seaFor, STEP_Y, catchOutcome, landDeck, catchScore, catchVy, goNoGo, haulerEngine, startHauler, towerFor,
+  CRUISE_FUEL, CRUISE_THRUST, FLIP_DONE, FLIP_Y, cruiserScore, startCruiser,
   setupMove, speedMeter, windMeter, startRocket, stepRocket, touchdown, windFor,
   type Deck, type Input, type LevelGate, type Rocket, type SetupChoice,
 } from './rules';
@@ -18,6 +19,8 @@ const PAD_ON = {
   pad1: { label: 'rxRcsL', enabled: true }, pad2: { label: 'rxPadBurn', enabled: true }, pad3: { label: 'rxRcsR', enabled: true },
   pad4: { label: 'rxFinL', enabled: true }, pad5: { label: 'rxFinR', enabled: true },
 };
+/** CRUISER: the bottom row works its flaps, which glide it sideways while it lies flat. */
+const PAD_FLAPS = { ...PAD_ON, pad4: { label: 'rxFlapL', enabled: true }, pad5: { label: 'rxFlapR', enabled: true } };
 const PAD_OFF = { pad1: null, pad2: null, pad3: null, pad4: null, pad5: null };
 type Dir4 = 'up' | 'down' | 'left' | 'right';
 
@@ -43,6 +46,9 @@ const create: CreateGame = api => {
   let splashT = 0;
   const control = () => CONTROLS[choice.control];
   const hauler = () => ROCKETS[choice.rocket].id === 'hauler';
+  const cruiser = () => ROCKETS[choice.rocket].id === 'cruiser';
+  /** HAULER and CRUISER have no legs: the tower catches them. */
+  const towered = () => hauler() || cruiser();
   // HAULER: the tower's call as it crosses the step line (null until then), and how long it stays on screen
   let call: 'go' | 'nogo' | null = null;
   let callT = 0;
@@ -57,12 +63,12 @@ const create: CreateGame = api => {
   const aspect = () => api.LW / Math.max(1, fieldBottom - fieldTop);
 
   function spawn(level: number) {
-    rocket = hauler() ? startHauler(0.5, level) : startRocket(0.5, level);
+    rocket = hauler() ? startHauler(0.5, level) : cruiser() ? startCruiser(level) : startRocket(0.5, level);
     wind = windFor(level);
     call = null;
     callT = 0;
     seaT = 0;
-    deck = hauler() ? landDeck(level) : deckAt(level, 0);
+    deck = towered() ? landDeck(level) : deckAt(level, 0);
     splashT = 0;
     gate = { left: levelUses(control().id, level), active: false };
     syncButtons();
@@ -73,7 +79,7 @@ const create: CreateGame = api => {
   /* the buttons follow the choice: the pad of thrusters for PILOT and ENGINEER, the stick for STICK; LEVEL goes dark
      when this rocket has no uses left */
   function syncButtons() {
-    api.setButtons(!setup && control().buttons ? PAD_ON : PAD_OFF);
+    api.setButtons(!setup && control().buttons ? (cruiser() ? PAD_FLAPS : PAD_ON) : PAD_OFF);
     api.setButtons({ boost: { enabled: setup || gate.left > 0 || gate.active } });
   }
 
@@ -129,6 +135,8 @@ const create: CreateGame = api => {
     if (!c.buttons) {
       const left = api.held.includes('left') || api.stickDir === 'left';
       const right = api.held.includes('right') || api.stickDir === 'right';
+      // CRUISER on the stick: left and right work the flaps while it lies flat, and swing the engines once it burns
+      if (cruiser()) return { main, rcs: pair(left, right), level: levelHeld, fin: pair(left, right) };
       return { main, rcs: pair(left, right), level: levelHeld, fin: c.autoFins ? autoFin(rocket) : 0 };
     }
     return {
@@ -155,7 +163,8 @@ const create: CreateGame = api => {
   }
 
   function land() {
-    const gained = hauler() ? catchScore(rocket, api.S.level, control().mult) : landingScore(rocket, api.S.level, control().mult, deck, aspect());
+    const gained = cruiser() ? cruiserScore(rocket, api.S.level, control().mult)
+      : hauler() ? catchScore(rocket, api.S.level, control().mult) : landingScore(rocket, api.S.level, control().mult, deck, aspect());
     api.S.score += gained;
     api.S.level += 1;
     if (api.S.score > api.best) api.best = api.S.score;
@@ -174,7 +183,7 @@ const create: CreateGame = api => {
     const lastDeck = deck;
     if (t.mode === 'ready' || t.mode === 'play' || t.mode === 'dying') {
       seaT += dt;
-      deck = hauler() ? landDeck(t.level) : deckAt(t.level, seaT);
+      deck = towered() ? landDeck(t.level) : deckAt(t.level, seaT);
     }
     if (t.mode === 'ready') {
       api.clearFire();
@@ -208,15 +217,24 @@ const create: CreateGame = api => {
     const eng = hauler() ? haulerEngine(rocket) : null;
     rocket = stepRocket(rocket, held, dt, wind, eng
       ? { settle: control().settle, thrust: eng.thrust, burn: eng.burn, gimbal: true }
+      : cruiser() ? { settle: control().settle, thrust: CRUISE_THRUST, burn: CRUISE_FUEL, gimbal: true, belly: true }
       : { settle: control().settle });
+    // CRUISER: a whoosh as the flip starts
+    if (cruiser() && held.main && Math.abs(before.a) > 1.2 && rocket.fuel > 0 && Math.floor(t.time * 10) % 4 === 0) api.tone(90, 0.06, 0.02, 40);
     if (callT > 0) callT -= dt;
     if (held.main && rocket.fuel > 0 && before.fuel > 0 && Math.floor(t.time * 16) % 3 === 0) {
       api.tone(150, 0.03, 0.012, -20);
     }
     // the nose thrusters hiss while they fire
-    if (!eng && held.rcs !== 0 && rocket.fuel > 0 && Math.floor(t.time * 20) % 4 === 0) api.tone(2400, 0.015, 0.006, -900);
+    if (!towered() && held.rcs !== 0 && rocket.fuel > 0 && Math.floor(t.time * 20) % 4 === 0) api.tone(2400, 0.015, 0.006, -900);
     if (flash > 0) flash -= dt;
 
+    if (cruiser()) {
+      const caught = catchOutcome(rocket, t.level);
+      if (caught === 'caught') land();
+      else if (caught === 'crashed') crash();
+      return;
+    }
     if (eng) {
       // crossing the step line: the engines step down to the core, and the tower calls GO or NO-GO
       if (call === null && before.y < STEP_Y && rocket.y >= STEP_Y) {
@@ -242,7 +260,7 @@ const create: CreateGame = api => {
     const top = fieldTop + 10, bottom = fieldBottom - 10;
     const mid = Math.round((top + bottom) / 2), half = (bottom - top) / 2;
     const x = api.LW - 9, w = 5;
-    const limit = hauler() ? catchVy(api.S.level) : landingVy(api.S.level);
+    const limit = towered() ? catchVy(api.S.level) : landingVy(api.S.level);
     const bandH = Math.max(1, Math.round((limit / METER_SCALE) * half));
     api.g.fillStyle = api.col('hud');
     api.g.fillRect(x - 1, top, 1, bottom - top);                  // the scale's rail
@@ -333,14 +351,16 @@ const create: CreateGame = api => {
       drawSetup();
       return;
     }
-    if (hauler()) {
+    if (towered()) {
       const tw = towerFor(api.S.level);
       drawTower(api, px(tw.towerX), py(tw.topY), py(GROUND) + 5, py(tw.armY), px(tw.x - tw.half), false, api.S.time);
-      // the step line: dashes across the field where the engines step down and the tower calls
+      // the line: HAULER's engines step down and the tower calls there; CRUISER should have flipped by it
+      const lineY = py(hauler() ? STEP_Y : FLIP_Y);
       api.g.fillStyle = api.col('hud');
-      for (let x = 2; x < api.LW - 14; x += 6) api.g.fillRect(x, py(STEP_Y), 3, 1);
-      api.txt(haulerEngine(rocket).core ? 'CORE' : 'RING', 4, py(STEP_Y) - 9, 'hud');
-      if (call && callT > 0) api.txt(call === 'go' ? 'GO' : 'NO-GO', px(tw.x) - 24, py(STEP_Y) - 9, 'text', 'right');
+      for (let x = 2; x < api.LW - 14; x += 6) api.g.fillRect(x, lineY, 3, 1);
+      if (hauler()) api.txt(haulerEngine(rocket).core ? 'CORE' : 'RING', 4, lineY - 9, 'hud');
+      else api.txt(Math.abs(rocket.a) > FLIP_DONE ? 'FLIP BY HERE' : 'FLIPPED', 4, lineY - 9, 'hud');
+      if (call && callT > 0) api.txt(call === 'go' ? 'GO' : 'NO-GO', px(tw.x) - 24, lineY - 9, 'text', 'right');
       api.g.fillRect(0, py(GROUND) + 7, api.LW, 1);         // the ground
     } else if (deck.ship) {
       const waterY = py(GROUND) + 5;
@@ -356,19 +376,22 @@ const create: CreateGame = api => {
       const x = px(rocket.x), y = py(rocket.y);
       const flying = api.S.mode === 'play';
       if (flying && lastInput.main && rocket.fuel > 0) drawFlame(api, x, y, rocket.a, api.S.time);
-      drawRocket(api, x, y, api.S.mode === 'dying' && lastOutcome !== 'nogo' ? rocket.a + 0.6 : rocket.a, api.S.mode === 'dying', true, hauler());
-      if (flying && !hauler() && lastInput.rcs !== 0 && rocket.fuel > 0) drawPuff(api, x, y, rocket.a, lastInput.rcs, api.S.time);
+      const shown = api.S.mode === 'dying' && lastOutcome !== 'nogo' ? rocket.a + 0.6 : rocket.a;
+      if (cruiser()) drawCruiser(api, x, y, shown, api.S.mode === 'dying', flying ? lastInput.fin ?? 0 : 0);
+      else drawRocket(api, x, y, shown, api.S.mode === 'dying', true, hauler());
+      if (flying && !towered() && lastInput.rcs !== 0 && rocket.fuel > 0) drawPuff(api, x, y, rocket.a, lastInput.rcs, api.S.time);
     }
     drawWindMeter();
     drawSpeedMeter();
     hud();
     if (api.S.mode === 'ready') {
       drawLogo(api, Math.round(api.LW / 2), fieldTop + 6);
-      const sea = !hauler() && atSea(api.S.level);
-      api.txt(hauler() ? 'STOP BETWEEN THE ARMS' : sea ? (api.S.level === SEA_LEVEL ? 'OUT TO SEA: LAND ON THE SHIP' : 'LAND ON THE SHIP') : 'BURN TO LAND ON THE PAD',
+      const sea = !towered() && atSea(api.S.level);
+      api.txt(cruiser() ? 'BELLY DOWN: GLIDE ON THE FLAPS' : hauler() ? 'STOP BETWEEN THE ARMS' : sea ? (api.S.level === SEA_LEVEL ? 'OUT TO SEA: LAND ON THE SHIP' : 'LAND ON THE SHIP') : 'BURN TO LAND ON THE PAD',
         api.LW / 2, fieldTop + 30, 'hud', 'center');
       if (sea) api.txt('MATCH ITS SWELL', api.LW / 2, fieldTop + 40, 'hud', 'center');
       if (hauler()) api.txt('THE TOWER CATCHES IT', api.LW / 2, fieldTop + 40, 'hud', 'center');
+      if (cruiser()) api.txt('THEN BURN TO FLIP, AND STOP IN THE ARMS', api.LW / 2, fieldTop + 40, 'hud', 'center');
     }
     if (lastOutcome !== 'landed' && lastOutcome !== '' && api.S.mode === 'dying') {
       const word = lastOutcome === 'splashed' ? 'SPLASH' : lastOutcome === 'nogo' ? 'NO-GO' : 'CRASHED';
@@ -389,7 +412,7 @@ const create: CreateGame = api => {
       /** Pick on the setup card and fly at once: the tests' shortcut. */
       /** Jump to a level (the tests reach the sea this way). */
       level: (n: number) => { api.S.level = Math.max(1, Math.floor(n)); spawn(api.S.level); },
-      fly: (control?: 'stick' | 'pilot' | 'engineer', rocketId?: 'stilt' | 'hauler') => {
+      fly: (control?: 'stick' | 'pilot' | 'engineer', rocketId?: 'stilt' | 'hauler' | 'cruiser') => {
         if (rocketId) choice = { ...choice, rocket: Math.max(0, ROCKETS.findIndex(r => r.id === rocketId)) };
         if (control) choice = { ...choice, control: Math.max(0, CONTROLS.findIndex(c => c.id === control)) };
         if (setup) confirmSetup(); else if (rocketId) spawn(api.S.level); else syncButtons();

@@ -335,6 +335,25 @@ async function playEveryDisk(p, tag){
       const haulOk = haul.rocket === 'hauler' && haul.call === 'nogo' && haul.outcome === 'nogo' && !haul.ship;
       if (!haulOk) errs.push(tag + ' rocketx hauler: ' + JSON.stringify(haul));
       console.log(tag, 'rocketx hauler', haul);
+      // CRUISER: it starts lying flat, the bottom row is its flaps, and a burn flips it upright
+      await p.evaluate(() => __gg.runtime.debug.fly('pilot', 'cruiser'));
+      await p.waitForFunction(() => __gg.S.mode === 'play', null, { timeout: 5000 }).catch(() => {});
+      const cru = await p.evaluate(async () => {
+        const btn = id => document.querySelector('#' + id + 'Btn');
+        const press = id => btn(id).dispatchEvent(new PointerEvent('pointerdown', { pointerId: 52, bubbles: true, cancelable: true }));
+        const lift = id => btn(id).dispatchEvent(new PointerEvent('pointerup', { pointerId: 52, bubbles: true, cancelable: true }));
+        const s0 = __gg.runtime.debug.state();
+        press('pad5'); await new Promise(r => setTimeout(r, 300)); lift('pad5');
+        const s1 = __gg.runtime.debug.state();
+        press('pad2'); await new Promise(r => setTimeout(r, 900)); lift('pad2');
+        const s2 = __gg.runtime.debug.state();
+        return { rocket: s0.rocket, flat: Math.abs(s0.a - Math.PI / 2) < 0.1, glided: s1.x > s0.x, flipped: Math.abs(s2.a) < 0.6,
+          labels: [btn('pad4').dataset.i18n, btn('pad5').dataset.i18n] };
+      });
+      await p.screenshot({ path: `${out}/${tag}-rocketx-cruiser.png` });
+      const cruOk = cru.rocket === 'cruiser' && cru.flat && cru.glided && cru.flipped && cru.labels.join() === 'rxFlapL,rxFlapR';
+      if (!cruOk) errs.push(tag + ' rocketx cruiser: ' + JSON.stringify(cru));
+      console.log(tag, 'rocketx cruiser', cru);
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
