@@ -273,7 +273,7 @@ api.stamp(sky, 0, api.HUD);
 | Read | Gives |
 | --- | --- |
 | `api.wantDir()` | The step to move now, `{ dx, dy }` or `null`: the on-screen stick first, then the newest arrow or WASD key |
-| `api.stickDir` | The stick or D-pad alone: `'up'`, `'down'`, `'left'`, `'right'` or `null`. On an 8-way diagonal, the stronger axis |
+| `api.stickDir` | The stick or D-pad alone: `'up'`, `'down'`, `'left'`, `'right'` or `null`. On an 8-way diagonal, the primary one: the stronger axis when the diagonal began, kept while both arms stay held |
 | `api.stickDirs` | Every direction the stick or D-pad holds: none, one, or two on an 8-way D-pad diagonal (`stickDir` first) |
 | `api.held` | Direction keys held, newest last |
 | kit `horizontal(api)` | −1, 0 or 1, for games that only move sideways |

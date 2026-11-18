@@ -104,7 +104,8 @@ export interface ConsoleAPI {
   /* ---- input ---- */
   /** Directions held on the keyboard, newest last. */
   readonly held: Dir[];
-  /** The on-screen stick's or D-pad's direction, or null. On an 8-way diagonal, the stronger axis. */
+  /** The on-screen stick's or D-pad's direction, or null. On an 8-way diagonal, the primary one: the stronger axis when the
+      diagonal began, kept while both arms stay held so it doesn't flicker. */
   readonly stickDir: Dir | null;
   /** Every direction the on-screen stick or D-pad holds: none, one, or two on an 8-way D-pad diagonal (`stickDir` first). */
   readonly stickDirs: readonly Dir[];

@@ -72,6 +72,11 @@ await touch('touchEnd', []); { const a = await arms(); if (a !== null) errs.push
 await p.reload(); await p.waitForTimeout(400);
 if (await modeOf() !== 'dpad8') errs.push('8-WAY not kept across a reload');
 await tapSwitch(); if (await modeOf() !== 'stick') errs.push('switch: third press should give STICK');
+// the keyboard: Enter or Space on the focused switch steps it, and never reaches the game as FIRE
+await p.focus('#padModeBtn'); await p.keyboard.press('Space');
+if (await modeOf() !== 'dpad') errs.push('Space on the focused switch should step it to 4-WAY, got ' + await modeOf());
+await p.keyboard.press('Enter');
+if (await modeOf() !== 'dpad8') errs.push('Enter on the focused switch should step it to 8-WAY, got ' + await modeOf());
 
 await b.close();
 if (errs.length) { console.log('FAIL\n' + errs.join('\n')); process.exit(1); }

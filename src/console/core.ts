@@ -305,6 +305,14 @@ export function setPadMode(m: PadMode, via?: string){ setPadModeImpl(m, via); }
   const stepMode = () => { buzz('tick'); setPadMode(nextPadMode(padMode), 'switch'); };
   modeBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); stepMode(); modeBtn.blur(); });
   modeBtn.addEventListener('click', e => { if (e.detail === 0) stepMode(); });
+  // Enter and Space on the focused switch are the switch's: kept from the page's own key handler, which would take them
+  // for FIRE and cancel them, so the button's own click (Enter on the press, Space on the release) steps it once
+  modeBtn.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.stopPropagation();
+    if (e.repeat) e.preventDefault();
+  });
+  modeBtn.addEventListener('keyup', e => { if (e.key === ' ') e.stopPropagation(); });
   function end(e: PointerEvent){
     const id = fingerId();
     if (id === null || e.pointerId !== id) return;

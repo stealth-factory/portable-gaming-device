@@ -25,7 +25,7 @@ export function parseScript(value) {
     previous = event.frame;
     if (event.held !== undefined && (!Array.isArray(event.held) || event.held.some(d => !Object.hasOwn(DIRS, d)) || new Set(event.held).size !== event.held.length)) throw new Error('held must contain distinct directions, newest last');
     if (event.stickDir !== undefined && event.stickDir !== null && !Object.hasOwn(DIRS, event.stickDir)) throw new Error('stickDir must be a direction or null');
-    if (event.stickDirs !== undefined && (!Array.isArray(event.stickDirs) || event.stickDirs.length > 2 || event.stickDirs.some(d => !Object.hasOwn(DIRS, d)) || new Set(event.stickDirs).size !== event.stickDirs.length)) throw new Error('stickDirs must hold up to two distinct directions');
+    if (event.stickDirs !== undefined && (!Array.isArray(event.stickDirs) || event.stickDirs.length > 2 || event.stickDirs.some(d => typeof d !== 'string' || !Object.hasOwn(DIRS, d)) || new Set(event.stickDirs).size !== event.stickDirs.length)) throw new Error('stickDirs must hold up to two distinct directions');
     if (event.stickDir !== undefined && event.stickDirs !== undefined) throw new Error('set stickDir or stickDirs, not both');
     if (event.buttons !== undefined) {
       object(event.buttons, 'buttons'); keys(event.buttons, SLOTS, 'buttons');
