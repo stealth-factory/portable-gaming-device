@@ -1,11 +1,12 @@
 /* Return Burn: land an inbound rocket back on its pad with the main engine and the side thrusters.
    The rocket, the pad, the art, the sound and the code are original. */
 import type { CreateGame } from '../types';
-import { drawFlame, drawLogo, drawPad, drawPuff, drawRocket } from './art';
+import { drawFlame, drawLogo, drawPad, drawPuff, drawRocket, drawSea, drawShip, drawSplash } from './art';
 import {
-  CONTROLS, DEFAULT_CONTROL, GROUND, METER_SCALE, ROCKETS, autoFin, gateLevel, landingVy, landingScore, levelUses, padFor,
+  CONTROLS, DEFAULT_CONTROL, GROUND, METER_SCALE, ROCKETS, SEA_LEVEL, atSea, autoFin, deckAt, deckVyAt, gateLevel, landingVy, landingScore,
+  levelUses, seaFor,
   setupMove, speedMeter, windMeter, startRocket, stepRocket, touchdown, windFor,
-  type Input, type LevelGate, type Rocket, type SetupChoice,
+  type Deck, type Input, type LevelGate, type Rocket, type SetupChoice,
 } from './rules';
 
 const BOXES = 3;
@@ -36,6 +37,10 @@ const create: CreateGame = api => {
   let lastDir: Dir4 | null = null;
   let gate: LevelGate = { left: Infinity, active: false };
   let lastInput: Input = { main: false, rcs: 0, level: false, fin: 0 };
+  // the swell's clock: it runs from the level's start, through READY too, so the ship is already moving
+  let seaT = 0;
+  let deck: Deck = deckAt(1, 0);
+  let splashT = 0;
   const control = () => CONTROLS[choice.control];
 
   const readField = () => {
@@ -44,10 +49,15 @@ const create: CreateGame = api => {
   };
   const px = (x: number) => Math.round(x * api.LW);
   const py = (y: number) => Math.round(fieldTop + y * (fieldBottom - fieldTop));
+  /** The field's width over its height on the tube: how steep the deck's roll looks, and so how it's judged. */
+  const aspect = () => api.LW / Math.max(1, fieldBottom - fieldTop);
 
   function spawn(level: number) {
     rocket = startRocket(0.5, level);
     wind = windFor(level);
+    seaT = 0;
+    deck = deckAt(level, 0);
+    splashT = 0;
     gate = { left: levelUses(control().id, level), active: false };
     syncButtons();
     api.S.mode = 'ready';
@@ -123,18 +133,23 @@ const create: CreateGame = api => {
     };
   }
 
-  function crash() {
+  function crash(splashed = false) {
     api.S.mode = 'dying';
     api.S.modeT = 1.3;
     api.S.lives = Math.max(0, api.S.lives - 1);
-    lastOutcome = 'crashed';
+    lastOutcome = splashed ? 'splashed' : 'crashed';
     api.buzz('lose');
-    api.tone(196, 0.14, 0.05, -90);
-    api.tone(110, 0.22, 0.04, -40, 0.12);
+    if (splashed) {
+      api.tone(320, 0.05, 0.03, -200);
+      api.tone(140, 0.3, 0.03, -60, 0.04);
+    } else {
+      api.tone(196, 0.14, 0.05, -90);
+      api.tone(110, 0.22, 0.04, -40, 0.12);
+    }
   }
 
   function land() {
-    const gained = landingScore(rocket, api.S.level, control().mult);
+    const gained = landingScore(rocket, api.S.level, control().mult, deck, aspect());
     api.S.score += gained;
     api.S.level += 1;
     if (api.S.score > api.best) api.best = api.S.score;
@@ -150,6 +165,11 @@ const create: CreateGame = api => {
     readField();
     const t = api.S;
     if (t.mode === 'ready' && setup) { updateSetup(dt); return; }
+    const lastDeck = deck;
+    if (t.mode === 'ready' || t.mode === 'play' || t.mode === 'dying') {
+      seaT += dt;
+      deck = deckAt(t.level, seaT);
+    }
     if (t.mode === 'ready') {
       api.clearFire();
       api.clearTap();
@@ -157,6 +177,7 @@ const create: CreateGame = api => {
       return;
     }
     if (t.mode === 'dying') {
+      splashT += dt;
       if ((t.modeT -= dt) <= 0 && !over) {
         if (t.lives > 0) spawn(t.level);
         else { over = true; api.finishGame(); }
@@ -184,9 +205,10 @@ const create: CreateGame = api => {
     if (held.rcs !== 0 && rocket.fuel > 0 && Math.floor(t.time * 20) % 4 === 0) api.tone(2400, 0.015, 0.006, -900);
     if (flash > 0) flash -= dt;
 
-    const outcome = touchdown(rocket, t.level);
+    const outcome = touchdown(rocket, t.level, deck, aspect(), { x: before.x, y: before.y, deck: lastDeck });
     if (outcome === 'landed') land();
     else if (outcome === 'crashed') crash();
+    else if (outcome === 'splashed') crash(true);
   }
 
   /* the speed meter: a bar down the right of the playfield, zero in the middle. Falling (down) is +, climbing (up) is -.
@@ -201,7 +223,7 @@ const create: CreateGame = api => {
     api.g.fillRect(x - 1, mid - bandH, w + 2, bandH * 2);         // the landing band
     api.g.fillStyle = api.col('bg');
     api.g.fillRect(x, mid - bandH + 1, w, Math.max(0, bandH * 2 - 2));
-    const m = speedMeter(rocket.vy, api.S.level);
+    const m = speedMeter(rocket.vy - deckVyAt(deck, rocket.x, aspect()), api.S.level);   // against the deck under the rocket: it heaves and rolls
     const len = Math.round(m.fill * half);
     api.g.fillStyle = api.col(m.inZone ? 'text' : 'hud');
     api.g.fillRect(x, len >= 0 ? mid : mid + len, w, Math.max(1, Math.abs(len)));
@@ -285,10 +307,17 @@ const create: CreateGame = api => {
       drawSetup();
       return;
     }
-    const pad = padFor(api.S.level);
-    drawPad(api, px(pad.centre - pad.half), px(pad.centre + pad.half), py(GROUND), api.S.time);
-    const left = px(0.12);
-    {
+    if (deck.ship) {
+      const waterY = py(GROUND) + 5;
+      const swell = seaFor(api.S.level).heave * (fieldBottom - fieldTop);
+      drawShip(api, px(deck.centre - deck.half), px(deck.centre + deck.half), py(deck.y) + 5, deck.roll, waterY, api.S.time);
+      drawSea(api, api.LW, waterY, Math.max(1, swell), seaT);
+    } else {
+      drawPad(api, px(deck.centre - deck.half), px(deck.centre + deck.half), py(GROUND), api.S.time);
+    }
+    if (lastOutcome === 'splashed' && api.S.mode === 'dying') {
+      drawSplash(api, px(rocket.x), py(GROUND) + 5, splashT / 1.0);
+    } else {
       const x = px(rocket.x), y = py(rocket.y);
       const flying = api.S.mode === 'play';
       if (flying && lastInput.main && rocket.fuel > 0) drawFlame(api, x, y, rocket.a, api.S.time);
@@ -300,10 +329,13 @@ const create: CreateGame = api => {
     hud();
     if (api.S.mode === 'ready') {
       drawLogo(api, Math.round(api.LW / 2), fieldTop + 6);
-      api.txt('BURN TO LAND ON THE PAD', api.LW / 2, fieldTop + 30, 'hud', 'center');
+      const sea = atSea(api.S.level);
+      api.txt(sea ? (api.S.level === SEA_LEVEL ? 'OUT TO SEA: LAND ON THE SHIP' : 'LAND ON THE SHIP') : 'BURN TO LAND ON THE PAD',
+        api.LW / 2, fieldTop + 30, 'hud', 'center');
+      if (sea) api.txt('MATCH ITS SWELL', api.LW / 2, fieldTop + 40, 'hud', 'center');
     }
-    if (lastOutcome === 'crashed' && api.S.mode === 'dying') {
-      api.txt('CRASHED', api.LW / 2, fieldTop + 10, 'text', 'center', 16);
+    if ((lastOutcome === 'crashed' || lastOutcome === 'splashed') && api.S.mode === 'dying') {
+      api.txt(lastOutcome === 'splashed' ? 'SPLASH' : 'CRASHED', api.LW / 2, fieldTop + 10, 'text', 'center', 16);
     }
   }
 
@@ -314,8 +346,11 @@ const create: CreateGame = api => {
         x: rocket.x, y: rocket.y, vy: rocket.vy, a: rocket.a, w: rocket.w, fuel: rocket.fuel, mode: api.S.mode, lives: api.S.lives, level: api.S.level,
         setup, setupT, rocket: ROCKETS[choice.rocket].id, control: control().id, row: choice.row,
         levelLeft: Number.isFinite(gate.left) ? gate.left : -1,
+        deck: { ...deck }, seaT, outcome: lastOutcome,
       }),
       /** Pick on the setup card and fly at once: the tests' shortcut. */
+      /** Jump to a level (the tests reach the sea this way). */
+      level: (n: number) => { api.S.level = Math.max(1, Math.floor(n)); spawn(api.S.level); },
       fly: (control?: 'stick' | 'pilot' | 'engineer') => {
         if (control) choice = { ...choice, control: Math.max(0, CONTROLS.findIndex(c => c.id === control)) };
         if (setup) confirmSetup(); else syncButtons();

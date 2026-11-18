@@ -312,6 +312,19 @@ async function playEveryDisk(p, tag){
       const stickOk = !stickPad && sa1 > sa0;
       if (!stickOk) errs.push(tag + ' rocketx stick: ' + JSON.stringify({ stickPad, a: [sa0, sa1] }));
       console.log(tag, 'rocketx stick', { stickPad, a: [sa0, sa1] });
+      // at sea (STILT from level 4): the deck is a ship that heaves and rolls, and missing it is a splash
+      await p.evaluate(() => __gg.runtime.debug.level(4));
+      await p.waitForTimeout(700);
+      const sea = await p.evaluate(async () => {
+        const d0 = __gg.runtime.debug.state().deck;
+        await new Promise(r => setTimeout(r, 500));
+        const d1 = __gg.runtime.debug.state().deck;
+        return { ship: d0.ship && d1.ship, moved: d0.y !== d1.y || d0.roll !== d1.roll, level: __gg.S.level };
+      });
+      await p.screenshot({ path: `${out}/${tag}-rocketx-sea.png` });
+      const seaOk = sea.ship && sea.moved && sea.level === 4;
+      if (!seaOk) errs.push(tag + ' rocketx sea: ' + JSON.stringify(sea));
+      console.log(tag, 'rocketx sea', sea);
     } else await p.keyboard.press('Space');
     await p.waitForTimeout(200);
     // hiding the tab mid-game switches HOLD on (LED lit), and it stays on when the tab comes back until the player resumes
