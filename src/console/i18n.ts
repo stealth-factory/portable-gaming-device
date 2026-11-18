@@ -10,7 +10,7 @@ export const I18N: Record<string, any> = {
   en: {
     tag: 'Tunnel through the mine, scoop up emeralds and drop sacks of gold on the grubs.',
     rotate: 'Turn your phone sideways for the full-screen console layout.',
-    stick: 'DRAG TO STEER', spark: 'FIRE', manTitle: 'Operating Instructions', model: 'Model TR-83 · 12″ phosphor monitor', secScore: 'Scoring', secMonitor: 'The monitor', src: 'Source code', boost: 'BOOST', k9: 'Speed boost', k9v: `${kb('Shift')} or ${kb('B')}`, manual: 'Instructions', manualHide: 'Fold away', exitFull: 'Exit full screen',
+    stick: 'DRAG TO STEER', dpadHint: 'PRESS TO STEER', spark: 'FIRE', manTitle: 'Operating Instructions', model: 'Model TR-83 · 12″ phosphor monitor', secScore: 'Scoring', secMonitor: 'The monitor', src: 'Source code', boost: 'BOOST', k9: 'Speed boost', k9v: `${kb('Shift')} or ${kb('B')}`, manual: 'Instructions', manualHide: 'Fold away', exitFull: 'Exit full screen',
     howH: 'How it plays', ctlH: 'Controls',
     r1: 'Emerald', r2: 'Eight emeralds in quick succession', r3: 'Gold from a sack that fell two or more cells',
     r4: 'Grub crushed by a sack or hit by a spark', r5: 'Rockjaw (from level 4): two hits from sparks or sacks, three from level 7',
@@ -30,7 +30,7 @@ export const I18N: Record<string, any> = {
   'zh-hant': {
     tag: '在礦坑裏挖隧道，收集綠寶石，再把金袋推下去壓扁蟲子。',
     rotate: '把手機橫放，即可使用全螢幕遊戲機版面。',
-    stick: '拖動操控', spark: '發射', manTitle: '操作說明書', model: '型號 TR-83 · 12 吋螢光顯示器', secScore: '計分', secMonitor: '關於顯示器', src: '原始碼', boost: '加速', k9: '加速衝刺', k9v: `${kb('Shift')} 或 ${kb('B')}`, manual: '操作說明', manualHide: '收起說明', exitFull: '離開全螢幕',
+    stick: '拖動操控', dpadHint: '按壓操控', spark: '發射', manTitle: '操作說明書', model: '型號 TR-83 · 12 吋螢光顯示器', secScore: '計分', secMonitor: '關於顯示器', src: '原始碼', boost: '加速', k9: '加速衝刺', k9v: `${kb('Shift')} 或 ${kb('B')}`, manual: '操作說明', manualHide: '收起說明', exitFull: '離開全螢幕',
     howH: '玩法', ctlH: '操作',
     r1: '綠寶石', r2: '快速連續收集八顆綠寶石', r3: '金袋跌落兩格或以上後散出的金子',
     r4: '被金袋壓扁或被火花擊中的蟲子', r5: '岩顎蟲（第 4 關起）：要擊中兩次，第 7 關起要三次',
@@ -50,7 +50,7 @@ export const I18N: Record<string, any> = {
   'zh-hans': {
     tag: '在矿坑里挖隧道，收集绿宝石，再把金袋推下去压扁虫子。',
     rotate: '把手机横放，即可使用全屏游戏机版面。',
-    stick: '拖动操控', spark: '发射', manTitle: '操作说明书', model: '型号 TR-83 · 12 英寸荧光显示器', secScore: '计分', secMonitor: '关于显示器', src: '源代码', boost: '加速', k9: '加速冲刺', k9v: `${kb('Shift')} 或 ${kb('B')}`, manual: '操作说明', manualHide: '收起说明', exitFull: '离开全屏',
+    stick: '拖动操控', dpadHint: '按压操控', spark: '发射', manTitle: '操作说明书', model: '型号 TR-83 · 12 英寸荧光显示器', secScore: '计分', secMonitor: '关于显示器', src: '源代码', boost: '加速', k9: '加速冲刺', k9v: `${kb('Shift')} 或 ${kb('B')}`, manual: '操作说明', manualHide: '收起说明', exitFull: '离开全屏',
     howH: '玩法', ctlH: '操作',
     r1: '绿宝石', r2: '快速连续收集八颗绿宝石', r3: '金袋跌落两格或以上后散出的金子',
     r4: '被金袋压扁或被火花击中的虫子', r5: '岩颚虫（第 4 关起）：要击中两次，第 7 关起要三次',

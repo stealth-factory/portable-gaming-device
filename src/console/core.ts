@@ -6,6 +6,7 @@ import type { Dir, ConsoleAPI } from "../games/types";
 import { bus } from "./bus";
 import * as Btn from "./buttons";
 import { Stick } from "./stick";
+import { DPad, isPadMode, nextPadMode, type PadMode } from "./dpad";
 import { makeHaptics, type Haptic } from "../kit/platform/haptics";
 import { DEFAULTS, SETTINGS_EVENT } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
@@ -203,6 +204,8 @@ export function buzz(h: Haptic){ haptics.buzz(h); }
 /* ---------- input ---------- */
 export const held: Dir[] = [];
 export let stickDir: Dir | null = null, fireCool = false, boostShown = '';
+/** Every direction the stick or D-pad holds: one, or two on an 8-way diagonal (stickDir is the first). */
+export let stickDirs: Dir[] = [];
 export let tapQueued = false, tapHeld = false, tapX = 0;
 export const KEYMAP: Record<string, Dir> = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', KeyW:'up', KeyS:'down', KeyA:'left', KeyD:'right' };
 export const press = (d: Dir) => { if (!held.includes(d)) held.push(d); };
@@ -254,46 +257,79 @@ document.addEventListener('visibilitychange', () => {
   togglePause(true); hush();
 });
 
+/* the joystick's setting (GAM-112): STICK, 4-WAY or 8-WAY D-pad; set by the switch in the well, wired below */
+export let padMode: PadMode = 'stick';
+let setPadModeImpl: (m: PadMode, via?: string) => void = m => { padMode = m; };
+export function setPadMode(m: PadMode, via?: string){ setPadModeImpl(m, via); }
+
 /* floating thumb-stick: the logic lives in stick.ts; this wires it to the pad. A dropped finger must never leave the
    stick held or deaf to the next touch, so it lets go on every sign the finger has gone, and a new touch takes over. */
 (() => {
-  const zone = $('stickzone'), base = $('stickbase'), knob = $('knob');
-  const stick = new Stick();
+  const zone = $('stickzone'), base = $('stickbase'), knob = $('knob'), cross = $('dpadCross'), modeBtn = $('padModeBtn');
+  const stick = new Stick(), dpad = new DPad();
   let zr: DOMRect | null = null, touchFinger = false;   // touchGone only applies to a finger: a mouse or pen never shows in e.touches
-  function setDir(d: Dir | null){
-    if (d === stickDir) return;
-    stickDir = d;
-    zone.querySelectorAll('.tick').forEach(t => t.classList.toggle('on', t.dataset.d === d));
-    if (d) buzz(6);   // a tiny nudge on each new direction, silent with SOUND off like every buzz
+  const fingerId = () => padMode === 'stick' ? stick.id : dpad.id;
+  function setDirs(ds: Dir[]){
+    if (ds.length === stickDirs.length && ds.every((d, i) => d === stickDirs[i])) return;
+    const fresh = ds.some(d => !stickDirs.includes(d));
+    stickDirs = ds; stickDir = ds[0] ?? null;
+    zone.querySelectorAll<HTMLElement>('.tick,.arm').forEach(t => t.classList.toggle('on', ds.includes(t.dataset.d as Dir)));
+    if (fresh) buzz(6);   // a tiny nudge on each new direction, silent with SOUND off like every buzz
   }
   function show(v: { ox: number; oy: number; dx: number; dy: number; dir: Dir | null }){
     base.style.left = (v.ox - zr!.left) + 'px'; base.style.top = (v.oy - zr!.top) + 'px';
     knob.style.transform = `translate(${v.dx}px,${v.dy}px)`;
-    setDir(v.dir);
+    setDirs(v.dir ? [v.dir] : []);
+  }
+  function showPad(v: { dirs: Dir[]; tx: number; ty: number }){
+    cross.style.transform = v.tx || v.ty ? `translate(${v.tx / 3}px,${v.ty / 3}px) rotateX(${-v.ty * 2}deg) rotateY(${v.tx * 2}deg)` : '';
+    setDirs(v.dirs);
   }
   function centre(){
-    stick.reset(); setDir(null);
+    stick.reset(); dpad.reset(); setDirs([]);
     zone.classList.remove('active');
-    base.style.left = '50%'; base.style.top = '50%'; knob.style.transform = '';
+    base.style.left = '50%'; base.style.top = '50%'; knob.style.transform = ''; cross.style.transform = '';
   }
+  /* the switch in the well's corner: STICK, 4-WAY D-pad, 8-WAY D-pad. Kept on this device; Settings reset puts STICK back. */
+  setPadModeImpl = (m: PadMode, via?: string) => {
+    centre();
+    padMode = m; dpad.eight = m === 'dpad8';
+    zone.dataset.mode = m; modeBtn.dataset.mode = m;
+    modeBtn.setAttribute('aria-label', 'Joystick mode: ' + { stick: 'stick', dpad: 'D-pad, 4 directions', dpad8: 'D-pad, 8 directions' }[m]);
+    try { localStorage.setItem('gg-dpad', m); } catch (_) {}
+    if (via) track('dpad', { mode: m, via });
+  };
+  { let m: string | null = null; try { m = localStorage.getItem('gg-dpad'); } catch (_) {} setPadModeImpl(isPadMode(m) ? m : DEFAULTS.dpad); }
+  // a press steps the switch at once, like the set's keys (a quick second tap would lose its click to the double-tap guard);
+  // click is left for the keyboard (Enter or Space on the focused switch)
+  const stepMode = () => { buzz('tick'); setPadMode(nextPadMode(padMode), 'switch'); };
+  modeBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); stepMode(); modeBtn.blur(); });
+  modeBtn.addEventListener('click', e => { if (e.detail === 0) stepMode(); });
   function end(e: PointerEvent){
-    if (stick.id === null || e.pointerId !== stick.id) return;
-    const id = stick.id;
+    const id = fingerId();
+    if (id === null || e.pointerId !== id) return;
     centre();
     try { if (zone.hasPointerCapture(id)) zone.releasePointerCapture(id); } catch (_) {}
   }
   zone.addEventListener('pointerdown', e => {
     e.preventDefault(); ensureAudio();
     if (padShown) return;   // the button pad has the zone: no stick under it
-    const old = stick.id;
+    const old = fingerId();
     if (old !== null && old !== e.pointerId) { try { zone.releasePointerCapture(old); } catch (_) {} }
     zr = zone.getBoundingClientRect();
     touchFinger = e.pointerType === 'touch';
-    show(stick.down(e.pointerId, e.clientX, e.clientY));
+    if (padMode === 'stick') show(stick.down(e.pointerId, e.clientX, e.clientY));
+    else {
+      const c = $('dpad').getBoundingClientRect();
+      showPad(dpad.down(e.pointerId, c.left + c.width / 2, c.top + c.height / 2, e.clientX, e.clientY));
+    }
     try { zone.setPointerCapture(e.pointerId); } catch (_) {}
     zone.classList.add('active');
   });
-  zone.addEventListener('pointermove', e => { if (e.pointerId === stick.id) show(stick.move(e.pointerId, e.clientX, e.clientY)); });
+  zone.addEventListener('pointermove', e => {
+    if (e.pointerId !== fingerId()) return;
+    if (padMode === 'stick') show(stick.move(e.pointerId, e.clientX, e.clientY)); else showPad(dpad.move(e.pointerId, e.clientX, e.clientY));
+  });
   zone.addEventListener('pointerup', end);
   zone.addEventListener('pointercancel', end);
   zone.addEventListener('lostpointercapture', end);
@@ -303,7 +339,7 @@ document.addEventListener('visibilitychange', () => {
   // older iOS can drop the pointer events of a finger it hands to a system gesture, but still ends the touch:
   // once no touch that started on the pad is left, the stick's finger has gone
   const touchGone = (e: TouchEvent) => {
-    if (stick.id === null || !touchFinger) return;
+    if (fingerId() === null || !touchFinger) return;
     for (const t of e.touches) if (t.target instanceof Node && zone.contains(t.target)) return;
     centre();
   };
@@ -356,7 +392,7 @@ export function syncPad(){
   if (on === padShown) return;
   padShown = on;
   document.documentElement.toggleAttribute('data-pad', on);
-  if (on) { stickDir = null; $('stickzone').querySelectorAll('.tick').forEach(t => t.classList.remove('on')); }
+  if (on) { stickDir = null; stickDirs = []; $('stickzone').querySelectorAll('.tick,.arm').forEach(t => t.classList.remove('on')); }
 }
 
 /* ---------- UI ---------- */
@@ -461,6 +497,7 @@ export function resetSettings(){
   if (muted !== !DEFAULTS.sound) toggleMute();
   if (S.mode === 'paused' && !DEFAULTS.hold) togglePause();
   setFull(DEFAULTS.full);
+  if (padMode !== DEFAULTS.dpad) setPadMode(DEFAULTS.dpad);
   applyLang(DEFAULTS.lang, true);
   track('settings_reset', { layout: layoutName() });
 }
@@ -468,7 +505,7 @@ addEventListener(SETTINGS_EVENT, (e: Event) => {
   const what = (e as CustomEvent).detail;
   if (what === 'reset') resetSettings(); else if (what === 'scores') clearScores();
 });
-export function clearInput(){ held.length = 0; stickDir = null; Btn.releaseAll(); tapQueued = false; tapHeld = false; }
+export function clearInput(){ held.length = 0; stickDir = null; stickDirs = []; Btn.releaseAll(); tapQueued = false; tapHeld = false; }
 /* power: off collapses the picture to a line, then a dot that fades; on warms up, degausses and boots */
 export let tvOn = false, offT = 99;   // the set starts switched off
 S.mode = 'off';
@@ -476,7 +513,7 @@ document.documentElement.setAttribute('data-off', ''); document.documentElement.
 export function powerOff(){
   powerQueued = false;
   document.documentElement.setAttribute('data-off', '');
-  tvOn = false; offT = 0; S.mode = 'off'; held.length = 0; stickDir = null; Btn.releaseAll();
+  tvOn = false; offT = 0; S.mode = 'off'; held.length = 0; stickDir = null; stickDirs = []; Btn.releaseAll();
   overlay.hidden = true; saveBest();
   $('pauseBtn').setAttribute('aria-pressed', 'false');
   $('powerBtn').setAttribute('aria-checked', 'false');
@@ -827,7 +864,7 @@ export const api: ConsoleAPI = makeConsoleAPI({
   get W(){ return W; }, get H(){ return H; }, get C(){ return C; }, get K(){ return K; },
   fitGrid, col, get palRGB(){ return palRGB; }, get palette(){ return M; },
   txt, banner, rr, poly, circ, idx, inb, DIRS,
-  get held(){ return held as any; }, get stickDir(){ return stickDir as any; }, wantDir: () => wantDir() as any,
+  get held(){ return held as any; }, get stickDir(){ return stickDir as any; }, get stickDirs(){ return stickDirs as any; }, wantDir: () => wantDir() as any,
   get tapQueued(){ return tapQueued; }, get tapHeld(){ return tapHeld; }, get tapX(){ return tapX; },
   clearTap,
 });

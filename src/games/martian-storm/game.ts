@@ -215,7 +215,7 @@ function ease(left: number, total: number) {
 }
 
 function steer(dt: number) {
-  const v = skiffVelocity(api.held, api.stickDir, skiffSpeed(boosts));
+  const v = skiffVelocity(api.held, api.stickDirs ?? api.stickDir, skiffSpeed(boosts));
   vx = v.vx;
   vy = v.vy;
   const next = clampSkiff(x + vx * dt, y + vy * dt, SKIFF_W, SKIFF_H, api.LW, api.LH, api.HUD);

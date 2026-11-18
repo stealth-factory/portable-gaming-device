@@ -55,6 +55,24 @@ await p.evaluate(() => window.dispatchEvent(new TouchEvent('touchend', { touches
 await check('mouse held through an unrelated touchend', 'right');
 await synth('pointerup', 12, zone.cx + 40, zone.cy); await check('mouse up', null);
 
+// 8. the switch in the well (GAM-112): 4-WAY is a fixed cross, 8-WAY holds diagonals, the choice is kept, a reload keeps it
+const arms = () => p.evaluate(() => [...document.querySelectorAll('#stickzone .arm.on')].map(e => e.dataset.d).sort().join('+') || null);
+const modeOf = () => p.$eval('#padModeBtn', e => e.dataset.mode);
+const tapSwitch = async () => { const r = await p.$eval('#padModeBtn', e => { const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }); await p.touchscreen.tap(r.x, r.y); };
+await tapSwitch(); if (await modeOf() !== 'dpad') errs.push('switch: first press should give 4-WAY, got ' + await modeOf());
+if (await dir() !== null || await arms() !== null) errs.push('tapping the switch steered');
+const cross = await p.evaluate(() => { const r = document.querySelector('#dpad').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; });
+if (!cross.w) errs.push('4-WAY: the cross is not shown');
+await touch('touchStart', [[cross.x + 30, cross.y + 4, 20]]); { const a = await arms(); if (a !== 'right') errs.push(`4-WAY right arm: ${a}`); }
+await touch('touchMove', [[cross.x + 28, cross.y - 28, 20]]); { const a = await arms(); if (a !== 'right') errs.push(`4-WAY keeps one arm on a diagonal: ${a}`); }
+await touch('touchEnd', []); { const a = await arms(); if (a !== null) errs.push(`4-WAY lift: ${a}`); }
+await tapSwitch(); if (await modeOf() !== 'dpad8') errs.push('switch: second press should give 8-WAY');
+await touch('touchStart', [[cross.x + 28, cross.y - 28, 21]]); { const a = await arms(); if (a !== 'right+up') errs.push(`8-WAY diagonal: ${a}`); }
+await touch('touchEnd', []); { const a = await arms(); if (a !== null) errs.push(`8-WAY lift: ${a}`); }
+await p.reload(); await p.waitForTimeout(400);
+if (await modeOf() !== 'dpad8') errs.push('8-WAY not kept across a reload');
+await tapSwitch(); if (await modeOf() !== 'stick') errs.push('switch: third press should give STICK');
+
 await b.close();
 if (errs.length) { console.log('FAIL\n' + errs.join('\n')); process.exit(1); }
 console.log('stick ok');

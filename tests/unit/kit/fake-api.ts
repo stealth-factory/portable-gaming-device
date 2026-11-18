@@ -19,6 +19,7 @@ export function fakeApi(over: { LW?: number; LH?: number; HUD?: number } = {}){
     finishGame: () => { state.finished++; },
     get held(){ return state.held; },
     get stickDir(){ return state.stickDir; },
+    get stickDirs(){ return state.stickDir ? [state.stickDir] : []; },
     get tapQueued(){ return state.tapQueued; },
     button: (id: string) => buttons[id] ?? { label: id, enabled: true, queued: false, held: false },
     clearButton: (id: string) => { cleared.push(id); if (buttons[id]) buttons[id].queued = false; },

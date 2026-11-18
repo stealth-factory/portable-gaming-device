@@ -15,7 +15,7 @@ import { diskInfo } from './loader';
 export type ApiIO = Pick<ConsoleAPI,
   'g' | 'layer' | 'stamp' | 'LW' | 'LH' | 'HUD' | 'W' | 'H' | 'C' | 'K' | 'fitGrid' | 'col' | 'palRGB' | 'palette' |
   'txt' | 'banner' | 'rr' | 'poly' | 'circ' | 'idx' | 'inb' | 'DIRS' |
-  'held' | 'stickDir' | 'wantDir' | 'tapQueued' | 'tapHeld' | 'tapX' | 'clearTap'>;
+  'held' | 'stickDir' | 'stickDirs' | 'wantDir' | 'tapQueued' | 'tapHeld' | 'tapX' | 'clearTap'>;
 
 /** A small seeded random generator (Mulberry32). */
 export function mulberry32(a: number){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -31,7 +31,7 @@ export function makeConsoleAPI(io: ApiIO): ConsoleAPI {
     fitGrid: io.fitGrid, col: io.col, get palRGB(){ return io.palRGB; }, get palette(){ return io.palette; },
     txt: io.txt, banner: io.banner, rr: io.rr, poly: io.poly, circ: io.circ, idx: io.idx, inb: io.inb, DIRS: io.DIRS,
     get S(){ return host.S; },
-    get held(){ return io.held; }, get stickDir(){ return io.stickDir; }, wantDir: () => io.wantDir(),
+    get held(){ return io.held; }, get stickDir(){ return io.stickDir; }, get stickDirs(){ return io.stickDirs; }, wantDir: () => io.wantDir(),
     button: Btn.button, clearButton: Btn.clearQueued, setButtons: Btn.setButtons,
     get fireQueued(){ return Btn.button('fire').queued; }, get fireHeld(){ return Btn.button('fire').held; },
     get boostQueued(){ return Btn.button('boost').queued; }, get boostHeld(){ return Btn.button('boost').held; },

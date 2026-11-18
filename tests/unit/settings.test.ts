@@ -3,8 +3,8 @@ import { DEFAULTS, isScoreKey, scoreKeys } from '../../src/console/settings';
 import { I18N, LANGS } from '../../src/console/i18n';
 
 describe('settings reset', () => {
-  it('puts the set back to green P1, SOUND and GLOW on, HOLD and FULL off, in English', () => {
-    expect(DEFAULTS).toEqual({ mode: 'greenP1', fx: true, sound: true, hold: false, full: false, lang: 'en' });
+  it('puts the set back to green P1, SOUND and GLOW on, HOLD and FULL off, the joystick a stick, in English', () => {
+    expect(DEFAULTS).toEqual({ mode: 'greenP1', fx: true, sound: true, hold: false, full: false, dpad: 'stick', lang: 'en' });
   });
   it('clears only the scores and the saved name, including the standalone Tunnel Raider\'s', () => {
     const keys = ['gg-best-tunnel', 'gg-board-invader-force', 'gg-best-dino', 'gg-name', 'eb-best', 'tr-board', 'tr-name',

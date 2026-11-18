@@ -88,7 +88,7 @@ var PGDShim = (function () {
       charge: 1, streak: 0, lastGem: -9, player: null, distT: 0, boost: 1, boostT: 0, bestAtStart: 0 };
     var buffer = makeBuffer();
     var fillStyle = palette.pal[0], font = '8px Silkscreen, "Courier New", monospace';
-    var held = [], stickDir = null, tapDown = false, tapQueued = false, tapHeld = false, tapX = 0, nextLayer = 0;
+    var held = [], stickDir = null, stickDirs = [], tapDown = false, tapQueued = false, tapHeld = false, tapX = 0, nextLayer = 0;
     var stack = [], layers = new WeakMap(), buttons = {};
     function record(name) { buffer.push(OP[name], arguments, 1); }
     function colourIndex(colour) {
@@ -177,7 +177,7 @@ var PGDShim = (function () {
         record('stamp', cached.id, x, y);
       },
       idx: function (x, y) { return y * W + x; }, inb: function (x, y) { return x >= 0 && y >= 0 && x < W && y < H; }, DIRS: DIRS,
-      get held() { return held; }, get stickDir() { return stickDir; },
+      get held() { return held; }, get stickDir() { return stickDir; }, get stickDirs() { return stickDirs; },
       wantDir: function () { var d = DIRS[stickDir != null ? stickDir : held[held.length - 1]]; return d == null ? null : d; },
       button: function (id) { return copy(B(id)); }, clearButton: function (id) { B(id).queued = false; },
       setButtons: function (changes) {
@@ -216,7 +216,8 @@ var PGDShim = (function () {
       /** Input from the core, applied before the frame's update. Omitted fields keep their values. */
       input: function (event) {
         if (event.held !== undefined) held = event.held.slice();
-        if (event.stickDir !== undefined) stickDir = event.stickDir;
+        if (event.stickDir !== undefined) { stickDir = event.stickDir; stickDirs = stickDir == null ? [] : [stickDir]; }
+        if (event.stickDirs !== undefined) { stickDirs = event.stickDirs.slice(); stickDir = stickDirs.length ? stickDirs[0] : null; }
         var pressed = event.buttons || {};
         Object.keys(pressed).forEach(function (id) {
           var button = B(id), down = pressed[id];
