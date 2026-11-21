@@ -618,7 +618,7 @@ h1 .h-dx{color:#cfc3a3}
 
 /* ---- desk, the widest set (GAM-114): built for two hands. The tube spans the full width in a 16 : 9 shape; under it
    a control deck holds the stick well at the far left, FIRE and BOOST at the far right, and the nameplate, switches,
-   POWER, RESET and the dial between them. The set grows with the window until the whole of it fits the window's height.
+   POWER, RESET and the dial between them (the plate, switches and POWER row share one left edge). The set grows with the window until the whole of it fits the window's height.
    Full screen keeps its own layout; an embedding page sizes the frame to the set, so there the width alone decides. ---- */
 @media (min-width:721px){
   :root{--desk-min:880px}
@@ -634,9 +634,9 @@ h1 .h-dx{color:#cfc3a3}
   :root[data-layout="desk"]:not([data-full]) .fire{height:58px;font-size:14px}
   :root[data-layout="desk"]:not([data-full]) .boost{height:48px}
   :root[data-layout="desk"]:not([data-full]) .controls{grid-area:ctl;display:grid;grid-template-columns:auto auto;grid-template-areas:"plate dial" "rock dial" "pwr dial";
-    align-content:center;justify-content:center;align-items:center;justify-items:center;gap:10px clamp(16px,2.4vw,32px)}
+    align-content:center;justify-content:center;align-items:center;justify-items:start;gap:10px clamp(16px,2.4vw,32px)}
   :root[data-layout="desk"]:not([data-full]) .nameplate{grid-area:plate;width:220px}
-  :root[data-layout="desk"]:not([data-full]) .dial-block{grid-area:dial}
+  :root[data-layout="desk"]:not([data-full]) .dial-block{grid-area:dial;justify-self:center}
   :root[data-layout="desk"]:not([data-full]) .rockers{grid-area:rock}
   :root[data-layout="desk"]:not([data-full]) .power{grid-area:pwr;position:static}
   :root[data-layout="desk"]:not([data-full]) .power > .ctl-label{display:none}
