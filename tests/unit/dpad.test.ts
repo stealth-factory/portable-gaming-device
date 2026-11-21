@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DPad, PAD_DEAD, PAD_TILT, nextPadMode, isPadMode, PAD_MODES } from '../../src/console/dpad';
+import { DPad, PAD_DEAD, PAD_TILT, nextPadMode, isPadMode, PAD_MODES, padKey, resolvePadMode } from '../../src/console/dpad';
 
 describe('D-pad', () => {
   it('reads the finger against a fixed centre, with a dead spot in the middle', () => {
@@ -69,5 +69,18 @@ describe('D-pad', () => {
     p.down(1, 0, 0, 40, 30);                                     // a diagonal: right is the stronger axis
     expect(p.dirs).toEqual(['right', 'down']);
     expect(p.dir).toBe('right');
+  });
+
+  it("keeps the console's setting and each game's own pick under their own keys", () => {
+    expect(padKey(null)).toBe('gg-dpad');
+    expect(padKey('martianstorm')).toBe('gg-dpad-martianstorm');
+  });
+
+  it("starts a game on the player's pick for it, else the game's preference, else the console's setting, else STICK", () => {
+    expect(resolvePadMode('stick', 'dpad', 'dpad')).toBe('stick');      // the player flipped it in this game: theirs wins
+    expect(resolvePadMode(null, 'dpad', 'stick')).toBe('dpad');         // never flipped here: the game's preference
+    expect(resolvePadMode(null, undefined, 'dpad')).toBe('dpad');       // the game has no say: the console's setting
+    expect(resolvePadMode(null, undefined, null)).toBe('stick');        // nothing stored anywhere
+    expect(resolvePadMode('dpad8', 'joystick', 'x')).toBe('stick');     // stale or mistyped values fall through
   });
 });

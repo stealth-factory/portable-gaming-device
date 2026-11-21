@@ -280,6 +280,23 @@ api.stamp(sky, 0, api.HUD);
 
 The player picks how the on-screen control works with the switch across the top of its well: **STICK** (the floating thumb-stick, 4-way) or **D-PAD** (a fixed cross, where pressing between two arms holds both, a diagonal). A game doesn't choose and doesn't need to know: `stickDir` is always one direction, so a 4-way game plays the same in either setting. A game that can use a diagonal reads `api.stickDirs` alongside `api.held` (Martian Storm combines them, scaling a diagonal so it is no faster). Older hosts may lack `stickDirs`, so fall back to `stickDir` (`api.stickDirs ?? api.stickDir`).
 
+#### The joystick switch: `joystick`
+
+A game can say which setting it would rather start on with the disk's `joystick` field: `'dpad'` for a game that plays best on a fixed cross (a grid game, or one that wants diagonals), `'stick'` for one that wants the floating thumb-stick. When the game loads, the switch moves to:
+
+1. the player's own pick for this game, if they have flipped the switch while it was loaded (kept on the device as `gg-dpad-<id>`);
+2. otherwise the disk's `joystick`;
+3. otherwise the player's setting on the console's own screens (`gg-dpad`), STICK out of the box.
+
+The player can always flip it; a flip in a game is kept for that game, and the console's screens go back to the player's own setting. Settings reset clears every game's pick, so each game is back on its preference. Leave the field out and the switch simply stays where the player left it. It changes how the control feels, never what the game reads: `stickDir` is one direction either way.
+
+```ts
+export const disk: GameDisk = {
+  // …
+  joystick: 'dpad',   // starts on the D-pad; the player can still flip it
+};
+```
+
 ### Action buttons
 
 Every button on the set is a **slot** (more in [Buttons and their layout](#5-buttons-and-their-layout)). Read one with `api.button(id)`:
@@ -458,6 +475,7 @@ The launcher shows the front disk's cover large, with its label strip (`title`, 
 | --- | --- |
 | `buttons` | Required. See [Buttons and their layout](#5-buttons-and-their-layout) |
 | `controls` | `'stick'` (default) or `'pad'` |
+| `joystick` | Optional. `'dpad'` or `'stick'`: the joystick setting the game would rather start on. See [The joystick switch](#the-joystick-switch-joystick) |
 | `tap` | `true` to take taps on the screen as presses |
 
 ### The end of a game

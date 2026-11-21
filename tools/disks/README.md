@@ -16,7 +16,7 @@ A disk file is a zip. Its entries are stored uncompressed and carry fixed dates,
 
 | File | What it holds |
 | --- | --- |
-| `manifest.json` | `format` (1), then every data field of the disk: `id`, `version`, `contract`, `rating`, `order`, `slug`, `page`, `title`, `nameKey`, `file`, `size`, `loadSecs`, `steps`, `blurb`, `verb`, `tap`, `controls`, `buttons`, `overKey`, `againKey`, `genre`, `players`, `year`, `manual`, `strings`, and `cover` (from the generated `cover.ts`). Optional fields a disk leaves out are absent. |
+| `manifest.json` | `format` (1), then every data field of the disk: `id`, `version`, `contract`, `rating`, `order`, `slug`, `page`, `title`, `nameKey`, `file`, `size`, `loadSecs`, `steps`, `blurb`, `verb`, `tap`, `controls`, `joystick`, `buttons`, `overKey`, `againKey`, `genre`, `players`, `year`, `manual`, `strings`, and `cover` (from the generated `cover.ts`). Optional fields a disk leaves out are absent. |
 | `disk.js` | The disk object, functions included (`drawLoad`, and `drawCover` and `drawPreview` where the disk has them). Run as a plain script, it defines the global `PGDDisk`; the disk is `PGDDisk.disk`. |
 | `game.js` | The game. Run as a plain script, it defines the global `PGDGame`; the game's factory is `PGDGame.create(api)`. |
 | `preview.json` | The flipbook (`{ w, h, fps, frames }`, from the generated `preview.ts`), where the disk has one. |

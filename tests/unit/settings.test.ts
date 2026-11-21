@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULTS, isScoreKey, scoreKeys } from '../../src/console/settings';
+import { DEFAULTS, isScoreKey, isPadKey, scoreKeys } from '../../src/console/settings';
 import { I18N, LANGS } from '../../src/console/i18n';
 
 describe('settings reset', () => {
@@ -15,5 +15,15 @@ describe('settings reset', () => {
   it('has its words in every language', () => {
     for (const l of LANGS) for (const k of ['setH', 'setReset', 'setResetQ', 'setResetYes', 'setResetDone', 'setScores', 'setScoresQ', 'setScoresYes', 'setScoresDone', 'setNo'])
       expect(I18N[l][k], `${l}.${k}`).toBeTruthy();
+  });
+});
+
+describe('joystick keys', () => {
+  it("picks out the console's switch setting and each game's own pick, and nothing else", () => {
+    expect(isPadKey('gg-dpad')).toBe(true);
+    expect(isPadKey('gg-dpad-martianstorm')).toBe(true);
+    expect(isPadKey('gg-dpadx')).toBe(false);
+    expect(isPadKey('gg-best-dino')).toBe(false);
+    expect(isScoreKey('gg-dpad-dino')).toBe(false);
   });
 });
