@@ -1,5 +1,5 @@
 /** The floating on-screen joystick, the fixed D-pad that can take its place (GAM-112: the switch in the well's top
-    corner steps STICK → D-PAD → 8-WAY; logic in src/console/dpad.ts), and the button pad that takes its place while a game that has no use for a stick
+    top switches STICK ↔ D-PAD, a fixed cross with diagonals; logic in src/console/dpad.ts), and the button pad that takes its place while a game that has no use for a stick
     is playing (`controls: 'pad'` on its disk: I Invade). The pad is six optional slots, `pad1`…`pad6`, in two rows
     of three; each shows only while the game maps it (see src/console/buttons.ts). The sideways console layout
     lifts the three bays and CLUSTER out to the right (see console.css); this markup stays one pad. */
@@ -19,7 +19,7 @@ export function Joystick(){
       <span className="hint" data-i18n="stick">DRAG TO STEER</span>
       <span className="hint dhint" data-i18n="dpadHint">PRESS TO STEER</span>
       <button className="padmode" id="padModeBtn" type="button" data-mode="stick" aria-label="Joystick mode: stick">
-        <span data-m="stick">STICK</span><span data-m="dpad">4-WAY</span><span data-m="dpad8">8-WAY</span>
+        <span data-m="stick">STICK</span><span data-m="dpad">D-PAD</span>
       </button>
       <div className="btnpad" id="btnpad">
         <div className="bayrow">

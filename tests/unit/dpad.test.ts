@@ -18,26 +18,19 @@ describe('D-pad', () => {
     expect(p.move(1, -5, 0).dir).toBeNull();   // back in the dead spot
   });
 
-  it('holds one direction in 4-way mode, through diagonal wobble', () => {
-    const p = new DPad(false);
-    p.down(1, 0, 0, 30, 0);
-    expect(p.move(1, 30, 30).dirs).toEqual(['right']);
-    expect(p.move(1, 20, 40).dirs).toEqual(['down']);
-  });
-
-  it('holds two directions between the arms in 8-way mode, the stronger axis first', () => {
-    const p = new DPad(true);
+  it('holds two directions between the arms the stronger axis first', () => {
+    const p = new DPad();
     p.down(1, 0, 0, 40, 0);
     expect(p.view().dirs).toEqual(['right']);
     expect(p.move(1, 40, -10).dirs).toEqual(['right']);          // about 14°: still one arm
     expect(p.move(1, 40, -30).dirs).toEqual(['right', 'up']);    // about 37°: a diagonal, the arm already held stays first
     expect(p.move(1, 10, -40).dirs).toEqual(['up']);
-    const q = new DPad(true);
+    const q = new DPad();
     expect(q.down(2, 0, 0, -20, 30).dirs).toEqual(['down', 'left']);
   });
 
   it('keeps a diagonal near its boundary (hysteresis) but drops it well inside an arm', () => {
-    const p = new DPad(true);
+    const p = new DPad();
     p.down(1, 0, 0, 40, 30);
     expect(p.view().dirs).toEqual(['right', 'down']);
     expect(p.move(1, 40, 15).dirs).toEqual(['right', 'down']);   // tan ≈ 0.375: under ON, over OFF
@@ -46,7 +39,7 @@ describe('D-pad', () => {
   });
 
   it('tilts the cross toward the held arms, never past the limit', () => {
-    const p = new DPad(true);
+    const p = new DPad();
     const v = p.down(1, 0, 0, 40, 40);
     expect(Math.hypot(v.tx, v.ty)).toBeCloseTo(PAD_TILT);
     expect(v.tx).toBeGreaterThan(0); expect(v.ty).toBeGreaterThan(0);
@@ -63,11 +56,18 @@ describe('D-pad', () => {
     expect(p.dirs).toEqual([]);
   });
 
-  it('steps the switch STICK → D-PAD → 8-WAY → STICK', () => {
+  it('switches STICK ↔ D-PAD; the old 4-WAY and 8-WAY values are not settings any more', () => {
     expect(nextPadMode('stick')).toBe('dpad');
-    expect(nextPadMode('dpad')).toBe('dpad8');
-    expect(nextPadMode('dpad8')).toBe('stick');
+    expect(nextPadMode('dpad')).toBe('stick');
     expect(PAD_MODES.every(isPadMode)).toBe(true);
+    expect(isPadMode('dpad8')).toBe(false);
     expect(isPadMode('x')).toBe(false);
+  });
+
+  it('reads one diagonal-free direction near an arm, so a game reading stickDir still gets four directions', () => {
+    const p = new DPad();
+    p.down(1, 0, 0, 40, 30);                                     // a diagonal: right is the stronger axis
+    expect(p.dirs).toEqual(['right', 'down']);
+    expect(p.dir).toBe('right');
   });
 });

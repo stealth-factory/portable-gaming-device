@@ -204,7 +204,7 @@ export function buzz(h: Haptic){ haptics.buzz(h); }
 /* ---------- input ---------- */
 export const held: Dir[] = [];
 export let stickDir: Dir | null = null, fireCool = false, boostShown = '';
-/** Every direction the stick or D-pad holds: one, or two on an 8-way diagonal (stickDir is the first). */
+/** Every direction the stick or D-pad holds: one, or two on a D-pad diagonal (stickDir is the first). */
 export let stickDirs: Dir[] = [];
 export let tapQueued = false, tapHeld = false, tapX = 0;
 export const KEYMAP: Record<string, Dir> = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', KeyW:'up', KeyS:'down', KeyA:'left', KeyD:'right' };
@@ -257,7 +257,7 @@ document.addEventListener('visibilitychange', () => {
   togglePause(true); hush();
 });
 
-/* the joystick's setting (GAM-112): STICK, 4-WAY or 8-WAY D-pad; set by the switch in the well, wired below */
+/* the joystick's setting (GAM-112): STICK or the D-pad; set by the switch in the well, wired below */
 export let padMode: PadMode = 'stick';
 let setPadModeImpl: (m: PadMode, via?: string) => void = m => { padMode = m; };
 export function setPadMode(m: PadMode, via?: string){ setPadModeImpl(m, via); }
@@ -290,12 +290,12 @@ export function setPadMode(m: PadMode, via?: string){ setPadModeImpl(m, via); }
     zone.classList.remove('active');
     base.style.left = '50%'; base.style.top = '50%'; knob.style.transform = ''; cross.style.transform = '';
   }
-  /* the switch in the well's corner: STICK, 4-WAY D-pad, 8-WAY D-pad. Kept on this device; Settings reset puts STICK back. */
+  /* the switch across the top of the well: STICK or D-PAD. Kept on this device; Settings reset puts STICK back. */
   setPadModeImpl = (m: PadMode, via?: string) => {
     centre();
-    padMode = m; dpad.eight = m === 'dpad8';
+    padMode = m;
     zone.dataset.mode = m; modeBtn.dataset.mode = m;
-    modeBtn.setAttribute('aria-label', 'Joystick mode: ' + { stick: 'stick', dpad: 'D-pad, 4 directions', dpad8: 'D-pad, 8 directions' }[m]);
+    modeBtn.setAttribute('aria-label', 'Joystick mode: ' + { stick: 'stick', dpad: 'D-pad' }[m]);
     try { localStorage.setItem('gg-dpad', m); } catch (_) {}
     if (via) track('dpad', { mode: m, via });
   };

@@ -273,12 +273,12 @@ api.stamp(sky, 0, api.HUD);
 | Read | Gives |
 | --- | --- |
 | `api.wantDir()` | The step to move now, `{ dx, dy }` or `null`: the on-screen stick first, then the newest arrow or WASD key |
-| `api.stickDir` | The stick or D-pad alone: `'up'`, `'down'`, `'left'`, `'right'` or `null`. On an 8-way diagonal, the primary one: the direction already held, if it still is, otherwise the stronger axis |
-| `api.stickDirs` | Every direction the stick or D-pad holds: none, one, or two on an 8-way D-pad diagonal (`stickDir` first) |
+| `api.stickDir` | The stick or D-pad alone: `'up'`, `'down'`, `'left'`, `'right'` or `null`. On a D-pad diagonal, the primary one: the direction already held, if it still is, otherwise the stronger axis |
+| `api.stickDirs` | Every direction the stick or D-pad holds: none, one, or two on a D-pad diagonal (`stickDir` first) |
 | `api.held` | Direction keys held, newest last |
 | kit `horizontal(api)` | −1, 0 or 1, for games that only move sideways |
 
-The player picks how the on-screen control works with the switch in the corner of its well: **STICK** (the floating thumb-stick, 4-way), **4-WAY** (a fixed D-pad cross) or **8-WAY** (the same cross, where pressing between two arms holds both). A game doesn't choose and doesn't need to know: `stickDir` is always one direction, so a 4-way game plays the same in every setting. A game that can use a diagonal reads `api.stickDirs` alongside `api.held` (Martian Storm combines them, scaling a diagonal so it is no faster). Older hosts may lack `stickDirs`, so fall back to `stickDir` (`api.stickDirs ?? api.stickDir`).
+The player picks how the on-screen control works with the switch across the top of its well: **STICK** (the floating thumb-stick, 4-way) or **D-PAD** (a fixed cross, where pressing between two arms holds both, a diagonal). A game doesn't choose and doesn't need to know: `stickDir` is always one direction, so a 4-way game plays the same in either setting. A game that can use a diagonal reads `api.stickDirs` alongside `api.held` (Martian Storm combines them, scaling a diagonal so it is no faster). Older hosts may lack `stickDirs`, so fall back to `stickDir` (`api.stickDirs ?? api.stickDir`).
 
 ### Action buttons
 

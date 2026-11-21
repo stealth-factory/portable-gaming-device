@@ -63,7 +63,7 @@ const MANUAL: GameDisk['manual'] = [
 ];
 
 export const disk: GameDisk = {
-  contract: 1, version: 3, rating: '4+',
+  contract: 1, version: 4, rating: '4+',
   id: 'martian-storm', order: 6, slug: 'martian-storm', genre: 'SHOOTER', players: 1,
   page: {
     title: 'Martian Storm',

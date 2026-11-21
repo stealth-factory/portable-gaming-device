@@ -385,7 +385,7 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 .knob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4a463c,#26241f 70%);border:2px solid #57524a;box-shadow:0 4px 10px rgba(0,0,0,.6)}
 .stickzone.active .knob{border-color:var(--phos);box-shadow:0 0 14px color-mix(in srgb, var(--phos) 45%, transparent)}
 .hint{position:absolute;left:10px;bottom:8px;font-family:var(--display);font-size:9px;letter-spacing:.12em;color:#5f5a4f;pointer-events:none}
-/* the D-pad (GAM-112): a fixed cross in the middle of the well, in place of the stick while the switch says 4-WAY or 8-WAY */
+/* the D-pad (GAM-112): a fixed cross in the middle of the well, in place of the stick while the switch says D-PAD */
 .dpad,.dhint{display:none}
 .stickzone[data-mode^="dpad"] .stickbase,.stickzone[data-mode^="dpad"] .hint:not(.dhint){display:none}
 .stickzone[data-mode^="dpad"] .dpad{display:block}
@@ -409,9 +409,9 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 .arm[data-d="right"].on::after{border-left-color:var(--phos)}
 .arm.on{background:linear-gradient(180deg,#2c2a24,#1d1b17)}
 [data-off] .arm.on::after{border-color:transparent}
-/* the switch in the well's top corner: STICK, 4-WAY, 8-WAY, the setting in use lit */
+/* the switch across the well's top: STICK or D-PAD, the setting in use lit */
 /* the switch is a strip across the top of the well, flush with its edges: it spans whatever width the well has in
-   every layout, the three settings share it equally, and the well's rounded corners clip its own */
+   every layout, the two settings share it equally, and the well's rounded corners clip its own */
 /* the well's resting picture centres in the space under the strip (--mh is the strip's height); a held stick follows
    the finger exactly, so the offset only applies at rest */
 .stickzone{--mh:23px}
@@ -420,7 +420,7 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 [data-pad] .stickzone{--mh:0px}
 .padmode{position:absolute;z-index:2;top:0;left:0;right:0;display:flex;gap:1px;margin:0;padding:3px;border:0;border-bottom:1px solid #2b2924;border-radius:0;cursor:pointer;touch-action:manipulation;background:#0d0c0a;box-shadow:inset 0 -1px 0 rgba(255,255,255,.04),0 1px 3px rgba(0,0,0,.5)}
 .padmode span{flex:1 1 0;min-width:0;text-align:center;white-space:nowrap;font-family:var(--display);font-size:8px;letter-spacing:.06em;line-height:1;padding:4px 2px;border-radius:3px;color:#5f5a4f}
-.padmode[data-mode="stick"] [data-m="stick"],.padmode[data-mode="dpad"] [data-m="dpad"],.padmode[data-mode="dpad8"] [data-m="dpad8"]{color:var(--phos);background:linear-gradient(180deg,#3a372f,#24221d);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.padmode[data-mode="stick"] [data-m="stick"],.padmode[data-mode="dpad"] [data-m="dpad"]{color:var(--phos);background:linear-gradient(180deg,#3a372f,#24221d);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
 [data-off] .padmode span{color:#5f5a4f !important}
 .padmode:focus-visible{outline:2px solid var(--phos);outline-offset:-2px}
 [data-pad] .padmode,[data-pad] .dpad,[data-pad] .dhint{display:none !important}

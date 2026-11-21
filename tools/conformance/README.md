@@ -36,7 +36,7 @@ An event needs a zero-based `frame` and may set:
 
 - `held`: distinct direction names, newest last, for keyboard movement; persists until replaced.
 - `stickDir`: a direction or `null`; persists until replaced and takes precedence over `held`. Sets `stickDirs` to that one direction (or none).
-- `stickDirs`: up to two distinct directions, the primary first, as an 8-way D-pad holds on a diagonal; sets `stickDir` to the first. Use one of `stickDir` and `stickDirs` per event.
+- `stickDirs`: up to two distinct directions, the primary first, as the D-pad holds on a diagonal; sets `stickDir` to the first. Use one of `stickDir` and `stickDirs` per event.
 - `buttons`: an object mapping slot names to booleans. A false-to-true transition queues a press; the value controls whether the slot remains held. Unmapped or disabled slots ignore it.
 - `press`: slot names whose queued flag is set for the game to consume, without holding them down. This supports repeated presses without release events.
 - `tap`: `{ "held": true, "x": 180 }`; a false-to-true transition queues a tap only for disks with `tap: true` in `ready` or `play`. `x` is in low-res pixels and changes only on an accepted press. Release clears held state in every mode and keeps the queued flag and last accepted `x`. An ignored held press does not become a new edge when play starts.

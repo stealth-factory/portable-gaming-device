@@ -61,7 +61,7 @@ export function skiffSpeed(boosts: number): number {
 }
 
 /** Diagonals share one speed with a single axis. The on-screen stick or D-pad wins over the keys: one direction, or two
-    on an 8-way D-pad diagonal (GAM-112). */
+    on a D-pad diagonal (GAM-112). */
 export function skiffVelocity(held: readonly Axis[], stick: Axis | readonly Axis[] | null | undefined, speed = SKIFF_SPEED): { vx: number; vy: number } {
   const sticks = stick == null ? [] : typeof stick === 'string' ? [stick] : stick;
   const from = sticks.length ? sticks : held;
