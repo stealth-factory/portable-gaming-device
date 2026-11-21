@@ -40,6 +40,9 @@ describe('game disks', () => {
     }
     expect(DISKS.find(d => d.id === 'iinvade')?.controls).toBe('pad');
   });
+  it("a disk's preferred joystick, if it names one, is a setting the switch has", () => {
+    for (const d of DISKS) if (d.joystick !== undefined) expect(['stick', 'dpad'], d.id).toContain(d.joystick);
+  });
   it('load times differ between games', () => {
     expect(new Set(DISKS.map(d => d.loadSecs)).size).toBe(DISKS.length);
   });

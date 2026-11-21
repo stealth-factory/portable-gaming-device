@@ -52,7 +52,7 @@ const src = (folder, file) => JSON.stringify(join(ROOT, 'src/games', folder, fil
 
 /** The manifest's fields, in this order. Everything else on the disk object is code (disk.js) or the flipbook. */
 const MANIFEST = ['id', 'version', 'contract', 'rating', 'order', 'slug', 'page', 'title', 'nameKey', 'file', 'size',
-  'loadSecs', 'steps', 'blurb', 'verb', 'tap', 'controls', 'buttons', 'overKey', 'againKey', 'genre', 'players', 'year',
+  'loadSecs', 'steps', 'blurb', 'verb', 'tap', 'controls', 'joystick', 'buttons', 'overKey', 'againKey', 'genre', 'players', 'year',
   'manual', 'strings', 'cover'];
 
 /** Build one game folder into its disk file: `{ id, version, name, files, bytes, sha256 }`. */

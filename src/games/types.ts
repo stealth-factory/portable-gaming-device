@@ -207,6 +207,11 @@ export interface GameDisk {
       pad while it plays by mapping pad slots with `setButtons` (ROCKETX's thruster controls); the stick is back once
       it puts them back (`null`). */
   controls?: 'stick' | 'pad';
+  /** The joystick setting this game would rather have: 'dpad' for the fixed cross with diagonals, 'stick' for the
+      floating thumb-stick. The switch moves to it when the game loads; the player can still flip it, and their pick
+      for this game is kept from then on. Leave it out and the switch stays where the player left it. Either way
+      `stickDir` is one direction, so this changes how the control feels, not what the game reads. */
+  joystick?: 'stick' | 'dpad';
   /** What each action button is for in this game: an I18N key for its label, and `enabled: false` to leave it dark. Slots left out go dark. */
   buttons: ButtonMap;
   /** I18N keys for the game-over card's title and button. */

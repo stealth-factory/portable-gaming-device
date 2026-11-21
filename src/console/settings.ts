@@ -12,6 +12,10 @@ export const isScoreKey = (k: string) =>
 /** The score keys among a list of storage keys. */
 export const scoreKeys = (keys: Iterable<string>) => [...keys].filter(isScoreKey);
 
+/** A storage key that holds the joystick switch's setting: the console's (`gg-dpad`) or the player's pick in one
+    game (`gg-dpad-<id>`). Settings reset removes the per-game ones, so every game goes back to its own preference. */
+export const isPadKey = (k: string) => /^gg-dpad(-[\w-]+)?$/.test(k);
+
 /** What the leaflet asks the console to do; sent as a `gg:settings` event on the page, whose `detail` is one of these. */
 export type SettingsAction = 'reset' | 'scores';
 export const SETTINGS_EVENT = 'gg:settings';
