@@ -357,7 +357,7 @@ The console's layout follows the screen, and the game has no say in it:
 
 | Layout | Stick or pad | FIRE and BOOST |
 | --- | --- | --- |
-| Desk (a computer) | Controls column right of the tube | Under the stick |
+| Desk (a computer) | Far left of the control deck under the full-width tube | Far right of the deck; the plate, switches, POWER, RESET and dial sit between |
 | Console (phone sideways) | Left of the tube | Right of the tube, under the dial and the plate |
 | Tall console (tablet or foldable sideways) | Full height, left of the tube | Bottom right, under the dial and the switches |
 | Phone and tablet upright | Under the tube, on the left | Under the tube, on the right |
