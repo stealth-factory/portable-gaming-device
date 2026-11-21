@@ -368,6 +368,8 @@ Each entry changes the label, `enabled`, or both; a field you leave out keeps it
 - **`controls: 'stick'`** (the default): the 4-way stick, with FIRE and BOOST.
 - **`controls: 'pad'`**: for a game with no use for a stick. While the game is in `ready`, `play`, `dying`, `clear` or `paused`, the stick's place holds a pad of up to six buttons in two rows of three (`pad1` to `pad3` red on top, `pad4` to `pad6` amber below), and the FIRE row steps aside. The arrows, <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> and <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> become pad keys, so don't steer with `wantDir()`. Leave `pad6` out and `pad4` and `pad5` share the bottom row. The stick comes back for the console's own screens. A `'stick'` game can switch to the pad while it plays by mapping pad slots with `setButtons` (ROCKETX does for its PILOT and ENGINEER controls), and back to the stick by putting them back with `null`; leave them out of the disk's `buttons` so the stick is the default.
 
+Not to be confused with `joystick`, which picks how the stick itself works for a `'stick'` game: the floating thumb-stick or the fixed D-pad cross. See [The joystick switch](#the-joystick-switch-joystick).
+
 ### Where they sit
 
 The console's layout follows the screen, and the game has no say in it:
