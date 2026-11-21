@@ -47,7 +47,7 @@ It exports `disk: GameDisk` (see [`types.ts`](types.ts) for every field):
 | `file`, `size` | The file the drive "reads" (`DINORUN.COM`) and its size in bytes. |
 | `loadSecs`, `steps` | Load time, at most 5 s and different from every other game's, and the uneven progress curve from `[0, 0]` to `[1, 1]`. |
 | `blurb`, `verb` | One line under the title on the menu, and the verb for `PRESS FIRE TO …`. |
-| `tap`, `controls` | Whether taps on the screen count as a press, and `'pad'` to swap the stick for the button pad. |
+| `tap`, `controls`, `joystick` | Whether taps on the screen count as a press, `'pad'` to swap the stick for the button pad, and the joystick setting (`'stick'` or `'dpad'`) the game would rather start on (optional; the player's own pick for the game still wins). |
 | `buttons` | Each action button's I18N label and whether it's lit; slots left out go dark. |
 | `overKey`, `againKey` | The game-over card's title and button. |
 | `manual`, `strings` | The Operating Instructions and every string they use. |

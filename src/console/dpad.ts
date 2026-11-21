@@ -18,6 +18,18 @@ export const PAD_MODES: readonly PadMode[] = ['stick', 'dpad'];
 export const isPadMode = (v: unknown): v is PadMode => typeof v === 'string' && (PAD_MODES as readonly string[]).includes(v);
 export const nextPadMode = (m: PadMode): PadMode => PAD_MODES[(PAD_MODES.indexOf(m) + 1) % PAD_MODES.length];
 
+/** Where the switch's setting is kept: `gg-dpad` for the console's own screens (and every game with no say), and
+    `gg-dpad-<id>` for the player's own pick in one game, once they flip the switch while it is loaded. */
+export const padKey = (gameId: string | null) => gameId ? `gg-dpad-${gameId}` : 'gg-dpad';
+
+/** The setting while a game is loaded: the player's own pick for that game, else the game's preference (the disk's
+    `joystick`), else the player's setting on the console's screens, else STICK. Anything not a setting is skipped,
+    so a stored value from an older build or a disk with a typo falls through to the next. */
+export function resolvePadMode({ own, prefer, global }: { own?: unknown; prefer?: unknown; global?: unknown }): PadMode {
+  for (const m of [own, prefer, global]) if (isPadMode(m)) return m;
+  return 'stick';
+}
+
 /** The dead spot's radius in the middle of the cross, and how far the cross tilts toward the finger at most (px). */
 export const PAD_DEAD = 10, PAD_TILT = 6;
 /** A second axis turns on past ON times the first, and off below OFF times it (tan 24°, tan 18°). */

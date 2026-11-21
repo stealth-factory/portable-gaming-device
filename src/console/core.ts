@@ -6,10 +6,10 @@ import type { Dir, ConsoleAPI } from "../games/types";
 import { bus } from "./bus";
 import * as Btn from "./buttons";
 import { Stick } from "./stick";
-import { DPad, isPadMode, nextPadMode, type PadMode } from "./dpad";
+import { DPad, nextPadMode, padKey, resolvePadMode, type PadMode } from "./dpad";
 import { noTouchHold, noSelectOn } from "./nohold";
 import { makeHaptics, type Haptic } from "../kit/platform/haptics";
-import { DEFAULTS, SETTINGS_EVENT } from "./settings";
+import { DEFAULTS, SETTINGS_EVENT, isPadKey } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
 import { startConsole, menuKey, menuTap, pressSelect, loadGame, launcherTargets, skipSplash } from "./program/loader";
 import { bindHost } from "./program/host";
@@ -258,10 +258,30 @@ document.addEventListener('visibilitychange', () => {
   togglePause(true); hush();
 });
 
-/* the joystick's setting (GAM-112): STICK or the D-pad; set by the switch in the well, wired below */
+/* the joystick's setting (GAM-112): STICK or the D-pad; set by the switch in the well, wired below. While a game is
+   loaded the switch shows that game's setting (padScope is its id): the player's own pick for it, else the disk's
+   `joystick` preference, else the console's setting (resolvePadMode). A flip is kept for whichever is showing. */
 export let padMode: PadMode = 'stick';
-let setPadModeImpl: (m: PadMode, via?: string) => void = m => { padMode = m; };
-export function setPadMode(m: PadMode, via?: string){ setPadModeImpl(m, via); }
+let padScope: string | null = null;
+let showPadMode: (m: PadMode) => void = m => { padMode = m; };
+// kept in memory too, so a flip still holds for this visit where the browser refuses storage (private modes, full)
+const padMem = new Map<string, PadMode>();
+const padStore = (k: string): string | null => { const m = padMem.get(k); if (m) return m; try { return localStorage.getItem(k); } catch (_) { return null; } };
+export function setPadMode(m: PadMode, via?: string){
+  showPadMode(m);
+  padMem.set(padKey(padScope), m);
+  try { localStorage.setItem(padKey(padScope), m); } catch (_) {}
+  if (via) track('dpad', { mode: m, via });
+}
+/** Point the switch at a game or at the console's own screens (null), and move it to that setting. */
+export function scopePad(d: { id: string; joystick?: PadMode } | null){
+  padScope = d ? d.id : null;
+  const m = resolvePadMode({ own: d ? padStore(padKey(d.id)) : null, prefer: d?.joystick, global: padStore(padKey(null)) ?? DEFAULTS.dpad });
+  if (m !== padMode) showPadMode(m);
+}
+/** Whose setting the switch shows now: the loaded game's while it loads and plays (paused included), the console's on
+    every console screen (menu, boot, name entry, the high scores and attract loop after a game, and with the set off). */
+const padOwner = () => game && tvOn && (inGame() || S.mode === 'load') ? game : null;
 
 /* floating thumb-stick: the logic lives in stick.ts; this wires it to the pad. A dropped finger must never leave the
    stick held or deaf to the next touch, so it lets go on every sign the finger has gone, and a new touch takes over. */
@@ -292,15 +312,13 @@ export function setPadMode(m: PadMode, via?: string){ setPadModeImpl(m, via); }
     base.style.left = '50%'; base.style.top = '50%'; knob.style.transform = ''; cross.style.transform = '';
   }
   /* the switch across the top of the well: STICK or D-PAD. Kept on this device; Settings reset puts STICK back. */
-  setPadModeImpl = (m: PadMode, via?: string) => {
+  showPadMode = (m: PadMode) => {
     centre();
     padMode = m;
     zone.dataset.mode = m; modeBtn.dataset.mode = m;
     modeBtn.setAttribute('aria-label', 'Joystick mode: ' + { stick: 'stick', dpad: 'D-pad' }[m]);
-    try { localStorage.setItem('gg-dpad', m); } catch (_) {}
-    if (via) track('dpad', { mode: m, via });
   };
-  { let m: string | null = null; try { m = localStorage.getItem('gg-dpad'); } catch (_) {} setPadModeImpl(isPadMode(m) ? m : DEFAULTS.dpad); }
+  showPadMode(resolvePadMode({ global: padStore(padKey(null)) ?? DEFAULTS.dpad }));
   // a press steps the switch at once, like the set's keys (a quick second tap would lose its click to the double-tap guard);
   // click is left for the keyboard (Enter or Space on the focused switch)
   const stepMode = () => { buzz('tick'); setPadMode(nextPadMode(padMode), 'switch'); };
@@ -401,6 +419,7 @@ for (const id of ['stickzone', 'fireBtn', 'boostBtn', 'fireLBtn', 'fireRBtn', 'd
    game that puts buttons on the pad with setButtons (ROCKETX's thruster controls) gets the pad for as long as it does. */
 export let padShown = false;
 export function syncPad(){
+  { const owner = padOwner(); if ((owner ? owner.id : null) !== padScope) scopePad(owner); }   // the joystick switch follows whose screen it is
   const on = !!game && (game.controls === 'pad' || Btn.padMapped()) && inGame() && tvOn;
   if (on === padShown) return;
   padShown = on;
@@ -510,7 +529,10 @@ export function resetSettings(){
   if (muted !== !DEFAULTS.sound) toggleMute();
   if (S.mode === 'paused' && !DEFAULTS.hold) togglePause();
   setFull(DEFAULTS.full);
-  if (padMode !== DEFAULTS.dpad) setPadMode(DEFAULTS.dpad);
+  // every game's own pick goes too, so the switch is back to the console's default and each game's preference
+  padMem.clear();
+  try { Object.keys(localStorage).filter(isPadKey).forEach(k => localStorage.removeItem(k)); } catch (_) {}
+  scopePad(padOwner());
   applyLang(DEFAULTS.lang, true);
   track('settings_reset', { layout: layoutName() });
 }

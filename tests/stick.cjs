@@ -78,14 +78,42 @@ if (await modeOf() !== 'dpad') errs.push('Space on the focused switch should ste
 await p.keyboard.press('Enter');
 if (await modeOf() !== 'stick') errs.push('Enter on the focused switch should step it back to STICK, got ' + await modeOf());
 
-// 9. a finger held on a control never brings up iOS's magnifying glass or a selection (GAM-115): the controls that read
+// 9. a game's preferred control (the disk's `joystick`): the switch moves to it when the game loads, the player's flip
+// in that game is kept for that game, and the console's screens keep the player's own setting
+const inPlay = () => p.waitForFunction(() => ['ready', 'play'].includes(__gg.S.mode), null, { timeout: 9000 });
+const toMenu = async () => { await p.keyboard.press('g'); await p.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 8000 }); };
+const load = async id => { await p.evaluate(id => __gg.loadGame(__gg.DISKS.findIndex(d => d.id === id)), id); await inPlay(); };
+await p.click('#powerBtn'); await p.waitForFunction(() => __gg.S.mode === 'menu', null, { timeout: 10000 });
+await p.evaluate(() => { __gg.DISKS.find(d => d.id === 'dino').joystick = 'dpad'; });
+if (await modeOf() !== 'stick') errs.push('menu: the switch should start on STICK, got ' + await modeOf());
+await load('dino'); if (await modeOf() !== 'dpad') errs.push("a game preferring the D-pad should load on D-PAD, got " + await modeOf());
+await tapSwitch(); if (await modeOf() !== 'stick') errs.push('flipping in a game: ' + await modeOf());
+await toMenu(); if (await modeOf() !== 'stick') errs.push("the menu should keep the console's setting, got " + await modeOf());
+await tapSwitch();   // the console's setting: D-PAD
+await load('dino'); if (await modeOf() !== 'stick') errs.push("the player's own pick in a game should win over its preference, got " + await modeOf());
+// the game ends: name entry and the high scores are the console's screens, so the switch shows (and a flip there sets)
+// the console's setting, not the game's
+await p.evaluate(() => __gg.finishGame()); await p.waitForFunction(() => ['entry', 'over'].includes(__gg.S.mode), null, { timeout: 8000 });
+if (await modeOf() !== 'dpad') errs.push("after a game ends the switch should show the console's setting, got " + await modeOf());
+await toMenu(); if (await modeOf() !== 'dpad') errs.push("back on the menu the console's D-PAD should return, got " + await modeOf());
+await load('tunnel'); if (await modeOf() !== 'dpad') errs.push("a game with no preference should keep the console's setting, got " + await modeOf());
+await p.evaluate(() => dispatchEvent(new CustomEvent('gg:settings', { detail: 'reset' })));
+if (await modeOf() !== 'stick') errs.push('Settings reset should put STICK back, got ' + await modeOf());
+if (await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('gg-dpad')).length)) errs.push('Settings reset left joystick keys behind');
+await toMenu(); await load('dino'); if (await modeOf() !== 'dpad') errs.push('after a reset the game should be back on its preference, got ' + await modeOf());
+// where the browser refuses storage, a flip still holds for the visit
+await toMenu(); await p.evaluate(() => { Storage.prototype.setItem = () => { throw new Error('quota'); }; });
+await tapSwitch(); if (await modeOf() !== 'dpad') errs.push('flip with storage refused: ' + await modeOf());
+await load('tunnel'); if (await modeOf() !== 'dpad') errs.push("with storage refused, the console's flip should still carry into a game, got " + await modeOf());
+
+// 10. a finger held on a control never brings up iOS's magnifying glass or a selection (GAM-115): the controls that read
 // pointer events cancel their touchstart, the click-driven switches keep theirs (or their click would be lost), and
 // the set refuses to start a selection
 await p.evaluate(() => { document.addEventListener('touchstart', e => { window.__tsAt = e.target; window.__tsCancelled = e.defaultPrevented; }); });
 const cancelledOn = id => p.evaluate(id => { const el = document.getElementById(id); return el && el.contains(window.__tsAt) ? window.__tsCancelled : 'missed ' + (window.__tsAt?.id || window.__tsAt?.className); }, id);
 const centreOf = sel => p.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, sel);
 const tapOn = async (sel, id) => { const [x, y] = await centreOf(sel); await touch('touchStart', [[x, y, id]]); await p.waitForTimeout(30); await touch('touchEnd', []); };
-for (const [sel, key] of [['#stickzone .hint', 'stickzone'], ['#padModeBtn', 'padModeBtn'], ['#dial', 'dial'], ['#cv', 'cv'], ['#boostBtn', 'boostBtn']]) {
+for (const [sel, key] of [['#stickzone', 'stickzone'], ['#padModeBtn', 'padModeBtn'], ['#dial', 'dial'], ['#cv', 'cv'], ['#boostBtn', 'boostBtn']]) {
   await tapOn(sel, 20);
   const got = await cancelledOn(key);
   if (got !== true) errs.push(`${key}: touchstart not cancelled (${got}), so iOS can show the magnifier on a hold`);
@@ -97,7 +125,7 @@ for (const [sel, key] of [['#stickzone .hint', 'stickzone'], ['#padModeBtn', 'pa
   if (!await p.evaluate(() => document.querySelector('#fireBtn').classList.contains('on'))) errs.push('FIRE: a held touch does not press it');
   if (await cancelledOn('fireBtn') !== true) errs.push('FIRE: touchstart not cancelled');
   await touch('touchEnd', []); }
-if (!await p.evaluate(() => { const ev = new Event('selectstart', { bubbles: true, cancelable: true }); document.querySelector('#stickzone .hint').dispatchEvent(ev); return ev.defaultPrevented; })) errs.push('a selection can start on the set');
+if (!await p.evaluate(() => { const ev = new Event('selectstart', { bubbles: true, cancelable: true }); document.querySelector('#stickzone').dispatchEvent(ev); return ev.defaultPrevented; })) errs.push('a selection can start on the set');
 if (await p.evaluate(() => (getSelection()?.toString() ?? '').length) > 0) errs.push('text got selected: ' + await p.evaluate(() => getSelection().toString()));
 
 await b.close();
