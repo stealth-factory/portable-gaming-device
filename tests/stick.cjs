@@ -91,6 +91,10 @@ await tapSwitch(); if (await modeOf() !== 'stick') errs.push('flipping in a game
 await toMenu(); if (await modeOf() !== 'stick') errs.push("the menu should keep the console's setting, got " + await modeOf());
 await tapSwitch();   // the console's setting: D-PAD
 await load('dino'); if (await modeOf() !== 'stick') errs.push("the player's own pick in a game should win over its preference, got " + await modeOf());
+// the game ends: name entry and the high scores are the console's screens, so the switch shows (and a flip there sets)
+// the console's setting, not the game's
+await p.evaluate(() => __gg.finishGame()); await p.waitForFunction(() => ['entry', 'over'].includes(__gg.S.mode), null, { timeout: 8000 });
+if (await modeOf() !== 'dpad') errs.push("after a game ends the switch should show the console's setting, got " + await modeOf());
 await toMenu(); if (await modeOf() !== 'dpad') errs.push("back on the menu the console's D-PAD should return, got " + await modeOf());
 await load('tunnel'); if (await modeOf() !== 'dpad') errs.push("a game with no preference should keep the console's setting, got " + await modeOf());
 await p.evaluate(() => dispatchEvent(new CustomEvent('gg:settings', { detail: 'reset' })));

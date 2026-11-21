@@ -29,8 +29,6 @@ export interface WebPlatformDeps {
   buzz: Platform['buzz'];
   /** The leaflet's instructions (core passes them to the React island). */
   setManual: Platform['setManual'];
-  /** The loaded game changed (its id, or null for the console's own screens), for the joystick switch's setting. */
-  onGame(id: string | null): void;
 }
 
 export function makeWebPlatform(deps: WebPlatformDeps): Platform {
@@ -52,7 +50,7 @@ export function makeWebPlatform(deps: WebPlatformDeps): Platform {
     showOverCard: deps.showOverCard,
     showPauseCard: deps.showPauseCard,
     showHold(on){ $('pauseBtn')?.setAttribute('aria-pressed', String(on)); },
-    showGame(id){ document.documentElement.setAttribute('data-game', id ?? 'menu'); deps.onGame(id); },
+    showGame(id){ document.documentElement.setAttribute('data-game', id ?? 'menu'); },
     setManual: deps.setManual,
     flash(control){
       const b = $(control + 'Btn'); if (!b) return;

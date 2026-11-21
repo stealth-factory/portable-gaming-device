@@ -77,10 +77,10 @@ describe('D-pad', () => {
   });
 
   it("starts a game on the player's pick for it, else the game's preference, else the console's setting, else STICK", () => {
-    expect(resolvePadMode('stick', 'dpad', 'dpad')).toBe('stick');      // the player flipped it in this game: theirs wins
-    expect(resolvePadMode(null, 'dpad', 'stick')).toBe('dpad');         // never flipped here: the game's preference
-    expect(resolvePadMode(null, undefined, 'dpad')).toBe('dpad');       // the game has no say: the console's setting
-    expect(resolvePadMode(null, undefined, null)).toBe('stick');        // nothing stored anywhere
-    expect(resolvePadMode('dpad8', 'joystick', 'x')).toBe('stick');     // stale or mistyped values fall through
+    expect(resolvePadMode({ own: 'stick', prefer: 'dpad', global: 'dpad' })).toBe('stick');      // the player flipped it in this game: theirs wins
+    expect(resolvePadMode({ own: null, prefer: 'dpad', global: 'stick' })).toBe('dpad');         // never flipped here: the game's preference
+    expect(resolvePadMode({ prefer: undefined, global: 'dpad' })).toBe('dpad');       // the game has no say: the console's setting
+    expect(resolvePadMode({})).toBe('stick');        // nothing stored anywhere
+    expect(resolvePadMode({ own: 'dpad8', prefer: 'joystick', global: 'x' })).toBe('stick');     // stale or mistyped values fall through
   });
 });

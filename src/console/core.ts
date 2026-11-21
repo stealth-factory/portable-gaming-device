@@ -269,12 +269,15 @@ export function setPadMode(m: PadMode, via?: string){
   try { localStorage.setItem(padKey(padScope), m); } catch (_) {}
   if (via) track('dpad', { mode: m, via });
 }
-/** Point the switch at a game (when it loads) or at the console's own screens (null), and move it to that setting. */
+/** Point the switch at a game or at the console's own screens (null), and move it to that setting. */
 export function scopePad(d: { id: string; joystick?: PadMode } | null){
   padScope = d ? d.id : null;
-  const m = resolvePadMode(d ? padStore(padKey(d.id)) : null, d?.joystick, padStore(padKey(null)) ?? DEFAULTS.dpad);
+  const m = resolvePadMode({ own: d ? padStore(padKey(d.id)) : null, prefer: d?.joystick, global: padStore(padKey(null)) ?? DEFAULTS.dpad });
   if (m !== padMode) showPadMode(m);
 }
+/** Whose setting the switch shows now: the loaded game's while it loads and plays (paused included), the console's on
+    every console screen (menu, boot, name entry, the high scores and attract loop after a game, and with the set off). */
+const padOwner = () => game && tvOn && (inGame() || S.mode === 'load') ? game : null;
 
 /* floating thumb-stick: the logic lives in stick.ts; this wires it to the pad. A dropped finger must never leave the
    stick held or deaf to the next touch, so it lets go on every sign the finger has gone, and a new touch takes over. */
@@ -311,7 +314,7 @@ export function scopePad(d: { id: string; joystick?: PadMode } | null){
     zone.dataset.mode = m; modeBtn.dataset.mode = m;
     modeBtn.setAttribute('aria-label', 'Joystick mode: ' + { stick: 'stick', dpad: 'D-pad' }[m]);
   };
-  showPadMode(resolvePadMode(null, null, padStore(padKey(null)) ?? DEFAULTS.dpad));
+  showPadMode(resolvePadMode({ global: padStore(padKey(null)) ?? DEFAULTS.dpad }));
   // a press steps the switch at once, like the set's keys (a quick second tap would lose its click to the double-tap guard);
   // click is left for the keyboard (Enter or Space on the focused switch)
   const stepMode = () => { buzz('tick'); setPadMode(nextPadMode(padMode), 'switch'); };
@@ -408,6 +411,7 @@ export function scopePad(d: { id: string; joystick?: PadMode } | null){
    game that puts buttons on the pad with setButtons (ROCKETX's thruster controls) gets the pad for as long as it does. */
 export let padShown = false;
 export function syncPad(){
+  { const owner = padOwner(); if ((owner ? owner.id : null) !== padScope) scopePad(owner); }   // the joystick switch follows whose screen it is
   const on = !!game && (game.controls === 'pad' || Btn.padMapped()) && inGame() && tvOn;
   if (on === padShown) return;
   padShown = on;
@@ -519,7 +523,7 @@ export function resetSettings(){
   setFull(DEFAULTS.full);
   // every game's own pick goes too, so the switch is back to the console's default and each game's preference
   try { Object.keys(localStorage).filter(isPadKey).forEach(k => localStorage.removeItem(k)); } catch (_) {}
-  scopePad(game && inGame() ? game : null);
+  scopePad(padOwner());
   applyLang(DEFAULTS.lang, true);
   track('settings_reset', { layout: layoutName() });
 }
@@ -895,7 +899,6 @@ export const api: ConsoleAPI = makeConsoleAPI({
    frame, and the requestAnimationFrame above does not run until this module has finished. */
 const platform = makeWebPlatform({
   track, layoutName, reducedMotion: reduceMotion, overlay, buzz, setManual,
-  onGame: id => scopePad(id && game?.id === id ? game : null),
   showOverCard: (n, sc) => showOverlay('over', { n, s: sc }),
   showPauseCard: () => showOverlay('paused'),
 });

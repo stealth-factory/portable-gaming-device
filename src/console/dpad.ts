@@ -25,7 +25,7 @@ export const padKey = (gameId: string | null) => gameId ? `gg-dpad-${gameId}` : 
 /** The setting while a game is loaded: the player's own pick for that game, else the game's preference (the disk's
     `joystick`), else the player's setting on the console's screens, else STICK. Anything not a setting is skipped,
     so a stored value from an older build or a disk with a typo falls through to the next. */
-export function resolvePadMode(own: unknown, prefer: unknown, global: unknown): PadMode {
+export function resolvePadMode({ own, prefer, global }: { own?: unknown; prefer?: unknown; global?: unknown }): PadMode {
   for (const m of [own, prefer, global]) if (isPadMode(m)) return m;
   return 'stick';
 }
