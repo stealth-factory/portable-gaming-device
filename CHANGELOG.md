@@ -3,6 +3,21 @@
 Every release of PGD (called Game Guy up to v0.10.0), and what changed in it. Generated from the commit
 subjects, which is why they are worth writing carefully.
 
+## [0.21.0] - 2026-11-21
+
+### Bug Fixes
+
+- **console**: No magnifier or text selection when a control is held (GAM-115) (#168)
+
+### Features
+
+- **rocketx**: Land on a ship at sea from level 4 (GAM-111) (#157)
+- **rocketx**: Catch the HAULER booster in the tower's arms (GAM-111) (#159)
+- **rocketx**: Fly the CRUISER upper stage, belly-flop and flip (GAM-111) (#160)
+- **console**: A STICK / D-PAD switch on the joystick, the D-pad with diagonals (GAM-112) (#162)
+- **console**: Let a game name the joystick setting it starts on (GAM-113) (#164)
+- **console**: A two-handed desk set, stick left, buttons right, full-width tube (GAM-114) (#166)
+
 ## [0.20.0] - 2026-11-16
 
 ### Features
