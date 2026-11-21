@@ -489,9 +489,10 @@ for (const [tag, opts] of [['desk', { viewport: { width: 1280, height: 860 } }],
   const row = (a, b) => Math.abs(a.y - b.y) < 16, under = (a, b) => a.y > b.y + 16;
   const shown = [geom.b1, geom.b2, geom.b3, geom.cl, geom.me, geom.ufo].every(b => b.on);
   const baysInARow = geom.b1.x < geom.b2.x && geom.b2.x < geom.b3.x && row(geom.b1, geom.b2) && row(geom.b2, geom.b3);
-  const consolePad = geom.layout === 'console' && shown && baysInARow && under(geom.cl, geom.b2) && geom.b1.x > geom.mid && geom.cl.x > geom.b1.x - 12 && geom.cl.x < geom.b3.x + 12 && geom.ufo.x < geom.mid && geom.me.x < geom.mid && under(geom.me, geom.ufo) && Math.abs(geom.ufo.x - geom.me.x) < 36;
-  const otherPad = geom.layout !== 'console' && shown && baysInARow && geom.b1.y < geom.cl.y - 12 && Math.abs(geom.cl.y - geom.me.y) < 18 && !(geom.ufo.y + 16 < geom.me.y && geom.ufo.x < geom.mid && geom.b1.x > geom.mid);
-  const geomOk = tag === 'land' ? consolePad : otherPad;
+  // the sideways console and the desk deck (GAM-114) split the pad: bays and CLUSTER on the right, UFO over METEORS on the left
+  const consolePad = (geom.layout === 'console' || geom.layout === 'desk') && shown && baysInARow && under(geom.cl, geom.b2) && geom.b1.x > geom.mid && geom.cl.x > geom.b1.x - 12 && geom.cl.x < geom.b3.x + 12 && geom.ufo.x < geom.mid && geom.me.x < geom.mid && under(geom.me, geom.ufo) && Math.abs(geom.ufo.x - geom.me.x) < 36;
+  const otherPad = geom.layout !== 'console' && geom.layout !== 'desk' && shown && baysInARow && geom.b1.y < geom.cl.y - 12 && Math.abs(geom.cl.y - geom.me.y) < 18 && !(geom.ufo.y + 16 < geom.me.y && geom.ufo.x < geom.mid && geom.b1.x > geom.mid);
+  const geomOk = tag === 'land' || tag === 'desk' ? consolePad : otherPad;
   const ii = () => p.evaluate(() => { const F = __gg.runtime.debug.state(); return { bombs: F.bombs.map(b => ({ k: b.k, bay: b.bay, x: Math.round(b.x), y: b.y })), meteors: F.meteors.length, bays: F.bays, clusterCD: F.clusterCD }; });
   const holdFire = () => p.evaluate(() => __gg.runtime.debug.holdFire());   // tank shells would knock bombs out mid-check
   const clearSky = () => p.waitForFunction(() => __gg.S.mode === 'play' && !__gg.runtime.debug.state().bombs.length, null, { timeout: 8000 });
