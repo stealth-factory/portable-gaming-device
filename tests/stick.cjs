@@ -101,6 +101,10 @@ await p.evaluate(() => dispatchEvent(new CustomEvent('gg:settings', { detail: 'r
 if (await modeOf() !== 'stick') errs.push('Settings reset should put STICK back, got ' + await modeOf());
 if (await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('gg-dpad')).length)) errs.push('Settings reset left joystick keys behind');
 await toMenu(); await load('dino'); if (await modeOf() !== 'dpad') errs.push('after a reset the game should be back on its preference, got ' + await modeOf());
+// where the browser refuses storage, a flip still holds for the visit
+await toMenu(); await p.evaluate(() => { Storage.prototype.setItem = () => { throw new Error('quota'); }; });
+await tapSwitch(); if (await modeOf() !== 'dpad') errs.push('flip with storage refused: ' + await modeOf());
+await load('tunnel'); if (await modeOf() !== 'dpad') errs.push("with storage refused, the console's flip should still carry into a game, got " + await modeOf());
 
 await b.close();
 if (errs.length) { console.log('FAIL\n' + errs.join('\n')); process.exit(1); }

@@ -263,9 +263,12 @@ document.addEventListener('visibilitychange', () => {
 export let padMode: PadMode = 'stick';
 let padScope: string | null = null;
 let showPadMode: (m: PadMode) => void = m => { padMode = m; };
-const padStore = (k: string) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+// kept in memory too, so a flip still holds for this visit where the browser refuses storage (private modes, full)
+const padMem = new Map<string, PadMode>();
+const padStore = (k: string): string | null => { const m = padMem.get(k); if (m) return m; try { return localStorage.getItem(k); } catch (_) { return null; } };
 export function setPadMode(m: PadMode, via?: string){
   showPadMode(m);
+  padMem.set(padKey(padScope), m);
   try { localStorage.setItem(padKey(padScope), m); } catch (_) {}
   if (via) track('dpad', { mode: m, via });
 }
@@ -522,6 +525,7 @@ export function resetSettings(){
   if (S.mode === 'paused' && !DEFAULTS.hold) togglePause();
   setFull(DEFAULTS.full);
   // every game's own pick goes too, so the switch is back to the console's default and each game's preference
+  padMem.clear();
   try { Object.keys(localStorage).filter(isPadKey).forEach(k => localStorage.removeItem(k)); } catch (_) {}
   scopePad(padOwner());
   applyLang(DEFAULTS.lang, true);
