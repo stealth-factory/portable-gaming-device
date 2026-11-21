@@ -596,7 +596,7 @@ h1 .h-dx{color:#cfc3a3}
 .padkey:focus-visible{outline:2px solid var(--phos);outline-offset:4px}
 [data-off] .padkey{filter:saturate(.25) brightness(.5)}
 /* sideways console only: three red bays on the right with CLUSTER under them, UFO above METEORS on the left.
-   Desk and portrait keep the two-row pad inside the stick. The buttons leave their boxes and join the face grid. */
+   Portrait keeps the two-row pad inside the stick (desk splits it too, at the end of this file). The buttons leave their boxes and join the face grid. */
 [data-pad][data-layout="console"] .stickzone,[data-pad][data-layout="console"] #btnpad,[data-pad][data-layout="console"] .keyrow{display:contents}
 [data-pad][data-layout="console"] .tv-face{grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-areas:"rock screen dial" "pwr screen dial" ". screen plate" "ufo screen bays" "met screen clus"}
 [data-pad][data-layout="console"] #btnpad .bayrow{display:grid;grid-area:bays;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;height:52px;min-width:0;margin-inline:4px;align-self:end}
@@ -615,3 +615,51 @@ h1 .h-dx{color:#cfc3a3}
    which setting is on, so the hint goes */
 .stickzone{container-type:size}
 @container (max-height:175px){.dhint{display:none !important}}
+
+/* ---- desk, the widest set (GAM-114): built for two hands. The tube spans the full width in a 16 : 9 shape; under it
+   a control deck holds the stick well at the far left, FIRE and BOOST at the far right, and the nameplate, switches,
+   POWER, RESET and the dial between them (the plate, switches and POWER row share one left edge). The set grows with the window until the whole of it fits the window's height.
+   Full screen keeps its own layout; an embedding page sizes the frame to the set, so there the width alone decides. ---- */
+@media (min-width:721px){
+  :root{--desk-min:880px}
+  :root[data-layout="desk"]:not([data-full]):not([data-embed]) .wrap{max-width:clamp(var(--desk-min), calc((100vh - 470px) * 16 / 9 + 104px), 1680px)}
+  @supports (height:100dvh){:root[data-layout="desk"]:not([data-full]):not([data-embed]) .wrap{max-width:clamp(var(--desk-min), calc((100dvh - 470px) * 16 / 9 + 104px), 1680px)}}
+  :root[data-layout="desk"]:not([data-full]) .tv-face{--fp:clamp(14px,1.6vw,22px);grid-template-columns:minmax(140px,200px) minmax(0,1fr) minmax(140px,200px);grid-template-rows:auto auto;
+    grid-template-areas:"screen screen screen" "stick ctl fire";gap:16px clamp(20px,2.6vw,36px);padding:var(--fp) var(--fp) calc(var(--fp) + 18px)}
+  :root[data-layout="desk"]:not([data-full]) .tube-surround{padding:clamp(10px,1.4vw,18px);align-self:stretch}
+  :root[data-layout="desk"]:not([data-full]) .screen{aspect-ratio:16/9}
+  :root[data-layout="desk"]:not([data-full]) .pad{display:contents}
+  :root[data-layout="desk"]:not([data-full]) .stickzone{grid-area:stick;height:auto;min-height:176px;align-self:stretch}
+  :root[data-layout="desk"]:not([data-full]) .keyrow{grid-area:fire;align-self:center;gap:14px}
+  :root[data-layout="desk"]:not([data-full]) .fire{height:58px;font-size:14px}
+  :root[data-layout="desk"]:not([data-full]) .boost{height:48px}
+  :root[data-layout="desk"]:not([data-full]) .controls{grid-area:ctl;display:grid;grid-template-columns:auto auto;grid-template-areas:"plate dial" "rock dial" "pwr dial";
+    align-content:center;justify-content:center;align-items:center;justify-items:start;gap:10px clamp(16px,2.4vw,32px)}
+  :root[data-layout="desk"]:not([data-full]) .nameplate{grid-area:plate;width:220px}
+  :root[data-layout="desk"]:not([data-full]) .dial-block{grid-area:dial;justify-self:center}
+  :root[data-layout="desk"]:not([data-full]) .rockers{grid-area:rock}
+  :root[data-layout="desk"]:not([data-full]) .power{grid-area:pwr;position:static}
+  :root[data-layout="desk"]:not([data-full]) .power > .ctl-label{display:none}
+  :root[data-layout="desk"]:not([data-full]) .emboss{left:50%;right:auto;bottom:11px;transform:translateX(-50%)}
+  /* a button-pad disk (I Invade, ROCKETX) splits its pad as on the sideways console: the red bays and CLUSTER under the right
+     hand, UFO and METEORS under the left */
+  :root[data-pad][data-layout="desk"]:not([data-full]) .stickzone,:root[data-pad][data-layout="desk"]:not([data-full]) #btnpad,:root[data-pad][data-layout="desk"]:not([data-full]) .keyrow{display:contents}
+  :root[data-pad][data-layout="desk"]:not([data-full]) .tv-face{grid-template-rows:auto auto auto;grid-template-areas:"screen screen screen" "ufo ctl bays" "met ctl clus"}
+  :root[data-pad][data-layout="desk"]:not([data-full]) .controls{grid-row:2 / span 2}
+  :root[data-pad][data-layout="desk"]:not([data-full]) #btnpad .bayrow{display:grid;grid-area:bays;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;height:64px;min-width:0;align-self:end}
+  :root[data-pad][data-layout="desk"]:not([data-full]) #btnpad .bayrow .padkey{grid-column:auto;height:100%;font-size:15px}
+  :root[data-pad][data-layout="desk"]:not([data-full]) #btnpad #pad4Btn{grid-area:clus;height:64px;font-size:12px;align-self:start}
+  :root[data-pad][data-layout="desk"]:not([data-full]) #btnpad #pad5Btn{grid-area:met;height:64px;font-size:12px;align-self:start}
+  :root[data-pad][data-layout="desk"]:not([data-full]) #boostBtn{grid-area:ufo;height:64px;width:auto;align-self:end}
+  :root[data-pad][data-layout="desk"][data-game="rocketx"]:not([data-full]) #btnpad #pad4Btn{grid-area:met}
+  :root[data-pad][data-layout="desk"][data-game="rocketx"]:not([data-full]) #btnpad #pad5Btn{grid-area:clus}
+}
+/* a narrow or short desk window: a smaller plate, dial and stick well keep the deck on one row and the set on screen */
+@media (min-width:721px) and (max-width:900px),(min-width:721px) and (max-height:820px){
+  :root{--desk-min:760px}
+  :root[data-layout="desk"]:not([data-full]) .stickzone{min-height:156px}
+  :root[data-layout="desk"]:not([data-full]) .tv-face{grid-template-columns:minmax(132px,1fr) auto minmax(132px,1fr)}
+  :root[data-layout="desk"]:not([data-full]) .nameplate{width:176px}
+  :root[data-layout="desk"]:not([data-full]) .dial-wrap{width:124px;height:124px}
+  :root[data-layout="desk"]:not([data-full]) .dial{transform:scale(.84)}
+}

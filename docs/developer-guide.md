@@ -376,12 +376,12 @@ The console's layout follows the screen, and the game has no say in it:
 
 | Layout | Stick or pad | FIRE and BOOST |
 | --- | --- | --- |
-| Desk (a computer) | Controls column right of the tube | Under the stick |
+| Desk (a computer) | Far left of the control deck under the full-width tube | Far right of the deck; the plate, switches, POWER, RESET and dial sit between |
 | Console (phone sideways) | Left of the tube | Right of the tube, under the dial and the plate |
 | Tall console (tablet or foldable sideways) | Full height, left of the tube | Bottom right, under the dial and the switches |
 | Phone and tablet upright | Under the tube, on the left | Under the tube, on the right |
 
-On desk and the upright layouts the pad keeps its two rows. On the sideways console layouts it is split for I Invade: `pad1` to `pad3` on the right with `pad4` under them, and BOOST above `pad5` on the left. `pad6` has no place there yet. ROCKETX swaps `pad4` and `pad5` there (its left fin goes to the left hand), keyed on `data-game`; a further pad game with a different set of keys means another such block in `src/styles/console.css`.
+On the upright layouts the pad keeps its two rows. On desk and the sideways console layouts it is split for I Invade: `pad1` to `pad3` on the right with `pad4` under them, and BOOST above `pad5` on the left. `pad6` has no place there yet. ROCKETX swaps `pad4` and `pad5` there (its left fin goes to the left hand), keyed on `data-game`; a further pad game with a different set of keys means another such block in `src/styles/console.css`.
 
 ### What a game can't do with buttons (yet)
 

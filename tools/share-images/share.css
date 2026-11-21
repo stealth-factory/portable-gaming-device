@@ -1,6 +1,6 @@
 html,body{margin:0;width:1200px;height:630px;overflow:hidden}
 body{position:relative;background:radial-gradient(90% 75% at 64% -6%,#2e2a22 0,#1a1813 46%,#111110 80%) #111110;color:#ddd3ba;font-family:Spectral,Georgia,serif}
-.tv{position:absolute;right:-56px;top:48px;width:690px;filter:drop-shadow(0 28px 36px rgba(0,0,0,.7))}
+.tv{position:absolute;right:20px;top:30px;width:620px;filter:drop-shadow(0 28px 36px rgba(0,0,0,.7))}
 .copy{position:absolute;left:60px;top:58px;width:470px;display:flex;flex-direction:column;gap:16px}
 h1{margin:0;font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:58px;line-height:1;letter-spacing:.18em;text-transform:uppercase;color:#e4dac0}
 h1 small{display:block;font-size:22px;letter-spacing:.2em;color:#a99d84;margin-top:10px}
