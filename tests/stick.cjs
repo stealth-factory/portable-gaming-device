@@ -106,6 +106,28 @@ await toMenu(); await p.evaluate(() => { Storage.prototype.setItem = () => { thr
 await tapSwitch(); if (await modeOf() !== 'dpad') errs.push('flip with storage refused: ' + await modeOf());
 await load('tunnel'); if (await modeOf() !== 'dpad') errs.push("with storage refused, the console's flip should still carry into a game, got " + await modeOf());
 
+// 10. a finger held on a control never brings up iOS's magnifying glass or a selection (GAM-115): the controls that read
+// pointer events cancel their touchstart, the click-driven switches keep theirs (or their click would be lost), and
+// the set refuses to start a selection
+await p.evaluate(() => { document.addEventListener('touchstart', e => { window.__tsAt = e.target; window.__tsCancelled = e.defaultPrevented; }); });
+const cancelledOn = id => p.evaluate(id => { const el = document.getElementById(id); return el && el.contains(window.__tsAt) ? window.__tsCancelled : 'missed ' + (window.__tsAt?.id || window.__tsAt?.className); }, id);
+const centreOf = sel => p.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, sel);
+const tapOn = async (sel, id) => { const [x, y] = await centreOf(sel); await touch('touchStart', [[x, y, id]]); await p.waitForTimeout(30); await touch('touchEnd', []); };
+for (const [sel, key] of [['#stickzone', 'stickzone'], ['#padModeBtn', 'padModeBtn'], ['#dial', 'dial'], ['#cv', 'cv'], ['#boostBtn', 'boostBtn']]) {
+  await tapOn(sel, 20);
+  const got = await cancelledOn(key);
+  if (got !== true) errs.push(`${key}: touchstart not cancelled (${got}), so iOS can show the magnifier on a hold`);
+}
+{ await p.waitForTimeout(500); const before = await p.getAttribute('#fxBtn', 'aria-pressed'); await tapOn('#fxBtn', 21); await p.waitForTimeout(300);
+  { const c = await cancelledOn('fxBtn'); if (c !== false) errs.push(`GLOW switch: touchstart ${c === true ? 'cancelled, which would swallow its click' : c}`); }
+  if (await p.getAttribute('#fxBtn', 'aria-pressed') === before) errs.push('GLOW switch: a real tap no longer flips it'); }
+{ const [x, y] = await centreOf('#fireBtn'); await touch('touchStart', [[x, y, 22]]); await p.waitForTimeout(600);
+  if (!await p.evaluate(() => document.querySelector('#fireBtn').classList.contains('on'))) errs.push('FIRE: a held touch does not press it');
+  if (await cancelledOn('fireBtn') !== true) errs.push('FIRE: touchstart not cancelled');
+  await touch('touchEnd', []); }
+if (!await p.evaluate(() => { const ev = new Event('selectstart', { bubbles: true, cancelable: true }); document.querySelector('#stickzone').dispatchEvent(ev); return ev.defaultPrevented; })) errs.push('a selection can start on the set');
+if (await p.evaluate(() => (getSelection()?.toString() ?? '').length) > 0) errs.push('text got selected: ' + await p.evaluate(() => getSelection().toString()));
+
 await b.close();
 if (errs.length) { console.log('FAIL\n' + errs.join('\n')); process.exit(1); }
 console.log('stick ok');

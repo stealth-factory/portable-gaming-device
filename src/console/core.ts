@@ -7,6 +7,7 @@ import { bus } from "./bus";
 import * as Btn from "./buttons";
 import { Stick } from "./stick";
 import { DPad, nextPadMode, padKey, resolvePadMode, type PadMode } from "./dpad";
+import { noTouchHold, noSelectOn } from "./nohold";
 import { makeHaptics, type Haptic } from "../kit/platform/haptics";
 import { DEFAULTS, SETTINGS_EVENT, isPadKey } from "./settings";
 import { COVER_W, COVER_H, encodeCover, shrink, cropTo } from "./launcher/cover";
@@ -409,6 +410,10 @@ const padOwner = () => game && tvOn && (inGame() || S.mode === 'load') ? game : 
     el.addEventListener('contextmenu', e => e.preventDefault());
   });
 })();
+/* a finger held on a control must never bring up iOS's magnifying glass or a selection (GAM-115): the controls that read
+   pointer events cancel the touch itself (nohold.ts), and the whole set refuses to start a selection or a long-press menu */
+for (const id of ['stickzone', 'fireBtn', 'boostBtn', 'fireLBtn', 'fireRBtn', 'dial', 'cv']) noTouchHold($(id));
+{ const tv = document.querySelector('.tv'); if (tv) noSelectOn(tv); }
 /* a game with no stick (`controls: 'pad'`) gets the button pad in the stick's place while it plays; the stick is back
    for the console's own screens (menu, loading, name entry, high scores), so SELECT and RESET restore it too. A stick
    game that puts buttons on the pad with setButtons (ROCKETX's thruster controls) gets the pad for as long as it does. */
