@@ -273,11 +273,12 @@ api.stamp(sky, 0, api.HUD);
 | Read | Gives |
 | --- | --- |
 | `api.wantDir()` | The step to move now, `{ dx, dy }` or `null`: the on-screen stick first, then the newest arrow or WASD key |
-| `api.stickDir` | The stick alone: `'up'`, `'down'`, `'left'`, `'right'` or `null` |
-| `api.held` | Direction keys held, newest last. The only way to read a diagonal |
+| `api.stickDir` | The stick or D-pad alone: `'up'`, `'down'`, `'left'`, `'right'` or `null`. On a D-pad diagonal, the primary one: the direction already held, if it still is, otherwise the stronger axis |
+| `api.stickDirs` | Every direction the stick or D-pad holds: none, one, or two on a D-pad diagonal (`stickDir` first) |
+| `api.held` | Direction keys held, newest last |
 | kit `horizontal(api)` | −1, 0 or 1, for games that only move sideways |
 
-The on-screen stick is 4-way. Only the keyboard can hold a diagonal (Martian Storm combines `api.held`).
+The player picks how the on-screen control works with the switch across the top of its well: **STICK** (the floating thumb-stick, 4-way) or **D-PAD** (a fixed cross, where pressing between two arms holds both, a diagonal). A game doesn't choose and doesn't need to know: `stickDir` is always one direction, so a 4-way game plays the same in either setting. A game that can use a diagonal reads `api.stickDirs` alongside `api.held` (Martian Storm combines them, scaling a diagonal so it is no faster). Older hosts may lack `stickDirs`, so fall back to `stickDir` (`api.stickDirs ?? api.stickDir`).
 
 ### Action buttons
 
@@ -612,7 +613,7 @@ Every member, grouped. Values are live: read them when you need them.
 | Grid | `W`, `H`, `C`, `K`, `idx(x, y)`, `inb(x, y)`, `DIRS` |
 | Drawing helpers | `txt(s, x, y, role?, align?, size?)`, `banner(title, sub?)`, `rr(x, y, w, h, r)`, `poly(pts)`, `circ(x, y, r)` |
 | State | `S` |
-| Stick and keys | `held`, `stickDir`, `wantDir()` |
+| Stick and keys | `held`, `stickDir`, `stickDirs`, `wantDir()` |
 | Buttons | `button(id)`, `clearButton(id)`, `setButtons(patch)`, `fireQueued`, `fireHeld`, `boostQueued`, `boostHeld`, `clearFire()`, `clearBoost()`, `setBoostLabel(key)` (deprecated: use `setButtons`) |
 | Taps | `tapQueued`, `tapHeld`, `tapX`, `clearTap()` |
 | Sound and touch | `tone(freq, dur, vol?, slide?, delay?)`, `buzz(h)` |

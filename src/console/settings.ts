@@ -1,8 +1,8 @@
 /* The set's settings and the scores kept on this device: what "reset" puts back, and which storage keys
    "clear high scores" removes. Plain data and pure functions, so the unit tests can check them. */
 
-/** The set as it leaves the factory: green P1, SOUND and GLOW on, HOLD and FULL off, English. */
-export const DEFAULTS = { mode: 'greenP1', fx: true, sound: true, hold: false, full: false, lang: 'en' } as const;
+/** The set as it leaves the factory: green P1, SOUND and GLOW on, HOLD and FULL off, the joystick a stick (not the D-pad), English. */
+export const DEFAULTS = { mode: 'greenP1', fx: true, sound: true, hold: false, full: false, dpad: 'stick', lang: 'en' } as const;
 
 /** A storage key that holds a score or the last name typed: every game's best and table (`gg-best-<id>`,
     `gg-board-<id>`), the name (`gg-name`), and the standalone Tunnel Raider's, which the console still reads. */

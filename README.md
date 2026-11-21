@@ -47,6 +47,7 @@ Each game also has its own page that boots straight into its disk: `/tunnel-raid
   - **Dial:** green P1, long-afterglow green P39, radar P7 (a visible beam sweeping down the tube), amber P3, paper white P4 and the two CGA palettes.
   - **Switches:** SOUND, GLOW (all the tube effects), HOLD (pause) and FULL (full screen). HOLD switches itself on when you leave the tab or app mid-game, and stays on until you resume.
 - **FIRE and BOOST** change with the game: FIRE and BOOST in Tunnel Raider, JUMP and DUCK in Dino Run, FIRE and SHIELD in Invader Force (SHIELD turns into NUKE while you hold an atomic bomb), BOMB and UFO in I Invade, SERVE in Bricks, where BOOST stays dark, and FIRE, BOMB and LOOP in Martian Storm, and KICK in Reef Run, where BOOST stays dark. LOOP spends one tuck per press; BOMB (or <kbd>V</kbd>) sets off a bomb. In Dino Run and Invader Force a tap on the screen works as JUMP or FIRE; in I Invade it fires the nearest bomb bay; in Bricks it serves, and does nothing while the ember is already in the air; in Martian Storm it shoots, and it does not tuck; in Reef Run it kicks.
+- **Stick or D-pad:** the switch along the top of the joystick's well picks **STICK** (the floating thumb-stick) or **D-PAD** (a fixed cross, like a handheld's: press an arm, roll your thumb from one to the next, or press between two arms for a diagonal). Every game plays in both; games that move in four directions take the main one, and Martian Storm's skiff flies diagonally as it does with two keys. The setting stays on the device, and Settings reset puts STICK back. Logic in `src/console/dpad.ts`.
 - **The button pad:** a game with no use for the stick (I Invade) swaps it for a pad of up to six buttons while it plays, and FIRE's row steps aside. In I Invade the top row is the left, middle and right bomb bays (◀ ▲ ▶, or <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd>, <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd>; <kbd>Space</kbd> is the middle bay too) and the bottom row the cluster sweep (<kbd>A</kbd>) and the meteor swarm (<kbd>S</kbd>, dimmed until charged); BOOST (<kbd>Shift</kbd>) calls the UFO. On the sideways console layout the three red bays move to the right with CLUSTER under them, and UFO sits above METEORS on the left; desk and the portrait layouts keep the two-row pad. The stick is back for the menu, loading, name entry and the high scores.
 - **Instructions:** the printed leaflet under the set shows the console's instructions while the menu is up and the loaded game's while you play.
 - **Settings:** the foot of the leaflet has **Reset settings** (green P1, SOUND and GLOW on, HOLD and FULL off, English) and, kept apart in wine red, **Clear high scores** (every game's table and best, and the saved name, on this device). Each asks before it acts.
@@ -96,7 +97,7 @@ Browser checks use Playwright against `npm run preview`. They need Chromium and 
 npm run preview &
 NODE_PATH=$(npm root -g) node tests/flow.cjs    # boot → menu → every disk (play, game over, name entry, back) plus Invader Force weapons, at three sizes
 NODE_PATH=$(npm root -g) node tests/pages.cjs   # the leaflet follows game and language; game pages; offline play
-NODE_PATH=$(npm root -g) node tests/stick.cjs   # the phone joystick steers, lets go, and never sticks when a release is lost
+NODE_PATH=$(npm root -g) node tests/stick.cjs   # the phone joystick steers, lets go, and never sticks when a release is lost; the D-pad switch
 NODE_PATH=$(npm root -g) node tests/haptics.cjs # the set's controls and games buzz, SOUND off is silent, and the leaflet's reset and clear-scores work
 ```
 
@@ -192,6 +193,7 @@ It switches the set on, captures the menu, each game's loading screen and some p
 | `nuke` | `wave`, `rows` | Invader Force: an atomic bomb goes off (`rows` it wiped out) |
 | `rocketx_setup` | `rocket`, `control` | ROCKETX: the setup card is confirmed; `rocket` is `stilt`, `hauler` or `cruiser`, `control` is `stick`, `pilot` or `engineer` |
 | `theme` | `theme`, `via` | The phosphor changes by `dial` or `key` |
+| `dpad` | `mode`, `via` | The joystick's switch moves to `stick` or `dpad`; `via` is `switch` |
 | `settings_reset` | `layout` | The leaflet's Reset settings is confirmed |
 | `scores_cleared` | `game` | The leaflet's Clear high scores is confirmed (`game` is the disk loaded at the time) |
 | `language` | `lang` | The leaflet's language changes |

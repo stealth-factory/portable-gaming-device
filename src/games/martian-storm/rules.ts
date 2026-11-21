@@ -60,15 +60,13 @@ export function skiffSpeed(boosts: number): number {
   return SKIFF_SPEED + Math.max(0, Math.min(SPEED_MAX, boosts)) * SPEED_STEP;
 }
 
-/** Keyboard diagonals share one speed with a single axis. A stick direction wins, and it is only ever one axis. */
-export function skiffVelocity(held: readonly Axis[], stick: Axis | null, speed = SKIFF_SPEED): { vx: number; vy: number } {
-  if (stick) {
-    const vx = stick === 'left' ? -speed : stick === 'right' ? speed : 0;
-    const vy = stick === 'up' ? -speed : stick === 'down' ? speed : 0;
-    return { vx, vy };
-  }
-  const horizontal = [...held].reverse().find(d => d === 'left' || d === 'right');
-  const vertical = [...held].reverse().find(d => d === 'up' || d === 'down');
+/** Diagonals share one speed with a single axis. The on-screen stick or D-pad wins over the keys: one direction, or two
+    on a D-pad diagonal (GAM-112). */
+export function skiffVelocity(held: readonly Axis[], stick: Axis | readonly Axis[] | null | undefined, speed = SKIFF_SPEED): { vx: number; vy: number } {
+  const sticks = stick == null ? [] : typeof stick === 'string' ? [stick] : stick;
+  const from = sticks.length ? sticks : held;
+  const horizontal = [...from].reverse().find(d => d === 'left' || d === 'right');
+  const vertical = [...from].reverse().find(d => d === 'up' || d === 'down');
   let x = horizontal === 'left' ? -1 : horizontal === 'right' ? 1 : 0;
   let y = vertical === 'up' ? -1 : vertical === 'down' ? 1 : 0;
   if (x !== 0 && y !== 0) {

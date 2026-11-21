@@ -163,7 +163,7 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
   :root[data-layout="console"] .keyrow{gap:16px}
   :root[data-layout="console"] .fire{height:56px}
   :root[data-layout="console"] .boost{height:48px}
-  :root[data-layout="console"] .stickbase{transform:scale(1.15)}
+  :root[data-layout="console"] .stickbase,:root[data-layout="console"] .dpad{transform:scale(1.15)}
   :root[data-layout="console"] .tube-surround{width:min(calc((var(--avail-h) - 2 * var(--fp) - 2 * var(--sp)) * 1.75 + 2 * var(--sp)), calc(100vw - 2 * max(16px, env(safe-area-inset-left, 0px)) - 2 * var(--fp) - 392px))}
 }
 
@@ -385,6 +385,45 @@ button:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
 .knob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4a463c,#26241f 70%);border:2px solid #57524a;box-shadow:0 4px 10px rgba(0,0,0,.6)}
 .stickzone.active .knob{border-color:var(--phos);box-shadow:0 0 14px color-mix(in srgb, var(--phos) 45%, transparent)}
 .hint{position:absolute;left:10px;bottom:8px;font-family:var(--display);font-size:9px;letter-spacing:.12em;color:#5f5a4f;pointer-events:none}
+/* the D-pad (GAM-112): a fixed cross in the middle of the well, in place of the stick while the switch says D-PAD */
+.dpad,.dhint{display:none}
+.stickzone[data-mode^="dpad"] .stickbase,.stickzone[data-mode^="dpad"] .hint:not(.dhint){display:none}
+.stickzone[data-mode^="dpad"] .dpad{display:block}
+.stickzone[data-mode^="dpad"] .dhint{display:block}
+.dpad{position:absolute;left:50%;top:50%;width:104px;height:104px;margin:-52px 0 0 -52px;border-radius:50%;background:radial-gradient(circle,#1d1b17 0 62%,transparent 64%);pointer-events:none}
+.dpad-cross{position:absolute;inset:4px;transition:transform .05s}
+.arm,.hub{position:absolute;background:linear-gradient(180deg,#3d3a33,#25231e 70%,#1b1a16);border:1px solid #0b0a08;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 0 #0b0a08}
+.arm[data-d="up"]{left:32px;top:0;width:32px;height:34px;border-radius:5px 5px 0 0;border-bottom:0}
+.arm[data-d="down"]{left:32px;bottom:0;width:32px;height:34px;border-radius:0 0 5px 5px;border-top:0}
+.arm[data-d="left"]{top:32px;left:0;width:34px;height:32px;border-radius:5px 0 0 5px;border-right:0}
+.arm[data-d="right"]{top:32px;right:0;width:34px;height:32px;border-radius:0 5px 5px 0;border-left:0}
+.hub{left:32px;top:32px;width:32px;height:32px;border:0;box-shadow:none;background:radial-gradient(circle,#1a1915 0 30%,#2c2a24 34%)}
+.arm::after{content:"";position:absolute;left:50%;top:50%;width:0;height:0;border:6px solid transparent;margin:-6px 0 0 -6px}
+.arm[data-d="up"]::after{border-bottom-color:#4a463c;margin-top:-10px}
+.arm[data-d="down"]::after{border-top-color:#4a463c;margin-top:-2px}
+.arm[data-d="left"]::after{border-right-color:#4a463c;margin-left:-10px}
+.arm[data-d="right"]::after{border-left-color:#4a463c;margin-left:-2px}
+.arm[data-d="up"].on::after{border-bottom-color:var(--phos)}
+.arm[data-d="down"].on::after{border-top-color:var(--phos)}
+.arm[data-d="left"].on::after{border-right-color:var(--phos)}
+.arm[data-d="right"].on::after{border-left-color:var(--phos)}
+.arm.on{background:linear-gradient(180deg,#2c2a24,#1d1b17)}
+[data-off] .arm.on::after{border-color:transparent}
+/* the switch across the well's top: STICK or D-PAD, the setting in use lit */
+/* the switch is a strip across the top of the well, flush with its edges: it spans whatever width the well has in
+   every layout, the two settings share it equally, and the well's rounded corners clip its own */
+/* the well's resting picture centres in the space under the strip (--mh is the strip's height); a held stick follows
+   the finger exactly, so the offset only applies at rest */
+.stickzone{--mh:23px}
+.stickzone:not(.active) .stickbase{margin-top:calc(var(--mh) / 2 - 66px)}
+.stickzone .dpad{margin-top:calc(var(--mh) / 2 - 52px)}
+[data-pad] .stickzone{--mh:0px}
+.padmode{position:absolute;z-index:2;top:0;left:0;right:0;display:flex;gap:1px;margin:0;padding:3px;border:0;border-bottom:1px solid #2b2924;border-radius:0;cursor:pointer;touch-action:manipulation;background:#0d0c0a;box-shadow:inset 0 -1px 0 rgba(255,255,255,.04),0 1px 3px rgba(0,0,0,.5)}
+.padmode span{flex:1 1 0;min-width:0;text-align:center;white-space:nowrap;font-family:var(--display);font-size:8px;letter-spacing:.06em;line-height:1;padding:4px 2px;border-radius:3px;color:#5f5a4f}
+.padmode[data-mode="stick"] [data-m="stick"],.padmode[data-mode="dpad"] [data-m="dpad"]{color:var(--phos);background:linear-gradient(180deg,#3a372f,#24221d);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+[data-off] .padmode span{color:#5f5a4f !important}
+.padmode:focus-visible{outline:2px solid var(--phos);outline-offset:-2px}
+[data-pad] .padmode,[data-pad] .dpad,[data-pad] .dhint{display:none !important}
 /* arcade fire key: a wide red button in a black collar, under the stick */
 .fire{flex:0 0 auto;width:100%;height:58px;border-radius:9px;cursor:pointer;touch-action:none;font-family:var(--display);font-size:16px;letter-spacing:.24em;color:#fff1e6;text-shadow:0 1px 0 rgba(0,0,0,.45);border:2px solid #3a0d08;
   background:linear-gradient(180deg,#ff7a62 0,#e2382b 22%,#c0251a 70%,#8a140b);
@@ -572,3 +611,7 @@ h1 .h-dx{color:#cfc3a3}
   [data-pad][data-layout="console"] .tv-face{grid-template-rows:auto minmax(0,1fr) auto auto minmax(0,1fr) auto auto;grid-template-areas:"pwr screen plate" ". screen ." ". screen dial" ". screen rock" ". screen ." "ufo screen bays" "met screen clus"}
 }
 [data-pad][data-full][data-layout="console"] .tv-face{grid-template-rows:minmax(0,1fr) auto auto;grid-template-areas:". screen ." "ufo screen bays" "met screen clus"}
+/* in a short well the D-pad, pushed down under the switch, would run into its hint, and the switch already says
+   which setting is on, so the hint goes */
+.stickzone{container-type:size}
+@container (max-height:175px){.dhint{display:none !important}}

@@ -55,6 +55,29 @@ await p.evaluate(() => window.dispatchEvent(new TouchEvent('touchend', { touches
 await check('mouse held through an unrelated touchend', 'right');
 await synth('pointerup', 12, zone.cx + 40, zone.cy); await check('mouse up', null);
 
+// 8. the switch across the well's top (GAM-112): STICK or D-PAD; the D-pad is a fixed cross that holds diagonals,
+// (stickDir staying one direction is in tests/unit/dpad.test.ts), and the choice is kept across a reload
+const arms = () => p.evaluate(() => [...document.querySelectorAll('#stickzone .arm.on')].map(e => e.dataset.d).sort().join('+') || null);
+const modeOf = () => p.$eval('#padModeBtn', e => e.dataset.mode);
+const tapSwitch = async () => { const r = await p.$eval('#padModeBtn', e => { const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }); await p.touchscreen.tap(r.x, r.y); };
+if (await p.$$eval('#padModeBtn [data-m]', e => e.length) !== 2) errs.push('switch: should have two settings');
+await tapSwitch(); if (await modeOf() !== 'dpad') errs.push('switch: first press should give D-PAD, got ' + await modeOf());
+if (await dir() !== null || await arms() !== null) errs.push('tapping the switch steered');
+const cross = await p.evaluate(() => { const r = document.querySelector('#dpad').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; });
+if (!cross.w) errs.push('D-PAD: the cross is not shown');
+await touch('touchStart', [[cross.x + 30, cross.y + 4, 20]]); { const a = await arms(); if (a !== 'right') errs.push(`D-PAD right arm: ${a}`); }
+await touch('touchMove', [[cross.x + 28, cross.y - 28, 20]]);
+{ const a = await arms(); if (a !== 'right+up') errs.push(`D-PAD diagonal: ${a}`); }
+await touch('touchEnd', []); { const a = await arms(); if (a !== null) errs.push(`D-PAD lift: ${a}`); }
+await p.reload(); await p.waitForTimeout(400);
+if (await modeOf() !== 'dpad') errs.push('D-PAD not kept across a reload');
+await tapSwitch(); if (await modeOf() !== 'stick') errs.push('switch: second press should give STICK');
+// the keyboard: Enter or Space on the focused switch steps it, and never reaches the game as FIRE
+await p.focus('#padModeBtn'); await p.keyboard.press('Space');
+if (await modeOf() !== 'dpad') errs.push('Space on the focused switch should step it to D-PAD, got ' + await modeOf());
+await p.keyboard.press('Enter');
+if (await modeOf() !== 'stick') errs.push('Enter on the focused switch should step it back to STICK, got ' + await modeOf());
+
 await b.close();
 if (errs.length) { console.log('FAIL\n' + errs.join('\n')); process.exit(1); }
 console.log('stick ok');

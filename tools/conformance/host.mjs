@@ -19,12 +19,14 @@ export function parseScript(value) {
   if (!Array.isArray(events)) throw new Error('events must be an array');
   let previous = -1;
   for (const event of events) {
-    object(event, 'event'); keys(event, ['frame', 'held', 'stickDir', 'buttons', 'press', 'tap'], 'event');
+    object(event, 'event'); keys(event, ['frame', 'held', 'stickDir', 'stickDirs', 'buttons', 'press', 'tap'], 'event');
     integer(event.frame, 0, frames - 1, 'event.frame');
     if (event.frame < previous) throw new Error('events must be ordered by frame');
     previous = event.frame;
     if (event.held !== undefined && (!Array.isArray(event.held) || event.held.some(d => !Object.hasOwn(DIRS, d)) || new Set(event.held).size !== event.held.length)) throw new Error('held must contain distinct directions, newest last');
     if (event.stickDir !== undefined && event.stickDir !== null && !Object.hasOwn(DIRS, event.stickDir)) throw new Error('stickDir must be a direction or null');
+    if (event.stickDirs !== undefined && (!Array.isArray(event.stickDirs) || event.stickDirs.length > 2 || event.stickDirs.some(d => typeof d !== 'string' || !Object.hasOwn(DIRS, d)) || new Set(event.stickDirs).size !== event.stickDirs.length)) throw new Error('stickDirs must hold up to two distinct directions');
+    if (event.stickDir !== undefined && event.stickDirs !== undefined) throw new Error('set stickDir or stickDirs, not both');
     if (event.buttons !== undefined) {
       object(event.buttons, 'buttons'); keys(event.buttons, SLOTS, 'buttons');
       if (Object.values(event.buttons).some(v => typeof v !== 'boolean')) throw new Error('button values must be booleans');

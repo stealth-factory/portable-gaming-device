@@ -90,6 +90,14 @@ describe('skiff movement', () => {
   it('lets the 4-way stick win, one axis at a time', () => {
     expect(skiffVelocity(['up', 'right'], 'left')).toEqual({ vx: -SKIFF_SPEED, vy: 0 });
   });
+
+  it('flies an 8-way D-pad diagonal at the same speed as one axis (GAM-112)', () => {
+    const v = skiffVelocity([], ['up', 'right'], 120);
+    expect(v.vx).toBeCloseTo(120 / Math.SQRT2);
+    expect(v.vy).toBeCloseTo(-120 / Math.SQRT2);
+    expect(skiffVelocity(['down'], ['left'])).toEqual({ vx: -SKIFF_SPEED, vy: 0 });
+    expect(skiffVelocity(['down'], [])).toEqual({ vx: 0, vy: SKIFF_SPEED });
+  });
 });
 
 describe('the tuck', () => {

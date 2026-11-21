@@ -104,8 +104,11 @@ export interface ConsoleAPI {
   /* ---- input ---- */
   /** Directions held on the keyboard, newest last. */
   readonly held: Dir[];
-  /** The on-screen stick's direction, or null. */
+  /** The on-screen stick's or D-pad's direction, or null. On a D-pad diagonal, the primary one: the direction already held, if it
+      still is, otherwise the stronger axis, so it doesn't flicker. */
   readonly stickDir: Dir | null;
+  /** Every direction the on-screen stick or D-pad holds: none, one, or two on a D-pad diagonal (`stickDir` first). */
+  readonly stickDirs: readonly Dir[];
   /** The step to move in now (stick first, then the newest key), or null. */
   wantDir(): Step | null;
   /** Any action button by slot id: its label, whether it's live, and its press state. The set has 'fire' and 'boost', plus
