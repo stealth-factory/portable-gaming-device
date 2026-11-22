@@ -1,0 +1,1 @@
+var e=(e,t,n)=>Math.max(t,Math.min(n,e)),t=(e,t)=>e+Math.random()*(t-e);export{t as n,e as t};

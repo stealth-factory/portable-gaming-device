@@ -1,0 +1,1 @@
+var e=(e,t)=>e.x<t.x+t.w&&e.x+e.w>t.x&&e.y<t.y+t.h&&e.y+e.h>t.y;function t(e,t,n,r,i){let a=Math.max(1,Math.ceil(Math.hypot(t,n)/Math.max(r,1e-6)));for(let r=1;r<=a;r++){let o=e.x+t*r/a,s=e.y+n*r/a;if(i(o,s))return{x:o,y:s,hit:!0}}return{x:e.x+t,y:e.y+n,hit:!1}}export{t as n,e as t};
